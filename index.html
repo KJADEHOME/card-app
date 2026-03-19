@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 CardRealm - 我的卡牌收藏</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .add-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .add-btn:hover { transform: translateY(-2px); }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .card-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.2s;
+            border: 2px solid transparent;
+        }
+        .card-item:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+        }
+        .card-img {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+        }
+        .card-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .card-info {
+            color: #666;
+            font-size: 12px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+        .error {
+            text-align: center;
+            color: #e74c3c;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🃏 卡域 CardRealm</h1>
+        <p class="subtitle">管理你的卡牌收藏，发现交易机会</p>
+        
+        <button class="add-btn" onclick="showAddForm()">+ 添加卡牌</button>
+        
+        <div id="cardList" class="card-grid">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+        
+        let supabaseClient = null;
+        
+        // 初始化 Supabase
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('Supabase 初始化成功');
+        } catch (e) {
+            console.error('Supabase 初始化失败:', e);
+            document.getElementById('cardList').innerHTML = '<div class="error">初始化失败，请检查网络</div>';
+        }
+        
+        // 页面加载时获取卡牌
+        async function loadCards() {
+            if (!supabaseClient) {
+                document.getElementById('cardList').innerHTML = '<div class="error">数据库未连接</div>';
+                return;
+            }
+            
+            try {
+                const { data: cards, error } = await supabaseClient
+                    .from('cards')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('查询错误:', error);
+                    document.getElementById('cardList').innerHTML = '<div class="error">加载失败: ' + error.message + '</div>';
+                    return;
+                }
+                
+                renderCards(cards || []);
+            } catch (e) {
+                console.error('加载异常:', e);
+                document.getElementById('cardList').innerHTML = '<div class="error">加载异常，请检查网络</div>';
+            }
+        }
+        
+        // 渲染卡牌
+        function renderCards(cards) {
+            const list = document.getElementById('cardList');
+            
+            if (cards.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <div class="empty-icon">📭</div>
+                        <p>还没有卡牌，点击上方按钮添加</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = cards.map(card => `
+                <div class="card-item">
+                    <div class="card-img">🎴</div>
+                    <div class="card-name">${card.name}</div>
+                    <div class="card-info">${card.type || '怪兽卡'} · ${card.rarity || 'SR'}</div>
+                    <div class="card-info" style="margin-top:5px;color:#999;">
+                        ${new Date(card.created_at).toLocaleDateString()}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 添加卡牌
+        async function showAddForm() {
+            if (!supabaseClient) {
+                alert('数据库未连接，请检查网络');
+                return;
+            }
+            
+            const name = prompt('卡牌名称：');
+            if (!name) return;
+            
+            const type = prompt('卡牌类型（默认：怪兽卡）：') || '怪兽卡';
+            const rarity = prompt('稀有度（默认：SR）：') || 'SR';
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('cards')
+                    .insert([
+                        { name, type, rarity }
+                    ]);
+                
+                if (error) {
+                    alert('添加失败：' + error.message);
+                    return;
+                }
+                
+                // 重新加载卡牌列表
+                loadCards();
+            } catch (e) {
+                alert('添加异常：' + e.message);
+            }
+        }
+        
+        // 页面加载时执行
+        setTimeout(loadCards, 1000);
+    </script>
+</body>
+</html>
