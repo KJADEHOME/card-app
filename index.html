@@ -138,10 +138,13 @@
 <body>
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h1 style="margin: 0;">🃏 卡域 CardRealm</h1>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button onclick="goBack()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">← 返回</button>
+                <h1 style="margin: 0;">🃏 卡域 CardRealm</h1>
+            </div>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span id="usernameDisplay" style="color: #666; font-size: 14px;"></span>
-                <button onclick="logout()" style="padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">退出</button>
+                <button onclick="logout()" style="padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">退出登录</button>
             </div>
         </div>
         <p class="subtitle">管理你的卡牌收藏，发现交易机会</p>
@@ -173,6 +176,11 @@
         // 显示当前用户名
         if (currentUser) {
             document.getElementById('usernameDisplay').textContent = '👤 ' + currentUser;
+        }
+        
+        // 返回登录页
+        function goBack() {
+            window.location.href = 'login.html';
         }
         
         // 退出登录
