@@ -542,7 +542,7 @@
     <script>
         // Supabase 配置
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ';
         
         // 初始化 Supabase
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -653,20 +653,14 @@
             loadLocalCards();
         }
         
-        // 从 Supabase 加载卡牌
+        // 从 Supabase 加载卡牌（修改：加载所有卡牌，不限制用户）
         async function loadCards() {
             const cardList = document.getElementById('cardList');
-            
-            if (!currentUser) {
-                cardList.innerHTML = '<div class="error">请先登录</div>';
-                return;
-            }
             
             try {
                 const { data: cards, error } = await supabase
                     .from('cards')
                     .select('*')
-                    .eq('user_id', currentUser.id || currentUser.user_id)
                     .order('created_at', { ascending: false });
                 
                 if (error) throw error;
@@ -690,16 +684,11 @@
         // 加载本地卡牌
         function loadLocalCards() {
             const localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
-            // 过滤当前用户的卡牌
-            const userCards = localCards.filter(card => 
-                card.user_id === (currentUser.id || currentUser.user_id)
-            );
+            allCards = localCards;
             
-            allCards = userCards;
-            
-            if (userCards.length > 0) {
-                renderCards(userCards);
-                updateStats(userCards);
+            if (localCards.length > 0) {
+                renderCards(localCards);
+                updateStats(localCards);
             } else {
                 showEmptyState();
             }
