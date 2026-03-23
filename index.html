@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <!-- 登录检查 -->
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            window.location.href = 'login.html';
+        }
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卡域 CardRealm - 我的卡牌收藏</title>
@@ -130,7 +137,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>🃏 卡域 CardRealm</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 style="margin: 0;">🃏 卡域 CardRealm</h1>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="usernameDisplay" style="color: #666; font-size: 14px;"></span>
+                <button onclick="logout()" style="padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">退出</button>
+            </div>
+        </div>
         <p class="subtitle">管理你的卡牌收藏，发现交易机会</p>
         
         <button class="add-btn" onclick="showAddForm()">+ 添加卡牌</button>
@@ -146,6 +159,7 @@
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         
         let supabaseClient = null;
+        const currentUser = localStorage.getItem('currentUser');
         
         // 初始化 Supabase
         try {
@@ -156,7 +170,18 @@
             document.getElementById('cardList').innerHTML = '<div class="error">初始化失败，请检查网络</div>';
         }
         
-        // 页面加载时获取卡牌
+        // 显示当前用户名
+        if (currentUser) {
+            document.getElementById('usernameDisplay').textContent = '👤 ' + currentUser;
+        }
+        
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+        }
+        
+        // 加载卡牌（只加载当前用户的）
         async function loadCards() {
             if (!supabaseClient) {
                 document.getElementById('cardList').innerHTML = '<div class="error">数据库未连接</div>';
@@ -167,6 +192,7 @@
                 const { data: cards, error } = await supabaseClient
                     .from('cards')
                     .select('*')
+                    .eq('user_id', currentUser)
                     .order('created_at', { ascending: false });
                 
                 if (error) {
@@ -225,7 +251,7 @@
                 const { data, error } = await supabaseClient
                     .from('cards')
                     .insert([
-                        { name, type, rarity }
+                        { name, type, rarity, user_id: currentUser }
                     ]);
                 
                 if (error) {
@@ -233,7 +259,6 @@
                     return;
                 }
                 
-                // 重新加载卡牌列表
                 loadCards();
             } catch (e) {
                 alert('添加异常：' + e.message);

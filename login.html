@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 卡域 CardRealm</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .switch-mode {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        
+        .switch-mode a {
+            color: #667eea;
+            cursor: pointer;
+        }
+        
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>🃏 卡域</h1>
+        <p class="subtitle" id="modeText">登录你的账号</p>
+        
+        <div class="error" id="errorMsg"></div>
+        
+        <input type="text" id="username" placeholder="用户名" autocomplete="off">
+        <input type="password" id="password" placeholder="密码">
+        
+        <button onclick="handleSubmit()" id="submitBtn">登录</button>
+        
+        <div class="switch-mode">
+            <span id="switchText">还没有账号？</span>
+            <a onclick="toggleMode()" id="switchLink">立即注册</a>
+        </div>
+    </div>
+
+    <script>
+        let isLoginMode = true;
+        
+        // 检查是否已登录
+        if (localStorage.getItem('currentUser')) {
+            window.location.href = 'index.html';
+        }
+        
+        function toggleMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('modeText').textContent = isLoginMode ? '登录你的账号' : '创建新账号';
+            document.getElementById('submitBtn').textContent = isLoginMode ? '登录' : '注册';
+            document.getElementById('switchText').textContent = isLoginMode ? '还没有账号？' : '已有账号？';
+            document.getElementById('switchLink').textContent = isLoginMode ? '立即注册' : '立即登录';
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+        
+        function handleSubmit() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMsg');
+            
+            if (!username || !password) {
+                errorMsg.textContent = '请填写用户名和密码';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            
+            if (isLoginMode) {
+                // 登录
+                const users = JSON.parse(localStorage.getItem('users') || '{}');
+                if (users[username] && users[username].password === password) {
+                    localStorage.setItem('currentUser', username);
+                    window.location.href = 'index.html';
+                } else {
+                    errorMsg.textContent = '用户名或密码错误';
+                    errorMsg.style.display = 'block';
+                }
+            } else {
+                // 注册
+                const users = JSON.parse(localStorage.getItem('users') || '{}');
+                if (users[username]) {
+                    errorMsg.textContent = '用户名已存在';
+                    errorMsg.style.display = 'block';
+                } else {
+                    users[username] = { password: password, cards: [] };
+                    localStorage.setItem('users', JSON.stringify(users));
+                    localStorage.setItem('currentUser', username);
+                    window.location.href = 'index.html';
+                }
+            }
+        }
+        
+        // 回车键提交
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleSubmit();
+        });
+    </script>
+</body>
+</html>
