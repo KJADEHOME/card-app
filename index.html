@@ -164,6 +164,7 @@
             transition: all 0.3s;
             border: 2px solid transparent;
             cursor: pointer;
+            position: relative;
         }
         
         .card-item:hover {
@@ -212,6 +213,39 @@
             font-weight: bold;
             font-size: 13px;
             margin-top: 5px;
+        }
+        
+        .card-condition {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .favorite-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        
+        .favorite-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .favorite-btn.active {
+            color: #ff6b6b;
         }
         
         .empty-state {
@@ -467,12 +501,12 @@
                 <div class="form-group">
                     <label>稀有度</label>
                     <select id="cardRarity">
-                        <option value="common">普通</option>
-                        <option value="uncommon"> uncommon</option>
-                        <option value="rare">稀有</option>
-                        <option value="super_rare">超稀有</option>
-                        <option value="ultra_rare">极度稀有</option>
-                        <option value="secret"> secret</option>
+                        <option value="N">普通 (N)</option>
+                        <option value="R">稀有 (R)</option>
+                        <option value="SR">超稀有 (SR)</option>
+                        <option value="SSR">极度稀有 (SSR)</option>
+                        <option value="UR">终极稀有 (UR)</option>
+                        <option value="LR">传说 (LR)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -482,12 +516,16 @@
                 <div class="form-group">
                     <label>状态</label>
                     <select id="cardCondition">
-                        <option value="mint">全新</option>
-                        <option value="near_mint">近全新</option>
-                        <option value="excellent">优秀</option>
-                        <option value="good">良好</option>
-                        <option value="played">有磨损</option>
+                        <option value="mint">全新 (Mint)</option>
+                        <option value="near_mint">近全新 (NM)</option>
+                        <option value="excellent">优秀 (EX)</option>
+                        <option value="good">良好 (GD)</option>
+                        <option value="played">有磨损 (PL)</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>图片链接</label>
+                    <input type="url" id="cardImageUrl" placeholder="https://...">
                 </div>
                 <div class="form-group">
                     <label>备注</label>
@@ -504,13 +542,14 @@
     <script>
         // Supabase 配置
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDQwMDAwMDAsImV4cCI6MjAxOTU3NjAwMH0.placeholder'; // 请替换为你的实际 anon key
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ
         
         // 初始化 Supabase
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         // 当前用户
         let currentUser = null;
+        let allCards = [];
         
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', async () => {
@@ -576,6 +615,8 @@
                 price: parseFloat(document.getElementById('cardPrice').value) || 0,
                 condition: document.getElementById('cardCondition').value,
                 note: document.getElementById('cardNote').value,
+                image_url: document.getElementById('cardImageUrl').value || null,
+                is_favorite: false,
                 created_at: new Date().toISOString()
             };
             
@@ -630,9 +671,11 @@
                 
                 if (error) throw error;
                 
-                if (cards && cards.length > 0) {
-                    renderCards(cards);
-                    updateStats(cards);
+                allCards = cards || [];
+                
+                if (allCards.length > 0) {
+                    renderCards(allCards);
+                    updateStats(allCards);
                 } else {
                     // 尝试加载本地数据
                     loadLocalCards();
@@ -652,6 +695,8 @@
                 card.user_id === (currentUser.id || currentUser.user_id)
             );
             
+            allCards = userCards;
+            
             if (userCards.length > 0) {
                 renderCards(userCards);
                 updateStats(userCards);
@@ -666,12 +711,18 @@
             
             cardList.innerHTML = cards.map(card => `
                 <div class="card-item" onclick="viewCardDetail(${card.id})">
+                    <button class="favorite-btn ${card.is_favorite ? 'active' : ''}" 
+                            onclick="toggleFavorite(event, ${card.id})" 
+                            title="${card.is_favorite ? '取消收藏' : '收藏'}">
+                        ${card.is_favorite ? '❤️' : '🤍'}
+                    </button>
                     <div class="card-img">
-                        ${card.image_url ? `<img src="${card.image_url}" alt="${card.name}">` : '🃏'}
+                        ${card.image_url ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(card.name)}" onerror="this.style.display='none'; this.parentElement.textContent='🃏';">` : '🃏'}
                     </div>
                     <div class="card-name">${escapeHtml(card.name)}</div>
-                    <div class="card-info">${escapeHtml(card.series)} · ${getRarityText(card.rarity)}</div>
+                    <div class="card-info">${escapeHtml(card.series)} · ${escapeHtml(card.rarity)}</div>
                     ${card.price ? `<div class="card-price">¥${card.price}</div>` : ''}
+                    ${card.condition ? `<div class="card-condition">${getConditionText(card.condition)}</div>` : ''}
                 </div>
             `).join('');
         }
@@ -691,7 +742,7 @@
         // 更新统计
         function updateStats(cards) {
             const total = cards.length;
-            const totalValue = cards.reduce((sum, card) => sum + (card.price || 0), 0);
+            const totalValue = cards.reduce((sum, card) => sum + (parseFloat(card.price) || 0), 0);
             const favorites = cards.filter(c => c.is_favorite).length;
             
             document.getElementById('totalCards').textContent = total;
@@ -699,12 +750,50 @@
             document.getElementById('favCards').textContent = favorites;
         }
         
+        // 切换收藏状态
+        async function toggleFavorite(event, cardId) {
+            event.stopPropagation(); // 阻止冒泡，不触发卡片点击
+            
+            const card = allCards.find(c => c.id === cardId);
+            if (!card) return;
+            
+            const newStatus = !card.is_favorite;
+            
+            try {
+                const { error } = await supabase
+                    .from('cards')
+                    .update({ is_favorite: newStatus })
+                    .eq('id', cardId);
+                
+                if (error) throw error;
+                
+                // 更新本地数据
+                card.is_favorite = newStatus;
+                renderCards(allCards);
+                updateStats(allCards);
+            } catch (error) {
+                console.error('更新收藏状态失败:', error);
+                alert('操作失败: ' + error.message);
+            }
+        }
+        
         // 查看卡牌详情
         function viewCardDetail(cardId) {
+            const card = allCards.find(c => c.id === cardId);
+            if (!card) return;
+            
+            const detail = `
+                名称: ${card.name}
+                系列: ${card.series}
+                稀有度: ${card.rarity}
+                价格: ¥${card.price || 0}
+                状态: ${getConditionText(card.condition)}
+                备注: ${card.note || '无'}
+            `;
+            
+            alert(detail);
             // TODO: 实现详情页面跳转
-            console.log('查看卡牌:', cardId);
             // window.location.href = `card-detail.html?id=${cardId}`;
-            alert('详情页面开发中...');
         }
         
         // 辅助函数：HTML 转义
@@ -715,17 +804,16 @@
             return div.innerHTML;
         }
         
-        // 辅助函数：稀有度文本
-        function getRarityText(rarity) {
+        // 辅助函数：状态文本
+        function getConditionText(condition) {
             const map = {
-                'common': '普通',
-                'uncommon': 'uncommon',
-                'rare': '稀有',
-                'super_rare': '超稀有',
-                'ultra_rare': '极度稀有',
-                'secret': 'secret'
+                'mint': '全新',
+                'near_mint': '近全新',
+                'excellent': '优秀',
+                'good': '良好',
+                'played': '有磨损'
             };
-            return map[rarity] || rarity;
+            return map[condition] || condition;
         }
         
         // 键盘快捷键
