@@ -11,7 +11,7 @@
         .header-title { color: white; font-size: 18px; font-weight: bold; }
         .header-icon { color: white; font-size: 24px; cursor: pointer; }
         .content { padding: 15px; }
-        .stats-card { background: white; border-radius: 12px; padding: 20px; display: flex; justify-content: space-around; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .stats-card { background: white; border-radius: 12px; padding: 20px; display: flex; justify-content: space-around; margin-bottom: 15px; }
         .stat-item { text-align: center; }
         .stat-value { font-size: 24px; font-weight: bold; color: #667eea; }
         .stat-label { font-size: 12px; color: #999; margin-top: 5px; }
@@ -122,22 +122,39 @@
     <script>
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
+        let supabase = null;
         let currentUser = null;
-        let myCards = [];
+        
+        function initSupabase() {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                return true;
+            }
+            return false;
+        }
+        
+        function waitForSupabase(callback) {
+            if (initSupabase()) {
+                callback();
+            } else {
+                setTimeout(() => waitForSupabase(callback), 100);
+            }
+        }
 
         // 页面加载
-        document.addEventListener('DOMContentLoaded', async () => {
+        waitForSupabase(async () => {
+            console.log('Supabase初始化完成');
+            
             const { data: { user } } = await supabase.auth.getUser();
             currentUser = user;
+            
+            console.log('当前用户:', user);
             
             if (!user && !localStorage.getItem('isGuest')) {
                 window.location.href = 'login.html';
                 return;
             }
-            
-            loadCards();
             
             // 图片预览
             document.getElementById('cardImage').addEventListener('change', (e) => {
@@ -175,6 +192,8 @@
                 const price = parseFloat(document.getElementById('cardPrice').value) || 0;
                 const imageInput = document.getElementById('cardImage');
                 
+                console.log('添加卡牌:', { name, series, rarity, price });
+                
                 // 上传图片
                 let imageUrl = null;
                 if (imageInput.files[0]) {
@@ -190,20 +209,24 @@
                 // 保存卡牌
                 const { error } = await supabase.from('cards').insert([{
                     user_id: currentUser.id,
-                    name, series, rarity, price, image_url: imageUrl, favorite: false
+                    name, series, rarity, price, image_url: imageUrl
                 }]);
                 
                 btn.disabled = false;
                 btn.textContent = '保存';
                 
                 if (error) {
+                    console.error('保存失败:', error);
                     alert('保存失败: ' + error.message);
                 } else {
+                    console.log('保存成功');
                     alert('✅ 添加成功！');
                     closeModal();
                     loadCards();
                 }
             });
+            
+            loadCards();
         });
 
         async function loadCards() {
@@ -220,14 +243,16 @@
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: false });
             
+            console.log('加载卡牌:', data, error);
+            
             if (error) {
                 list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载失败</div>';
                 return;
             }
             
-            myCards = data || [];
+            const cards = data || [];
             
-            if (myCards.length === 0) {
+            if (cards.length === 0) {
                 list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">还没有卡牌，点击上方按钮添加</div>';
                 updateStats(0, 0, 0);
                 return;
@@ -242,9 +267,8 @@
                 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
             ];
             
-            list.innerHTML = myCards.map((card, i) => `
+            list.innerHTML = cards.map((card, i) => `
                 <div class="card-item">
-                    <button class="favorite-btn ${card.favorite ? 'active' : ''}" onclick="toggleFav('${card.id}', ${card.favorite})">${card.favorite ? '❤️' : '🤍'}</button>
                     <div class="card-img" style="${card.image_url ? 'background-image: url(' + card.image_url + '); background-size: cover;' : 'background: ' + gradients[i % gradients.length]}">
                         ${card.image_url ? '' : '<span>' + card.name.substring(0, 2) + '</span>'}
                     </div>
@@ -256,19 +280,14 @@
                 </div>
             `).join('');
             
-            const totalValue = myCards.reduce((sum, c) => sum + c.price, 0);
-            updateStats(myCards.length, totalValue, myCards.filter(c => c.favorite).length);
+            const totalValue = cards.reduce((sum, c) => sum + c.price, 0);
+            updateStats(cards.length, totalValue, 0);
         }
 
         function updateStats(total, value, favs) {
             document.getElementById('totalCards').textContent = total;
             document.getElementById('totalValue').textContent = '¥' + value;
             document.getElementById('favCards').textContent = favs;
-        }
-
-        async function toggleFav(id, current) {
-            await supabase.from('cards').update({ favorite: !current }).eq('id', id);
-            loadCards();
         }
 
         function openModal() {
@@ -290,177 +309,5 @@
             }
         }
     </script>
-</body>
-</html>e: parseFloat(price) || 0,
-                            image_url: imageUrl,
-                            favorite: false
-                        }])
-                        .select();
-                    
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = '保存';
-                    
-                    if (error) {
-                        console.error('添加失败:', error);
-                        alert('❌ 添加失败：' + error.message);
-                    } else {
-                        console.log('添加成功:', data);
-                        alert('✅ 添加成功：' + name);
-                        closeAddModal();
-                        loadMyCards();
-                    }
-                });
-            }
-            
-            // 加载卡牌列表
-            loadMyCards();
-            
-            // 注册Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('service-worker.js')
-                    .catch(err => console.log('SW注册失败:', err));
-            }
-        });
-        
-        // 打开添加弹窗
-        function addCard() {
-            document.getElementById('addModal').style.display = 'flex';
-        }
-        
-        // 关闭添加弹窗
-        function closeAddModal() {
-            document.getElementById('addModal').style.display = 'none';
-            document.getElementById('addForm').reset();
-            document.getElementById('imagePreview').innerHTML = '<span style="color: #999; font-size: 14px;">📷 点击上传图片</span>';
-            document.getElementById('imagePreview').style.backgroundImage = '';
-        }
-        
-        // 图片预览
-        function previewImage(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('imagePreview');
-                    preview.innerHTML = '';
-                    preview.style.backgroundImage = 'url(' + e.target.result + ')';
-                    preview.style.backgroundSize = 'cover';
-                    preview.style.backgroundPosition = 'center';
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-        
-        // 加载我的卡牌
-        async function loadMyCards() {
-            const cardList = document.getElementById('cardList');
-            cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载中...</div>';
-            
-            const { data: { user } } = await window.supabaseClient.auth.getUser();
-            if (!user) {
-                cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">请先登录</div>';
-                return;
-            }
-            
-            const { data, error } = await window.supabaseClient
-                .from('cards')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
-            
-            console.log('加载卡牌:', data, error);
-            
-            if (error) {
-                cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载失败</div>';
-                return;
-            }
-            
-            myCards = data || [];
-            
-            if (myCards.length === 0) {
-                cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">还没有卡牌，点击上方按钮添加</div>';
-                updateStats(0, 0, 0);
-                return;
-            }
-            
-            renderCards();
-        }
-        
-        // 渲染卡牌列表
-        function renderCards() {
-            const cardList = document.getElementById('cardList');
-            
-            const gradients = [
-                'linear-gradient(135deg, #ff6b9d 0%, #feca57 100%)',
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-            ];
-            
-            cardList.innerHTML = myCards.map((card, index) => {
-                const gradient = gradients[index % gradients.length];
-                return `
-                    <div class="card-item">
-                        <button class="favorite-btn ${card.favorite ? 'active' : ''}" onclick="toggleFav('${card.id}', ${card.favorite})">${card.favorite ? '❤️' : '🤍'}</button>
-                        <div class="card-img" style="${card.image_url ? 'background-image: url(' + card.image_url + '); background-size: cover; background-position: center;' : 'background: ' + gradient}">
-                            ${card.image_url ? '' : '<span>' + card.name.substring(0, 2) + '</span>'}
-                        </div>
-                        <div class="card-info">
-                            <div class="card-name">${card.name}</div>
-                            <div class="card-meta">${card.series} · ${card.rarity}</div>
-                            <div class="card-price">¥${card.price || 0}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            const totalValue = myCards.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
-            updateStats(myCards.length, totalValue, myCards.filter(c => c.favorite).length);
-        }
-        
-        // 更新统计
-        function updateStats(total, value, favs) {
-            document.getElementById('totalCards').textContent = total;
-            document.getElementById('totalValue').textContent = '¥' + value;
-            document.getElementById('favCards').textContent = favs;
-        }
-        
-        // 切换收藏
-        async function toggleFav(cardId, currentStatus) {
-            const { error } = await supabase
-                .from('cards')
-                .update({ favorite: !currentStatus })
-                .eq('id', cardId);
-            
-            if (!error) {
-                loadMyCards();
-            }
-        }
-        
-        // 登出
-        async function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                await window.supabaseClient.auth.signOut();
-                localStorage.removeItem('currentUser');
-                localStorage.removeItem('isGuest');
-                window.location.href = 'login.html';
-            }
-        }
-    </script>
-</body>
-</html>e;" onchange="previewImage(event)">
-                    <div id="imagePreview" onclick="document.getElementById('cardImage').click()" style="width: 100%; height: 150px; border: 2px dashed #e0e0e0; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f9f9f9;">
-                        <span style="color: #999; font-size: 14px;">📷 点击上传图片</span>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="button" onclick="closeAddModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px; color: #666;">取消</button>
-                    <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: white; font-weight: bold;">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </body>
 </html>
