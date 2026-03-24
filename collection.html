@@ -304,9 +304,7 @@
         </div>
         
         <!-- 添加按钮 -->
-        <button class="add-btn" onclick="        function addCard() {
-            document.getElementById('addModal').style.display = 'flex';
-        }
+      <button class="add-btn" onclick="addCard()">+ 添加卡牌</button>
         
         function closeAddModal() {
             document.getElementById('addModal').style.display = 'none';
@@ -402,10 +400,26 @@
         </a>
     </div>
     
-    <script>
+        <script>
         function addCard() {
-            alert('添加卡牌功能');
+            document.getElementById('addModal').style.display = 'flex';
         }
+        
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+        
+        // 表单提交
+        document.getElementById('addForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('cardName').value;
+            const series = document.getElementById('cardSeries').value;
+            const rarity = document.getElementById('cardRarity').value;
+            const price = document.getElementById('cardPrice').value;
+            
+            alert('添加成功：' + name);
+            closeAddModal();
+        });
         
         function toggleFav(btn) {
             if (btn.classList.contains('active')) {
