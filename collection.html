@@ -272,15 +272,15 @@
         <!-- 统计 -->
         <div class="stats-card">
             <div class="stat-item">
-                <div class="stat-value" id="totalCards">7</div>
+                <div class="stat-value" id="totalCards">0</div>
                 <div class="stat-label">总卡牌</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="totalValue">¥132</div>
+                <div class="stat-value" id="totalValue">¥0</div>
                 <div class="stat-label">总价值</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="favCards">1</div>
+                <div class="stat-value" id="favCards">0</div>
                 <div class="stat-label">收藏</div>
             </div>
         </div>
@@ -469,8 +469,48 @@
             }
         }
         
-        // 页面加载时渲染
-        document.addEventListener('DOMContentLoaded', renderCards);
+        // 初始化示例数据（如果localStorage为空或没有卡牌）
+        function initSampleData() {
+            const cards = JSON.parse(localStorage.getItem('myCards') || '[]');
+            if (cards.length === 0) {
+                const sampleCards = [
+                    {
+                        id: 1,
+                        name: '青眼白龙',
+                        series: '游戏王',
+                        rarity: 'UR',
+                        price: 88,
+                        image: '',
+                        favorite: true
+                    },
+                    {
+                        id: 2,
+                        name: '黑魔导',
+                        series: '游戏王',
+                        rarity: 'SR',
+                        price: 45,
+                        image: '',
+                        favorite: false
+                    },
+                    {
+                        id: 3,
+                        name: '皮卡丘',
+                        series: '宝可梦',
+                        rarity: 'SR',
+                        price: 32,
+                        image: '',
+                        favorite: false
+                    }
+                ];
+                localStorage.setItem('myCards', JSON.stringify(sampleCards));
+            }
+        }
+        
+        // 页面加载时初始化并渲染
+        document.addEventListener('DOMContentLoaded', function() {
+            initSampleData();
+            renderCards();
+        });
         
         function logout() {
             if (confirm('确定要退出登录吗？')) {
