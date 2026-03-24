@@ -540,18 +540,24 @@
     </div>
 
     <script>
-        // Supabase 配置
+        // ===== Supabase 配置 =====
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ';
         
-        // 初始化 Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 初始化 Supabase（只声明一次）
+        let supabaseClient;
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('Supabase 初始化成功');
+        } catch (e) {
+            console.error('Supabase 初始化失败:', e);
+        }
         
-        // 当前用户
+        // ===== 全局变量 =====
         let currentUser = null;
         let allCards = [];
         
-        // 页面加载时初始化
+        // ===== 页面加载时初始化 =====
         document.addEventListener('DOMContentLoaded', async () => {
             // 获取当前用户信息
             const userData = localStorage.getItem('currentUser');
@@ -562,7 +568,7 @@
             }
         });
         
-        // 返回按钮
+        // ===== 返回按钮 =====
         function goBack() {
             if (window.history.length > 1) {
                 window.history.back();
@@ -571,7 +577,7 @@
             }
         }
         
-        // 退出登录
+        // ===== 退出登录 =====
         function logout() {
             if (confirm('确定要退出登录吗？')) {
                 localStorage.removeItem('currentUser');
@@ -580,12 +586,12 @@
             }
         }
         
-        // 显示添加表单
+        // ===== 显示添加表单 =====
         function showAddForm() {
             document.getElementById('addModal').classList.add('active');
         }
         
-        // 隐藏添加表单
+        // ===== 隐藏添加表单 =====
         function hideAddForm() {
             document.getElementById('addModal').classList.remove('active');
             document.getElementById('addCardForm').reset();
@@ -598,7 +604,7 @@
             }
         });
         
-        // 提交表单
+        // ===== 提交表单 =====
         document.getElementById('addCardForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -621,7 +627,7 @@
             };
             
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('cards')
                     .insert([cardData])
                     .select();
@@ -630,22 +636,18 @@
                 
                 alert('卡牌添加成功！');
                 hideAddForm();
-                await loadCards(); // 重新加载列表
+                await loadCards();
             } catch (error) {
                 console.error('添加卡牌失败:', error);
                 alert('添加失败: ' + error.message);
-                
-                // 如果 Supabase 未配置，临时存储到本地
-                if (error.message.includes('Invalid API key') || error.message.includes('404')) {
-                    saveCardLocally(cardData);
-                }
+                saveCardLocally(cardData);
             }
         });
         
-        // 本地存储（备用）
+        // ===== 本地存储（备用）=====
         function saveCardLocally(cardData) {
             let localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
-            cardData.id = Date.now(); // 临时ID
+            cardData.id = Date.now();
             localCards.push(cardData);
             localStorage.setItem('localCards', JSON.stringify(localCards));
             alert('卡牌已保存到本地（Supabase 未连接）');
@@ -653,35 +655,44 @@
             loadLocalCards();
         }
         
-        // 从 Supabase 加载卡牌（修改：加载所有卡牌，不限制用户）
+        // ===== 从 Supabase 加载卡牌 =====
         async function loadCards() {
             const cardList = document.getElementById('cardList');
             
+            if (!supabaseClient) {
+                console.log('Supabase 未初始化，使用本地数据');
+                loadLocalCards();
+                return;
+            }
+            
             try {
-                const { data: cards, error } = await supabase
+                console.log('开始加载卡牌...');
+                const { data: cards, error } = await supabaseClient
                     .from('cards')
                     .select('*')
                     .order('created_at', { ascending: false });
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Supabase 查询错误:', error);
+                    throw error;
+                }
                 
+                console.log('加载到卡牌:', cards);
                 allCards = cards || [];
                 
                 if (allCards.length > 0) {
                     renderCards(allCards);
                     updateStats(allCards);
                 } else {
-                    // 尝试加载本地数据
                     loadLocalCards();
                 }
             } catch (error) {
                 console.error('加载卡牌失败:', error);
-                // 加载本地数据作为备用
                 loadLocalCards();
             }
         }
         
-        // 加载本地卡牌
+        // ===== 加载本地卡牌 =====
         function loadLocalCards() {
             const localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
             allCards = localCards;
@@ -694,7 +705,7 @@
             }
         }
         
-        // 渲染卡牌列表
+        // ===== 渲染卡牌列表 =====
         function renderCards(cards) {
             const cardList = document.getElementById('cardList');
             
@@ -716,7 +727,7 @@
             `).join('');
         }
         
-        // 显示空状态
+        // ===== 显示空状态 =====
         function showEmptyState() {
             document.getElementById('cardList').innerHTML = `
                 <div class="empty-state" style="grid-column: 1/-1;">
@@ -728,7 +739,7 @@
             updateStats([]);
         }
         
-        // 更新统计
+        // ===== 更新统计 =====
         function updateStats(cards) {
             const total = cards.length;
             const totalValue = cards.reduce((sum, card) => sum + (parseFloat(card.price) || 0), 0);
@@ -739,9 +750,9 @@
             document.getElementById('favCards').textContent = favorites;
         }
         
-        // 切换收藏状态
+        // ===== 切换收藏状态 =====
         async function toggleFavorite(event, cardId) {
-            event.stopPropagation(); // 阻止冒泡，不触发卡片点击
+            event.stopPropagation();
             
             const card = allCards.find(c => c.id === cardId);
             if (!card) return;
@@ -749,14 +760,13 @@
             const newStatus = !card.is_favorite;
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('cards')
                     .update({ is_favorite: newStatus })
                     .eq('id', cardId);
                 
                 if (error) throw error;
                 
-                // 更新本地数据
                 card.is_favorite = newStatus;
                 renderCards(allCards);
                 updateStats(allCards);
@@ -766,26 +776,17 @@
             }
         }
         
-        // 查看卡牌详情
+        // ===== 查看卡牌详情 =====
         function viewCardDetail(cardId) {
             const card = allCards.find(c => c.id === cardId);
             if (!card) return;
             
-            const detail = `
-                名称: ${card.name}
-                系列: ${card.series}
-                稀有度: ${card.rarity}
-                价格: ¥${card.price || 0}
-                状态: ${getConditionText(card.condition)}
-                备注: ${card.note || '无'}
-            `;
+            const detail = `名称: ${card.name}\n系列: ${card.series}\n稀有度: ${card.rarity}\n价格: ¥${card.price || 0}\n状态: ${getConditionText(card.condition)}\n备注: ${card.note || '无'}`;
             
             alert(detail);
-            // TODO: 实现详情页面跳转
-            // window.location.href = `card-detail.html?id=${cardId}`;
         }
         
-        // 辅助函数：HTML 转义
+        // ===== 辅助函数 =====
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -793,7 +794,6 @@
             return div.innerHTML;
         }
         
-        // 辅助函数：状态文本
         function getConditionText(condition) {
             const map = {
                 'mint': '全新',
@@ -805,7 +805,7 @@
             return map[condition] || condition;
         }
         
-        // 键盘快捷键
+        // ===== 键盘快捷键 =====
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 hideAddForm();
