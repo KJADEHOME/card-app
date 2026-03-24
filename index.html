@@ -1,11 +1,31 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <!-- 登录检查 - 必须在最前面 -->
+    <!-- 登录检查 - 兼容旧数据格式 -->
     <script>
-        if (!localStorage.getItem('currentUser')) {
-            window.location.href = 'login.html';
-        }
+        (function() {
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+            // 兼容旧数据：如果是纯字符串，转换为对象
+            try {
+                const parsed = JSON.parse(userData);
+                if (typeof parsed === 'string') {
+                    localStorage.setItem('currentUser', JSON.stringify({
+                        username: parsed,
+                        id: 'user_' + Date.now()
+                    }));
+                }
+            } catch (e) {
+                // 不是JSON，是纯字符串用户名
+                localStorage.setItem('currentUser', JSON.stringify({
+                    username: userData,
+                    id: 'user_' + Date.now()
+                }));
+            }
+        })();
     </script>
     
     <meta charset="UTF-8">
@@ -544,7 +564,7 @@
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ';
         
-        // 初始化 Supabase（只声明一次）
+        // 初始化 Supabase
         let supabaseClient;
         try {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -559,11 +579,21 @@
         
         // ===== 页面加载时初始化 =====
         document.addEventListener('DOMContentLoaded', async () => {
-            // 获取当前用户信息
+            // 获取并解析用户信息
             const userData = localStorage.getItem('currentUser');
             if (userData) {
-                currentUser = JSON.parse(userData);
-                document.getElementById('usernameDisplay').textContent = currentUser.username || currentUser.email || '用户';
+                try {
+                    currentUser = JSON.parse(userData);
+                    // 如果是字符串（旧数据），转换格式
+                    if (typeof currentUser === 'string') {
+                        currentUser = { username: currentUser, id: 'user_' + Date.now() };
+                    }
+                    document.getElementById('usernameDisplay').textContent = currentUser.username || '用户';
+                } catch (e) {
+                    // 解析失败，使用默认值
+                    currentUser = { username: userData, id: 'user_' + Date.now() };
+                    document.getElementById('usernameDisplay').textContent = userData || '用户';
+                }
                 await loadCards();
             }
         });
@@ -614,7 +644,7 @@
             }
             
             const cardData = {
-                user_id: currentUser.id || currentUser.user_id,
+                user_id: currentUser.id || 'user_unknown',
                 name: document.getElementById('cardName').value,
                 series: document.getElementById('cardSeries').value,
                 rarity: document.getElementById('cardRarity').value,
