@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>卡域 - 发布交易</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .back-btn {
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+        }
+        .header-title {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .content {
+            padding: 15px;
+        }
+        .form-group {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .form-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: #667eea;
+        }
+        .image-upload {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #e0e0e0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #f9f9f9;
+        }
+        .image-upload.has-image {
+            border: none;
+            background-size: cover;
+            background-position: center;
+        }
+        .price-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .price-input span {
+            font-size: 18px;
+            color: #667eea;
+            font-weight: bold;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .type-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .type-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .type-tab.active {
+            border-color: #667eea;
+            color: #667eea;
+            font-weight: bold;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: #999;
+            font-size: 11px;
+            text-decoration: none;
+        }
+        .nav-item.active {
+            color: #667eea;
+        }
+        .nav-icon {
+            font-size: 24px;
+        }
+        .nav-add {
+            background: #ffeb3b;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            margin-top: -20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            color: #333;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html" class="back-btn">←</a>
+        <div class="header-title">发布交易</div>
+    </div>
+    
+    <div class="content">
+        <div class="type-tabs">
+            <div class="type-tab active" onclick="switchType('sell', this)">我要卖</div>
+            <div class="type-tab" onclick="switchType('buy', this)">我要买</div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">卡牌图片</label>
+            <input type="file" id="cardImage" accept="image/*" style="display: none;" onchange="previewImage(event)">
+            <div class="image-upload" id="imagePreview" onclick="document.getElementById('cardImage').click()">
+                <span style="font-size: 40px;">📷</span>
+                <span style="color: #999; margin-top: 10px;">点击上传卡牌图片</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">卡牌名称 *</label>
+            <input type="text" class="form-input" id="cardName" placeholder="例如：青眼白龙">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">系列</label>
+            <select class="form-select" id="cardSeries">
+                <option value="游戏王">游戏王</option>
+                <option value="宝可梦">宝可梦</option>
+                <option value="万智牌">万智牌</option>
+                <option value="数码宝贝">数码宝贝</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">稀有度</label>
+            <select class="form-select" id="cardRarity">
+                <option value="N">普通 (N)</option>
+                <option value="R">稀有 (R)</option>
+                <option value="SR">超稀有 (SR)</option>
+                <option value="UR">终极稀有 (UR)</option>
+                <option value="SEC"> secret稀有 (SEC)</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">价格 (¥)</label>
+            <div class="price-input">
+                <span>¥</span>
+                <input type="number" class="form-input" id="cardPrice" placeholder="0.00">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">描述</label>
+            <input type="text" class="form-input" id="cardDesc" placeholder="卡牌状态、交易方式等">
+        </div>
+        
+        <button class="submit-btn" onclick="publishCard()">发布</button>
+    </div>
+    
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item">
+            <span class="nav-icon">🔍</span>
+            <span>探索</span>
+        </a>
+        <a href="#" class="nav-item">
+            <span class="nav-icon">🔄</span>
+            <span>集换</span>
+        </a>
+        <a href="publish.html" class="nav-add" style="background: #667eea; color: white;">+</a>
+        <a href="message.html" class="nav-item">
+            <span class="nav-icon">💬</span>
+            <span>消息</span>
+        </a>
+        <a href="#" class="nav-item" onclick="goToProfile(event)">
+            <span class="nav-icon">👤</span>
+            <span>个人</span>
+        </a>
+    </div>
+    
+    <script>
+        let publishType = 'sell';
+        
+        function switchType(type, el) {
+            publishType = type;
+            document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+        }
+        
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.classList.add('has-image');
+                    preview.style.backgroundImage = 'url(' + e.target.result + ')';
+                    preview.innerHTML = '';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function publishCard() {
+            const user = localStorage.getItem('currentUser');
+            if (!user) {
+                alert('请先登录后再发布');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const name = document.getElementById('cardName').value.trim();
+            const price = document.getElementById('cardPrice').value;
+            
+            if (!name) {
+                alert('请输入卡牌名称');
+                return;
+            }
+            if (!price || price <= 0) {
+                alert('请输入有效价格');
+                return;
+            }
+            
+            const card = {
+                id: Date.now(),
+                name: name,
+                series: document.getElementById('cardSeries').value,
+                rarity: document.getElementById('cardRarity').value,
+                price: parseFloat(price),
+                desc: document.getElementById('cardDesc').value,
+                type: publishType,
+                seller: user,
+                time: new Date().toLocaleString()
+            };
+            
+            // 保存到市场列表
+            let marketCards = JSON.parse(localStorage.getItem('marketCards') || '[]');
+            marketCards.unshift(card);
+            localStorage.setItem('marketCards', JSON.stringify(marketCards));
+            
+            alert('发布成功！');
+            window.location.href = 'index.html';
+        }
+        
+        function goToProfile(e) {
+            e.preventDefault();
+            const user = localStorage.getItem('currentUser');
+            if (!user) {
+                window.location.href = 'login.html';
+            } else {
+                window.location.href = 'collection.html';
+            }
+        }
+        
+        // 检查登录
+        (function() {
+            const user = localStorage.getItem('currentUser');
+            if (!user) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+            }
+        })();
+    </script>
+</body>
+</html>
