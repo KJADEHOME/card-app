@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>卡域 - 首页</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -13,7 +17,7 @@
             padding-bottom: 80px;
         }
         
-        /* 顶部区域 */
+        /* 顶部 */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 10px 15px 20px;
@@ -336,6 +340,7 @@
             gap: 4px;
             color: #999;
             font-size: 11px;
+            text-decoration: none;
         }
         
         .nav-item.active {
@@ -361,6 +366,14 @@
     </style>
 </head>
 <body>
+    <!-- 登录检查 -->
+    <script>
+        const user = localStorage.getItem('currentUser');
+        if (!user) {
+            window.location.href = 'login.html';
+        }
+    </script>
+    
     <!-- 顶部 -->
     <div class="header">
         <div class="header-top">
@@ -515,23 +528,23 @@
     
     <!-- 底部导航 -->
     <div class="bottom-nav">
-        <div class="nav-item active">
+        <a href="index.html" class="nav-item active">
             <span class="nav-icon">🔍</span>
             <span>探索</span>
-        </div>
-        <div class="nav-item">
+        </a>
+        <a href="#" class="nav-item">
             <span class="nav-icon">🔄</span>
             <span>集换</span>
-        </div>
-        <div class="nav-add">+</div>
-        <div class="nav-item">
+        </a>
+        <a href="publish.html" class="nav-add">+</a>
+        <a href="message.html" class="nav-item">
             <span class="nav-icon">💬</span>
             <span>消息</span>
-        </div>
-        <div class="nav-item">
+        </a>
+        <a href="collection.html" class="nav-item">
             <span class="nav-icon">👤</span>
             <span>个人</span>
-        </div>
+        </a>
     </div>
     
     <script>
