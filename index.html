@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>卡域 - 我的收藏</title>
+    <title>卡域 - 首页</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -13,10 +13,10 @@
             padding-bottom: 80px;
         }
         
-        /* 顶部 */
+        /* 顶部区域 */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 15px;
+            padding: 10px 15px 20px;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -29,70 +29,48 @@
             margin-bottom: 15px;
         }
         
-        .page-title {
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        
-        .header-right {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .icon-btn {
-            width: 36px;
-            height: 36px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
+        /* 游戏选择器 */
+        .game-selector {
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 8px;
             color: white;
-            font-size: 18px;
-        }
-        
-        /* 统计卡片 */
-        .stats-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            display: flex;
-            justify-content: space-around;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .stat-item {
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 28px;
+            font-size: 22px;
             font-weight: bold;
-            color: #667eea;
         }
         
-        .stat-label {
+        .game-lang {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 10px;
+            border-radius: 12px;
             font-size: 12px;
-            color: #999;
-            margin-top: 4px;
         }
         
-        /* 内容区 */
-        .content {
-            padding: 15px;
+        .dropdown-arrow {
+            font-size: 12px;
+            margin-left: 5px;
         }
         
-        /* 搜索筛选 */
-        .search-bar {
+        /* 发售日历 */
+        .calendar-btn {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 15px;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* 搜索栏 */
+        .search-box {
+            display: flex;
+            align-items: center;
             background: white;
             border-radius: 25px;
-            padding: 12px 15px;
-            display: flex;
-            align-items: center;
+            padding: 10px 15px;
             gap: 10px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         
         .search-input {
@@ -100,116 +78,242 @@
             border: none;
             outline: none;
             font-size: 14px;
+            color: #999;
         }
         
-        /* 筛选标签 */
-        .filter-tags {
+        .camera-btn {
+            background: #333;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* 内容区域 */
+        .content {
+            padding: 15px;
+        }
+        
+        /* WIKI和卡组区域 */
+        .info-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .info-card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-card-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .info-card-item:last-child {
+            border-bottom: none;
+        }
+        
+        .go-btn {
+            background: #333;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        
+        /* 交易区 */
+        .trade-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .trade-card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .trade-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .trade-title {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .trade-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .tag-green { background: #e8f5e9; color: #4caf50; }
+        .tag-blue { background: #e3f2fd; color: #2196f3; }
+        .tag-red { background: #ffebee; color: #f44336; }
+        
+        .trade-item {
             display: flex;
             gap: 10px;
-            margin-bottom: 15px;
-            overflow-x: auto;
+            align-items: center;
         }
         
-        .filter-tag {
-            padding: 8px 16px;
-            background: white;
-            border-radius: 20px;
-            font-size: 13px;
-            color: #666;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .filter-tag.active {
-            background: #667eea;
-            color: white;
-        }
-        
-        /* 添加按钮 */
-        .add-btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        /* 卡牌网格 */
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        
-        .card-item {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            position: relative;
-        }
-        
-       .card-img {
-            width: 100%;
-            height: 180px;  /* 稍微矮一点 */
+        .trade-img {
+            width: 50px;
+            height: 70px;
+            background: #f0f0f0;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            font-size: 24px;
         }
         
-        .card-img span {
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
+        .trade-info {
+            flex: 1;
         }
         
-        .card-info {
-            padding: 12px;
-        }
-        
-        .card-name {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 4px;
+        .trade-name {
+            font-size: 13px;
+            margin-bottom: 5px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
         
-        .card-meta {
-            font-size: 12px;
-            color: #999;
-            margin-bottom: 6px;
-        }
-        
-        .card-price {
+        .trade-price {
             color: #667eea;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 14px;
         }
         
-        .favorite-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
+        /* 近期更新 */
+        .update-section {
             background: white;
-            border: none;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .section-header {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+        
+        .section-tab {
+            font-size: 16px;
+            color: #999;
+            white-space: nowrap;
+            padding-bottom: 5px;
+        }
+        
+        .section-tab.active {
+            color: #333;
+            font-weight: bold;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .update-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        
+        .update-item {
+            text-align: center;
+        }
+        
+        .update-img {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #f0f0f0;
+            border-radius: 8px;
+            margin-bottom: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            cursor: pointer;
-            z-index: 10;
+            font-size: 30px;
+        }
+        
+        .update-name {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        /* 热门畅销 */
+        .hot-section {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .hot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .hot-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .hot-more {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .hot-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .hot-item {
+            background: #f8f8f8;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .hot-img {
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
         }
         
         /* 底部导航 */
@@ -232,7 +336,6 @@
             gap: 4px;
             color: #999;
             font-size: 11px;
-            text-decoration: none;
         }
         
         .nav-item.active {
@@ -254,8 +357,6 @@
             font-size: 30px;
             margin-top: -20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            color: #333;
-            text-decoration: none;
         }
     </style>
 </head>
@@ -263,101 +364,150 @@
     <!-- 顶部 -->
     <div class="header">
         <div class="header-top">
-            <div class="page-title">我的收藏</div>
-            <div class="header-right">
-                <div class="icon-btn">🔍</div>
-                <div class="icon-btn">⚙️</div>
+            <div class="game-selector" onclick="switchGame()">
+                游戏王 <span class="game-lang">日文</span> <span class="dropdown-arrow">▼</span>
+            </div>
+            <div class="calendar-btn" onclick="showCalendar()">
+                📅 发售日历
             </div>
         </div>
         
-        <!-- 统计 -->
-        <div class="stats-card">
-            <div class="stat-item">
-                <div class="stat-value" id="totalCards">7</div>
-                <div class="stat-label">总卡牌</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="totalValue">¥132</div>
-                <div class="stat-label">总价值</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="favCards">1</div>
-                <div class="stat-label">收藏</div>
+        <div class="search-box">
+            <span>🔍</span>
+            <input type="text" class="search-input" placeholder="同音字/拼音/首字母/编号">
+            <div class="camera-btn">
+                📷 拍照查卡
             </div>
         </div>
     </div>
     
     <!-- 内容 -->
     <div class="content">
-        <!-- 搜索 -->
-        <div class="search-bar">
-            <span>🔍</span>
-            <input type="text" class="search-input" placeholder="搜索卡牌名称...">
+        <!-- WIKI和卡组 -->
+        <div class="info-cards">
+            <div class="info-card">
+                <div class="info-card-title">📖 WIKI</div>
+                <div class="info-card-item">
+                    <div>
+                        <div style="font-size: 13px; color: #666;">游戏王新手百科</div>
+                        <div style="font-size: 12px; color: #667eea;">你了解游戏王吗</div>
+                    </div>
+                    <span class="go-btn">GO</span>
+                </div>
+                <div class="info-card-item">
+                    <div>
+                        <div style="font-size: 13px; color: #666;">游戏王进阶教学</div>
+                        <div style="font-size: 12px; color: #667eea;">成为决斗王吧！</div>
+                    </div>
+                    <span class="go-btn">GO</span>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <div class="info-card-title">🎴 卡组</div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <div style="width: 60px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 30px;">🃏</div>
+                    <div>
+                        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">已剑</div>
+                        <div style="font-size: 12px; color: #999; margin-bottom: 5px;">202601</div>
+                        <div style="font-size: 14px; color: #667eea; font-weight: bold;">157 上位数</div>
+                    </div>
+                </div>
+            </div>
         </div>
         
-        <!-- 筛选 -->
-        <div class="filter-tags">
-            <div class="filter-tag active">全部</div>
-            <div class="filter-tag">游戏王</div>
-            <div class="filter-tag">宝可梦</div>
-            <div class="filter-tag">万智牌</div>
-            <div class="filter-tag">收藏</div>
+        <!-- 交易区 -->
+        <div class="trade-section">
+            <div class="trade-card">
+                <div class="trade-header">
+                    <span class="trade-title">行情</span>
+                    <span class="trade-tag tag-green">力荐</span>
+                </div>
+                <div class="trade-item">
+                    <div class="trade-img">🃏</div>
+                    <div class="trade-info">
+                        <div class="trade-name">多多迷宝...</div>
+                        <div class="trade-price">¥19.60</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="trade-card">
+                <div class="trade-header">
+                    <span class="trade-title">集换仓</span>
+                    <span class="trade-tag tag-blue">寄售</span>
+                </div>
+                <div class="trade-item">
+                    <div class="trade-img">🃏</div>
+                    <div class="trade-info">
+                        <div class="trade-name">枪管上膛狞...</div>
+                        <div class="trade-price">¥1.10</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="trade-card">
+                <div class="trade-header">
+                    <span class="trade-title">竞价</span>
+                    <span class="trade-tag tag-red">热门</span>
+                </div>
+                <div class="trade-item">
+                    <div class="trade-img">🃏</div>
+                    <div class="trade-info">
+                        <div class="trade-name">BGS 9 万物...</div>
+                        <div class="trade-price" style="color: #f44336;">26h...</div>
+                    </div>
+                </div>
+            </div>
         </div>
         
-        <!-- 添加按钮 -->
-        <button class="add-btn" onclick="addCard()">+ 添加卡牌</button>
+        <!-- 近期更新 -->
+        <div class="update-section">
+            <div class="section-header">
+                <span class="section-tab active">近期更新</span>
+                <span class="section-tab">第十三期</span>
+                <span class="section-tab">第十二期</span>
+                <span class="section-tab">分类</span>
+            </div>
+            <div class="update-grid">
+                <div class="update-item">
+                    <div class="update-img">🐱</div>
+                    <div class="update-name">最新</div>
+                </div>
+                <div class="update-item">
+                    <div class="update-img">📦</div>
+                    <div class="update-name">界限超越...</div>
+                </div>
+                <div class="update-item">
+                    <div class="update-img">🆕</div>
+                    <div class="update-name">即将发售</div>
+                </div>
+                <div class="update-item">
+                    <div class="update-img">🎁</div>
+                    <div class="update-name">LO特别...</div>
+                </div>
+                <div class="update-item">
+                    <div class="update-img">📚</div>
+                    <div class="update-name">VJUM</div>
+                </div>
+            </div>
+        </div>
         
-        <!-- 卡牌列表 -->
-        <div class="card-grid" id="cardList">
-            <!-- 卡牌 1 -->
-            <div class="card-item">
-                <button class="favorite-btn" onclick="toggleFav(this)">🤍</button>
-                <div class="card-img" style="background: linear-gradient(135deg, #ff6b9d 0%, #feca57 100%);">
-                    <span>酥糖</span>
-                </div>
-                <div class="card-info">
-                    <div class="card-name">酥糖</div>
-                    <div class="card-meta">怪兽卡 · N</div>
-                    <div class="card-price">¥22</div>
-                </div>
+        <!-- 热门畅销 -->
+        <div class="hot-section">
+            <div class="hot-header">
+                <span class="hot-title">热门畅销</span>
+                <span class="hot-more">></span>
             </div>
-            
-            <!-- 卡牌 2 -->
-            <div class="card-item">
-                <button class="favorite-btn active" onclick="toggleFav(this)">❤️</button>
-                <div class="card-img" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <span>测试</span>
+            <div class="hot-grid">
+                <div class="hot-item">
+                    <div class="hot-img">🃏</div>
                 </div>
-                <div class="card-info">
-                    <div class="card-name">测试卡牌</div>
-                    <div class="card-meta">怪兽卡 · SR</div>
-                    <div class="card-price">¥22</div>
+                <div class="hot-item">
+                    <div class="hot-img">🃏</div>
                 </div>
-            </div>
-            
-            <!-- 卡牌 3 -->
-            <div class="card-item">
-                <button class="favorite-btn" onclick="toggleFav(this)">🤍</button>
-                <div class="card-img" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <span>皮卡丘</span>
-                </div>
-                <div class="card-info">
-                    <div class="card-name">皮卡丘</div>
-                    <div class="card-meta">怪兽卡 · SR</div>
-                    <div class="card-price">¥22</div>
-                </div>
-            </div>
-            
-            <!-- 卡牌 4 -->
-            <div class="card-item">
-                <button class="favorite-btn" onclick="toggleFav(this)">🤍</button>
-                <div class="card-img" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <span>青眼</span>
-                </div>
-                <div class="card-info">
-                    <div class="card-name">青眼白龙</div>
-                    <div class="card-meta">怪兽卡 · SR</div>
-                    <div class="card-price">¥22</div>
+                <div class="hot-item">
+                    <div class="hot-img">🃏</div>
                 </div>
             </div>
         </div>
@@ -365,38 +515,36 @@
     
     <!-- 底部导航 -->
     <div class="bottom-nav">
-        <a href="home.html" class="nav-item">
+        <div class="nav-item active">
             <span class="nav-icon">🔍</span>
             <span>探索</span>
-        </a>
-        <a href="#" class="nav-item">
+        </div>
+        <div class="nav-item">
             <span class="nav-icon">🔄</span>
             <span>集换</span>
-        </a>
-        <a href="publish.html" class="nav-add">+</a>
-        <a href="message.html" class="nav-item">
+        </div>
+        <div class="nav-add">+</div>
+        <div class="nav-item">
             <span class="nav-icon">💬</span>
             <span>消息</span>
-        </a>
-        <a href="collection.html" class="nav-item active">
+        </div>
+        <div class="nav-item">
             <span class="nav-icon">👤</span>
             <span>个人</span>
-        </a>
+        </div>
     </div>
     
     <script>
-        function addCard() {
-            alert('添加卡牌功能');
+        function switchGame() {
+            const games = ['游戏王', '宝可梦', '万智牌', '数码宝贝'];
+            const current = document.querySelector('.game-selector').textContent.trim();
+            const nextIndex = (games.indexOf(current.split(' ')[0]) + 1) % games.length;
+            document.querySelector('.game-selector').innerHTML = 
+                games[nextIndex] + ' <span class="game-lang">日文</span> <span class="dropdown-arrow">▼</span>';
         }
         
-        function toggleFav(btn) {
-            if (btn.classList.contains('active')) {
-                btn.classList.remove('active');
-                btn.textContent = '🤍';
-            } else {
-                btn.classList.add('active');
-                btn.textContent = '❤️';
-            }
+        function showCalendar() {
+            alert('发售日历功能开发中...');
         }
     </script>
 </body>
