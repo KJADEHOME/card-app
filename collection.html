@@ -304,7 +304,26 @@
         </div>
         
         <!-- 添加按钮 -->
-        <button class="add-btn" onclick="addCard()">+ 添加卡牌</button>
+        <button class="add-btn" onclick="        function addCard() {
+            document.getElementById('addModal').style.display = 'flex';
+        }
+        
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+        
+        // 表单提交
+        document.getElementById('addForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('cardName').value;
+            const series = document.getElementById('cardSeries').value;
+            const rarity = document.getElementById('cardRarity').value;
+            const price = document.getElementById('cardPrice').value;
+            
+            alert('添加成功：' + name);
+            closeAddModal();
+            // 这里可以添加实际保存逻辑
+        });">+ 添加卡牌</button>
         
         <!-- 卡牌列表 -->
         <div class="card-grid" id="cardList">
@@ -405,5 +424,42 @@
             }
         }
     </script>
+    <!-- 添加卡牌弹窗 -->
+    <div id="addModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">添加新卡牌</h2>
+            <form id="addForm">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">卡牌名称 *</label>
+                    <input type="text" id="cardName" required placeholder="例如：青眼白龙" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">系列</label>
+                    <select id="cardSeries" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                        <option value="游戏王">游戏王</option>
+                        <option value="宝可梦">宝可梦</option>
+                        <option value="万智牌">万智牌</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">稀有度</label>
+                    <select id="cardRarity" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                        <option value="N">普通 (N)</option>
+                        <option value="R">稀有 (R)</option>
+                        <option value="SR">超稀有 (SR)</option>
+                        <option value="UR">终极稀有 (UR)</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">价格 (¥)</label>
+                    <input type="number" id="cardPrice" placeholder="0.00" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="button" onclick="closeAddModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px; color: #666;">取消</button>
+                    <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: white; font-weight: bold;">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
