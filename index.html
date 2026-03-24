@@ -368,11 +368,15 @@
 <body>
     <!-- 登录检查 -->
     <script>
-        const user = localStorage.getItem('currentUser');
-        if (!user) {
-            window.location.href = 'login.html';
-        }
+        (function() {
+            const user = localStorage.getItem('currentUser');
+            if (!user) {
+                window.location.replace('login.html');
+                return;
+            }
+        })();
     </script>
+    <!-- 其他内容... -->
     
     <!-- 顶部 -->
     <div class="header">
@@ -526,7 +530,7 @@
         </div>
     </div>
     
-    <!-- 底部导航 -->
+     <!-- 底部导航 -->
     <div class="bottom-nav">
         <a href="index.html" class="nav-item active">
             <span class="nav-icon">🔍</span>
@@ -541,7 +545,7 @@
             <span class="nav-icon">💬</span>
             <span>消息</span>
         </a>
-        <a href="collection.html" class="nav-item">
+        <a href="collection.html" class="nav-item">  <!-- 确保是 collection.html -->
             <span class="nav-icon">👤</span>
             <span>个人</span>
         </a>
