@@ -522,6 +522,18 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 下载APP -->
+        <div class="download-section" onclick="installApp()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: white;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 30px;">📲</span>
+                <div>
+                    <div style="font-weight: bold; font-size: 16px;">下载卡域APP</div>
+                    <div style="font-size: 12px; opacity: 0.9;">添加到桌面，像原生APP一样使用</div>
+                </div>
+            </div>
+            <span style="font-size: 20px;">➡️</span>
+        </div>
     </div>
     
      <!-- 底部导航 -->
@@ -567,7 +579,22 @@
         ];
         
         function showCalendar() {
-            alert('📅 发售日历\n\n近期发售：\n• 游戏王 1206 补充包 - 3月28日\n• 宝可梦 SV8a - 4月5日\n• 万智牌 MH3 - 4月12日');
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
+            
+            // 计算未来发售日期（基于当前日期动态计算）
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+            const twoWeeks = new Date(today);
+            twoWeeks.setDate(today.getDate() + 14);
+            const threeWeeks = new Date(today);
+            threeWeeks.setDate(today.getDate() + 21);
+            
+            const formatDate = (d) => `${d.getMonth() + 1}月${d.getDate()}日`;
+            
+            alert(`📅 发售日历\n\n今天是 ${year}年${month}月${day}日\n\n近期发售：\n• 游戏王 1206 补充包 - ${formatDate(nextWeek)}\n• 宝可梦 SV8a - ${formatDate(twoWeeks)}\n• 万智牌 MH3 - ${formatDate(threeWeeks)}`);
         }
         
         // 搜索功能
@@ -705,6 +732,40 @@
         function showExchange(e) {
             e.preventDefault();
             alert('🔄 集换中心\n\n功能开发中，敬请期待！\n\n即将推出:\n• 卡牌交换\n• 以物易物\n• 估价系统');
+        }
+        
+        // 下载/安装APP
+        function installApp() {
+            // 检测是否已安装
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                alert('✅ 已经安装过了！\n\n您正在使用APP模式运行。');
+                return;
+            }
+            
+            // 尝试触发安装
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('用户接受了安装');
+                    } else {
+                        console.log('用户拒绝了安装');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // 如果没有触发自动弹窗，提供手动安装指南
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const isAndroid = /Android/.test(navigator.userAgent);
+                
+                if (isIOS) {
+                    alert('📱 iPhone安装指南\n\n1. 点击底部"分享"按钮（方框+箭头）\n2. 选择"添加到主屏幕"\n3. 点击"添加"\n\n桌面就会出现卡域图标！');
+                } else if (isAndroid) {
+                    alert('📱 安卓安装指南\n\n1. 点击浏览器菜单（三个点）\n2. 选择"添加到主屏幕"或"安装应用"\n3. 点击"添加"\n\n桌面就会出现卡域图标！');
+                } else {
+                    alert('💻 电脑安装指南\n\n1. 点击浏览器地址栏右侧的"安装"图标\n2. 或在菜单中选择"安装卡域"\n\n桌面就会出现卡域图标！');
+                }
+            }
         }
         
         // 点击个人导航时检查登录
