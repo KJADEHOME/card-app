@@ -260,13 +260,12 @@
     </style>
 </head>
 <body>
-    <!-- 顶部 -->
+       <!-- 顶部 -->
     <div class="header">
         <div class="header-top">
             <div class="page-title">我的收藏</div>
             <div class="header-right">
-                <div class="icon-btn">🔍</div>
-                <div class="icon-btn">⚙️</div>
+                <div class="icon-btn" onclick="logout()">🚪</div>
             </div>
         </div>
         
@@ -396,6 +395,13 @@
             } else {
                 btn.classList.add('active');
                 btn.textContent = '❤️';
+            }
+        }
+        
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'login.html';
             }
         }
     </script>
