@@ -1,23 +1,49 @@
 {
-  "name": "卡域 CardRealm",
+  "name": "卡域 - 卡牌交易平台",
   "short_name": "卡域",
-  "description": "管理你的卡牌收藏，发现交易机会",
+  "description": "专业的卡牌交易、收藏、交流平台",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#6366f1",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
   "orientation": "portrait",
   "scope": "/",
+  "lang": "zh-CN",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%236366f1' width='192' height='192' rx='20'/%3E%3Ctext x='96' y='120' font-size='80' text-anchor='middle' fill='white'%3E🃏%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%23667eea' width='192' height='192' rx='48'/%3E%3Ctext x='96' y='120' font-size='80' text-anchor='middle'%3E🃏%3C/text%3E%3C/svg%3E",
       "sizes": "192x192",
       "type": "image/svg+xml"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%236366f1' width='512' height='512' rx='40'/%3E%3Ctext x='256' y='320' font-size='200' text-anchor='middle' fill='white'%3E🃏%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%23667eea' width='512' height='512' rx='128'/%3E%3Ctext x='256' y='320' font-size='200' text-anchor='middle'%3E🃏%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
       "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["shopping", "entertainment", "social"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 844'%3E%3Crect fill='%23f5f5f5' width='390' height='844'/%3E%3Ctext x='195' y='422' font-size='40' text-anchor='middle'%3E卡域APP%3C/text%3E%3C/svg%3E",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "我的收藏",
+      "short_name": "收藏",
+      "description": "查看我的卡牌收藏",
+      "url": "/collection.html",
+      "icons": [{ "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect fill='%23667eea' width='96' height='96' rx='24'/%3E%3Ctext x='48' y='60' font-size='40' text-anchor='middle'%3E⭐%3C/text%3E%3C/svg%3E", "sizes": "96x96" }]
+    },
+    {
+      "name": "发布交易",
+      "short_name": "发布",
+      "description": "发布卡牌交易",
+      "url": "/publish.html",
+      "icons": [{ "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect fill='%2367eea' width='96' height='96' rx='24'/%3E%3Ctext x='48' y='60' font-size='40' text-anchor='middle'%3E%2B%3C/text%3E%3C/svg%3E", "sizes": "96x96" }]
     }
   ]
 }

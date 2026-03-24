@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>卡域 - 发布交易</title>
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="卡域">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -321,6 +324,13 @@
                 window.location.href = 'login.html';
             }
         })();
+        
+        // 注册 Service Worker (PWA支持)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then((reg) => console.log('Service Worker 注册成功:', reg))
+                .catch((err) => console.log('Service Worker 注册失败:', err));
+        }
     </script>
 </body>
 </html>
