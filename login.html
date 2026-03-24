@@ -26,17 +26,15 @@
         .logo { text-align: center; margin-bottom: 30px; }
         .logo-icon { font-size: 60px; margin-bottom: 10px; }
         .logo-title { font-size: 28px; font-weight: bold; }
-        .logo-subtitle { font-size: 14px; color: #999; margin-top: 5px; }
         .tab-nav { display: flex; margin-bottom: 25px; border-bottom: 2px solid #f0f0f0; }
         .tab-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: #999; border-bottom: 2px solid transparent; margin-bottom: -2px; }
         .tab-item.active { color: #667eea; border-bottom-color: #667eea; font-weight: bold; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 6px; color: #666; font-size: 13px; }
         .form-group input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 15px; }
-        .form-group input:focus { outline: none; border-color: #667eea; }
         .login-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .error-msg { color: #f44336; font-size: 12px; margin-top: 5px; display: none; }
+        .login-btn:disabled { opacity: 0.6; }
+        .error-msg { color: #f44336; font-size: 12px; margin-top: 5px; }
         .guest-link { text-align: center; margin-top: 15px; color: #667eea; font-size: 14px; cursor: pointer; }
     </style>
 </head>
@@ -45,7 +43,6 @@
         <div class="logo">
             <div class="logo-icon">🃏</div>
             <div class="logo-title">卡域</div>
-            <div class="logo-subtitle">CardRealm</div>
         </div>
         
         <div class="tab-nav">
@@ -53,46 +50,64 @@
             <div class="tab-item" onclick="switchTab('register')" id="tab-register">注册</div>
         </div>
         
-        <!-- 登录表单 -->
         <form id="loginForm">
             <div class="form-group">
                 <label>邮箱</label>
-                <input type="email" id="loginEmail" placeholder="请输入邮箱" required>
+                <input type="email" id="loginEmail" placeholder="test@example.com" required>
             </div>
             <div class="form-group">
                 <label>密码</label>
-                <input type="password" id="loginPassword" placeholder="请输入密码" required>
+                <input type="password" id="loginPassword" placeholder="123456" required>
             </div>
             <div class="error-msg" id="loginError"></div>
             <button type="submit" class="login-btn" id="loginBtn">登录</button>
         </form>
         
-        <!-- 注册表单 -->
         <form id="registerForm" style="display: none;">
             <div class="form-group">
                 <label>用户名</label>
-                <input type="text" id="regUsername" placeholder="请输入用户名" required>
+                <input type="text" id="regUsername" placeholder="用户名" required>
             </div>
             <div class="form-group">
                 <label>邮箱</label>
-                <input type="email" id="regEmail" placeholder="请输入邮箱" required>
+                <input type="email" id="regEmail" placeholder="邮箱" required>
             </div>
             <div class="form-group">
                 <label>密码</label>
-                <input type="password" id="regPassword" placeholder="至少6位" required minlength="6">
+                <input type="password" id="regPassword" placeholder="密码（至少6位）" required minlength="6">
             </div>
             <div class="error-msg" id="regError"></div>
             <button type="submit" class="login-btn" id="regBtn">注册</button>
         </form>
         
-        <div class="guest-link" onclick="guestLogin()">👤 游客模式（暂不登录）</div>
+        <div class="guest-link" onclick="guestLogin()">👤 游客模式</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // 等待Supabase库加载完成
+        let supabase = null;
+        
+        function initSupabase() {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('Supabase初始化成功');
+                return true;
+            }
+            return false;
+        }
+        
+        // 确保库加载完成
+        function waitForSupabase(callback) {
+            if (initSupabase()) {
+                callback();
+            } else {
+                setTimeout(() => waitForSupabase(callback), 100);
+            }
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
@@ -101,30 +116,37 @@
             document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
         }
 
-        function showError(id, msg) {
-            const el = document.getElementById(id);
-            el.textContent = msg;
-            el.style.display = 'block';
-        }
-
         // 登录
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            document.getElementById('loginError').style.display = 'none';
-            document.getElementById('loginBtn').disabled = true;
-            document.getElementById('loginBtn').textContent = '登录中...';
-
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: document.getElementById('loginEmail').value,
-                password: document.getElementById('loginPassword').value
-            });
-
-            document.getElementById('loginBtn').disabled = false;
-            document.getElementById('loginBtn').textContent = '登录';
-
+            
+            if (!supabase && !initSupabase()) {
+                alert('系统初始化中，请稍后重试');
+                return;
+            }
+            
+            const btn = document.getElementById('loginBtn');
+            const errorEl = document.getElementById('loginError');
+            
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            errorEl.textContent = '';
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            console.log('尝试登录:', email);
+            
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            
+            btn.disabled = false;
+            btn.textContent = '登录';
+            
             if (error) {
-                showError('loginError', error.message);
+                console.error('登录失败:', error);
+                errorEl.textContent = '登录失败: ' + error.message;
             } else {
+                console.log('登录成功:', data.user);
                 localStorage.setItem('currentUser', data.user.email);
                 window.location.href = 'collection.html';
             }
@@ -133,33 +155,53 @@
         // 注册
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            document.getElementById('regError').style.display = 'none';
-            document.getElementById('regBtn').disabled = true;
-            document.getElementById('regBtn').textContent = '注册中...';
-
+            
+            if (!supabase && !initSupabase()) {
+                alert('系统初始化中，请稍后重试');
+                return;
+            }
+            
+            const btn = document.getElementById('regBtn');
+            const errorEl = document.getElementById('regError');
+            
+            btn.disabled = true;
+            btn.textContent = '注册中...';
+            errorEl.textContent = '';
+            
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            console.log('尝试注册:', email);
+            
             const { data, error } = await supabase.auth.signUp({
-                email: document.getElementById('regEmail').value,
-                password: document.getElementById('regPassword').value,
-                options: { data: { username: document.getElementById('regUsername').value } }
+                email,
+                password,
+                options: { data: { username } }
             });
-
-            document.getElementById('regBtn').disabled = false;
-            document.getElementById('regBtn').textContent = '注册';
-
+            
+            btn.disabled = false;
+            btn.textContent = '注册';
+            
             if (error) {
-                showError('regError', error.message);
+                console.error('注册失败:', error);
+                errorEl.textContent = '注册失败: ' + error.message;
             } else {
+                console.log('注册成功:', data.user);
+                
                 // 创建用户资料
-                await supabase.from('profiles').insert([{
-                    id: data.user.id,
-                    username: document.getElementById('regUsername').value
-                }]);
-                alert('注册成功！请登录');
+                if (data.user) {
+                    await supabase.from('profiles').insert([{
+                        id: data.user.id,
+                        username: username
+                    }]);
+                }
+                
+                alert('✅ 注册成功！请登录');
                 switchTab('login');
             }
         });
 
-        // 游客模式
         function guestLogin() {
             localStorage.setItem('isGuest', 'true');
             localStorage.setItem('currentUser', '游客');
@@ -167,10 +209,13 @@
         }
 
         // 检查是否已登录
-        (async () => {
+        waitForSupabase(async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) window.location.href = 'collection.html';
-        })();
+            if (user) {
+                console.log('已登录:', user.email);
+                window.location.href = 'collection.html';
+            }
+        });
     </script>
 </body>
 </html>
