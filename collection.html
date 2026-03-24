@@ -272,15 +272,15 @@
         <!-- 统计 -->
         <div class="stats-card">
             <div class="stat-item">
-                <div class="stat-value" id="totalCards">0</div>
+                <div class="stat-value" id="totalCards">3</div>
                 <div class="stat-label">总卡牌</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="totalValue">¥0</div>
+                <div class="stat-value" id="totalValue">¥165</div>
                 <div class="stat-label">总价值</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="favCards">0</div>
+                <div class="stat-value" id="favCards">1</div>
                 <div class="stat-label">收藏</div>
             </div>
         </div>
@@ -308,7 +308,34 @@
         
         <!-- 卡牌列表 -->
         <div class="card-grid" id="cardList">
-            <!-- 动态渲染卡牌 -->
+            <!-- 示例卡牌 -->
+            <div class="card-item">
+                <button class="favorite-btn active" onclick="toggleFav(this, 1)">❤️</button>
+                <div class="card-img" style="background: linear-gradient(135deg, #ff6b9d 0%, #feca57 100%);"><span>青眼</span></div>
+                <div class="card-info">
+                    <div class="card-name">青眼白龙</div>
+                    <div class="card-meta">游戏王 · UR</div>
+                    <div class="card-price">¥88</div>
+                </div>
+            </div>
+            <div class="card-item">
+                <button class="favorite-btn" onclick="toggleFav(this, 2)">🤍</button>
+                <div class="card-img" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><span>黑魔</span></div>
+                <div class="card-info">
+                    <div class="card-name">黑魔导</div>
+                    <div class="card-meta">游戏王 · SR</div>
+                    <div class="card-price">¥45</div>
+                </div>
+            </div>
+            <div class="card-item">
+                <button class="favorite-btn" onclick="toggleFav(this, 3)">🤍</button>
+                <div class="card-img" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"><span>皮卡</span></div>
+                <div class="card-info">
+                    <div class="card-name">皮卡丘</div>
+                    <div class="card-meta">宝可梦 · SR</div>
+                    <div class="card-price">¥32</div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -397,26 +424,28 @@
         
         // 保存卡牌到本地存储
         function saveCardToLocal(card) {
+            console.log('Saving card:', card);
             let cards = JSON.parse(localStorage.getItem('myCards') || '[]');
             cards.push(card);
             localStorage.setItem('myCards', JSON.stringify(cards));
+            console.log('Cards saved:', cards);
             alert('添加成功：' + card.name);
             closeAddModal();
-            renderCards();
+            setTimeout(renderCards, 100);
         }
         
-        // 渲染卡牌列表
+        // 渲染卡牌列表（只渲染用户添加的卡牌，追加到示例卡牌后面）
         function renderCards() {
-            const cardList = document.getElementById('cardList');
             const cards = JSON.parse(localStorage.getItem('myCards') || '[]');
             
             if (cards.length === 0) {
-                cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">还没有卡牌，点击上方按钮添加</div>';
-                updateStats(0, 0, 0);
+                updateStats(3, 165, 1); // 示例卡牌统计
                 return;
             }
             
-            cardList.innerHTML = cards.map(card => `
+            // 有用户添加的卡牌时，追加到页面
+            const cardList = document.getElementById('cardList');
+            const userCardsHtml = cards.map(card => `
                 <div class="card-item">
                     <button class="favorite-btn ${card.favorite ? 'active' : ''}" onclick="toggleFav(this, ${card.id})">${card.favorite ? '❤️' : '🤍'}</button>
                     <div class="card-img" style="${card.image ? 'background-image: url(' + card.image + '); background-size: cover; background-position: center;' : getGradientStyle(card.name)}">
@@ -430,9 +459,11 @@
                 </div>
             `).join('');
             
-            // 更新统计
-            const totalValue = cards.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
-            updateStats(cards.length, totalValue, cards.filter(c => c.favorite).length);
+            cardList.innerHTML += userCardsHtml;
+            
+            // 更新统计（示例卡牌 + 用户卡牌）
+            const totalValue = 165 + cards.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
+            updateStats(3 + cards.length, totalValue, 1 + cards.filter(c => c.favorite).length);
         }
         
         // 更新统计数据

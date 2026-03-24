@@ -394,14 +394,14 @@
         <div class="info-cards">
             <div class="info-card">
                 <div class="info-card-title">📖 WIKI</div>
-                <div class="info-card-item">
+                <div class="info-card-item" onclick="showWiki('beginner')" style="cursor: pointer;">
                     <div>
                         <div style="font-size: 13px; color: #666;">游戏王新手百科</div>
                         <div style="font-size: 12px; color: #667eea;">你了解游戏王吗</div>
                     </div>
                     <span class="go-btn">GO</span>
                 </div>
-                <div class="info-card-item">
+                <div class="info-card-item" onclick="showWiki('advanced')" style="cursor: pointer;">
                     <div>
                         <div style="font-size: 13px; color: #666;">游戏王进阶教学</div>
                         <div style="font-size: 12px; color: #667eea;">成为决斗王吧！</div>
@@ -410,7 +410,7 @@
                 </div>
             </div>
             
-            <div class="info-card">
+            <div class="info-card" onclick="showDeck()" style="cursor: pointer;">
                 <div class="info-card-title">🎴 卡组</div>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <div style="width: 60px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 30px;">🃏</div>
@@ -425,7 +425,7 @@
         
         <!-- 交易区 -->
         <div class="trade-section">
-            <div class="trade-card" onclick="viewCardDetail(6)" style="cursor: pointer;">
+            <div class="trade-card" onclick="showMarket('行情')" style="cursor: pointer;">
                 <div class="trade-header">
                     <span class="trade-title">行情</span>
                     <span class="trade-tag tag-green">力荐</span>
@@ -439,7 +439,7 @@
                 </div>
             </div>
             
-            <div class="trade-card" onclick="viewCardDetail(7)" style="cursor: pointer;">
+            <div class="trade-card" onclick="showMarket('集换仓')" style="cursor: pointer;">
                 <div class="trade-header">
                     <span class="trade-title">集换仓</span>
                     <span class="trade-tag tag-blue">寄售</span>
@@ -453,7 +453,7 @@
                 </div>
             </div>
             
-            <div class="trade-card" onclick="viewCardDetail(8)" style="cursor: pointer;">
+            <div class="trade-card" onclick="showMarket('竞价')" style="cursor: pointer;">
                 <div class="trade-header">
                     <span class="trade-title">竞价</span>
                     <span class="trade-tag tag-red">热门</span>
@@ -477,23 +477,23 @@
                 <span class="section-tab">分类</span>
             </div>
             <div class="update-grid">
-                <div class="update-item">
+                <div class="update-item" onclick="showUpdate('最新')" style="cursor: pointer;">
                     <div class="update-img">🐱</div>
                     <div class="update-name">最新</div>
                 </div>
-                <div class="update-item">
+                <div class="update-item" onclick="showUpdate('界限超越')" style="cursor: pointer;">
                     <div class="update-img">📦</div>
                     <div class="update-name">界限超越...</div>
                 </div>
-                <div class="update-item">
+                <div class="update-item" onclick="showUpdate('即将发售')" style="cursor: pointer;">
                     <div class="update-img">🆕</div>
                     <div class="update-name">即将发售</div>
                 </div>
-                <div class="update-item">
+                <div class="update-item" onclick="showUpdate('LO特别')" style="cursor: pointer;">
                     <div class="update-img">🎁</div>
                     <div class="update-name">LO特别...</div>
                 </div>
-                <div class="update-item">
+                <div class="update-item" onclick="showUpdate('VJUM')" style="cursor: pointer;">
                     <div class="update-img">📚</div>
                     <div class="update-name">VJUM</div>
                 </div>
@@ -502,18 +502,18 @@
         
         <!-- 热门畅销 -->
         <div class="hot-section">
-            <div class="hot-header">
+            <div class="hot-header" onclick="showHot()" style="cursor: pointer;">
                 <span class="hot-title">热门畅销</span>
                 <span class="hot-more">></span>
             </div>
             <div class="hot-grid">
-                <div class="hot-item">
+                <div class="hot-item" onclick="viewCardDetail(1)" style="cursor: pointer;">
                     <div class="hot-img">🃏</div>
                 </div>
-                <div class="hot-item">
+                <div class="hot-item" onclick="viewCardDetail(2)" style="cursor: pointer;">
                     <div class="hot-img">🃏</div>
                 </div>
-                <div class="hot-item">
+                <div class="hot-item" onclick="viewCardDetail(3)" style="cursor: pointer;">
                     <div class="hot-img">🃏</div>
                 </div>
             </div>
@@ -526,7 +526,7 @@
             <span class="nav-icon">🔍</span>
             <span>探索</span>
         </a>
-        <a href="#" class="nav-item">
+        <a href="#" class="nav-item" onclick="showExchange(event)">
             <span class="nav-icon">🔄</span>
             <span>集换</span>
         </a>
@@ -643,6 +643,64 @@
                 return;
             }
             alert(`💬 正在联系 ${seller} 关于 ${cardName}...\n\n(消息功能开发中，将跳转到聊天页面)`);
+        }
+        
+        // WIKI功能
+        function showWiki(type) {
+            if (type === 'beginner') {
+                alert('📖 游戏王新手百科\n\n游戏王是一款集换式卡牌游戏，玩家通过召唤怪兽、使用魔法和陷阱卡来击败对手。\n\n基本规则：\n1. 每回合抽一张卡\n2. 可以召唤怪兽\n3. 使用魔法卡和陷阱卡\n4. 攻击对方怪兽或玩家\n5. 对方LP归零即获胜');
+            } else {
+                alert('📖 游戏王进阶教学\n\n进阶技巧：\n1. 连锁系统 - 理解连锁的优先级\n2. 时点把握 - 知道何时发动效果\n3. 卡组构筑 - 平衡怪兽、魔法、陷阱比例\n4. 资源管理 - 合理使用手牌和墓地资源\n5. 环境对策 - 了解当前主流卡组');
+            }
+        }
+        
+        // 卡组功能
+        function showDeck() {
+            alert('🎴 热门卡组推荐\n\n【已剑卡组】\n上位率: 15.7%\n核心卡: 已剑龙、已剑魔法\n价格: ¥2026\n\n其他热门卡组:\n• 青眼白龙卡组\n• 黑魔导卡组\n• 电子龙卡组');
+        }
+        
+        // 市场行情
+        function showMarket(type) {
+            let html = `<div style="padding: 20px;"><h2>${type}</h2>`;
+            marketCards.forEach(card => {
+                html += `<div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="viewCardDetail(${card.id})">
+                    <div>
+                        <div style="font-weight: bold;">${card.name}</div>
+                        <div style="font-size: 12px; color: #999;">${card.series} · ${card.rarity}</div>
+                    </div>
+                    <div style="font-size: 18px; font-weight: bold; color: #667eea;">¥${card.price}</div>
+                </div>`;
+            });
+            html += '</div>';
+            
+            const modal = document.createElement('div');
+            modal.id = 'searchModal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f5f5f5; z-index: 1000; overflow-y: auto;';
+            modal.innerHTML = html + '<button onclick="closeSearchModal()" style="position: fixed; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #667eea; color: white; font-size: 20px;">✕</button>';
+            document.body.appendChild(modal);
+        }
+        
+        // 近期更新
+        function showUpdate(type) {
+            const updates = {
+                '最新': '🐱 最新更新\n\n• 游戏王 1206 补充包\n• 宝可梦 SV8a 高罕卡\n• 万智牌 MH3 预览',
+                '界限超越': '📦 界限超越\n\n• 超越龙系列\n• 新罕贵度公布\n• 限定卡盒发售',
+                '即将发售': '🆕 即将发售\n\n• 3月28日: 游戏王 1206\n• 4月5日: 宝可梦 SV8a\n• 4月12日: 万智牌 MH3',
+                'LO特别': '🎁 LO特别包\n\n• 限定闪卡\n• 纪念卡册\n• 限定卡套',
+                'VJUM': '📚 VJUM杂志\n\n• 本月附赠卡: 青眼亚白龙\n• 新卡预览\n• 构筑攻略'
+            };
+            alert(updates[type] || '暂无信息');
+        }
+        
+        // 热门畅销
+        function showHot() {
+            showMarket('热门畅销');
+        }
+        
+        // 集换功能
+        function showExchange(e) {
+            e.preventDefault();
+            alert('🔄 集换中心\n\n功能开发中，敬请期待！\n\n即将推出:\n• 卡牌交换\n• 以物易物\n• 估价系统');
         }
         
         // 点击个人导航时检查登录
