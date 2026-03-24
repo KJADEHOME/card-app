@@ -372,6 +372,9 @@
         
         function closeAddModal() {
             document.getElementById('addModal').style.display = 'none';
+            document.getElementById('addForm').reset();
+            document.getElementById('imagePreview').innerHTML = '<span style="color: #999; font-size: 14px;">📷 点击上传图片</span>';
+            document.getElementById('imagePreview').style.backgroundImage = '';
         }
         
         // 图片预览
@@ -390,86 +393,43 @@
             }
         }
         
-        // 表单提交
-        document.getElementById('addForm').addEventListener('submit', function(e) {
+        // 当前用户卡牌列表
+        let myCards = [];
+        
+        // 表单提交 - 使用Supabase
+        document.getElementById('addForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '保存中...';
+            
             const name = document.getElementById('cardName').value;
             const series = document.getElementById('cardSeries').value;
             const rarity = document.getElementById('cardRarity').value;
             const price = document.getElementById('cardPrice').value;
             const imageInput = document.getElementById('cardImage');
             
-            // 获取图片数据
-            if (imageInput.files && imageInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    saveCardToLocal({
-                        id: Date.now(),
-                        name: name,
-                        series: series,
-                        rarity: rarity,
-                        price: price,
-                        image: e.target.result,
-                        favorite: false
-                    });
-                };
-                reader.readAsDataURL(imageInput.files[0]);
+            const result = await CardRealmDB.addCard({
+                name: name,
+                series: series,
+                rarity: rarity,
+                price: price,
+                imageFile: imageInput.files[0] || null,
+                favorite: false
+            });
+            
+            submitBtn.disabled = false;
+            submitBtn.textContent = '保存';
+            
+            if (result.success) {
+                alert('✅ 添加成功：' + name);
+                closeAddModal();
+                loadMyCards();
             } else {
-                saveCardToLocal({
-                    id: Date.now(),
-                    name: name,
-                    series: series,
-                    rarity: rarity,
-                    price: price,
-                    image: '',
-                    favorite: false
-                });
+                alert('❌ 添加失败：' + result.error);
             }
         });
-        
-        // 保存卡牌到本地存储
-        function saveCardToLocal(card) {
-            console.log('Saving card:', card);
-            let cards = JSON.parse(localStorage.getItem('myCards') || '[]');
-            cards.push(card);
-            localStorage.setItem('myCards', JSON.stringify(cards));
-            console.log('Cards saved:', cards);
-            alert('添加成功：' + card.name);
-            closeAddModal();
-            setTimeout(renderCards, 100);
-        }
-        
-        // 渲染卡牌列表（只渲染用户添加的卡牌，追加到示例卡牌后面）
-        function renderCards() {
-            const cards = JSON.parse(localStorage.getItem('myCards') || '[]');
-            
-            if (cards.length === 0) {
-                updateStats(3, 165, 1); // 示例卡牌统计
-                return;
-            }
-            
-            // 有用户添加的卡牌时，追加到页面
-            const cardList = document.getElementById('cardList');
-            const userCardsHtml = cards.map(card => `
-                <div class="card-item">
-                    <button class="favorite-btn ${card.favorite ? 'active' : ''}" onclick="toggleFav(this, ${card.id})">${card.favorite ? '❤️' : '🤍'}</button>
-                    <div class="card-img" style="${card.image ? 'background-image: url(' + card.image + '); background-size: cover; background-position: center;' : getGradientStyle(card.name)}">
-                        ${card.image ? '' : '<span>' + card.name.substring(0, 2) + '</span>'}
-                    </div>
-                    <div class="card-info">
-                        <div class="card-name">${card.name}</div>
-                        <div class="card-meta">${card.series} · ${card.rarity}</div>
-                        <div class="card-price">¥${card.price || 0}</div>
-                    </div>
-                </div>
-            `).join('');
-            
-            cardList.innerHTML += userCardsHtml;
-            
-            // 更新统计（示例卡牌 + 用户卡牌）
-            const totalValue = 165 + cards.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
-            updateStats(3 + cards.length, totalValue, 1 + cards.filter(c => c.favorite).length);
-        }
         
         // 更新统计数据
         function updateStats(total, value, favs) {
@@ -492,65 +452,73 @@
             return gradients[index] + ';';
         }
         
-        // 修改收藏切换函数
-        function toggleFav(btn, cardId) {
-            let cards = JSON.parse(localStorage.getItem('myCards') || '[]');
-            const card = cards.find(c => c.id === cardId);
-            if (card) {
-                card.favorite = !card.favorite;
-                localStorage.setItem('myCards', JSON.stringify(cards));
-                btn.classList.toggle('active');
-                btn.textContent = card.favorite ? '❤️' : '🤍';
-                document.getElementById('favCards').textContent = cards.filter(c => c.favorite).length;
-            }
-        }
+
         
-        // 初始化示例数据（如果localStorage为空或没有卡牌）
-        function initSampleData() {
-            const cards = JSON.parse(localStorage.getItem('myCards') || '[]');
-            if (cards.length === 0) {
-                const sampleCards = [
-                    {
-                        id: 1,
-                        name: '青眼白龙',
-                        series: '游戏王',
-                        rarity: 'UR',
-                        price: 88,
-                        image: '',
-                        favorite: true
-                    },
-                    {
-                        id: 2,
-                        name: '黑魔导',
-                        series: '游戏王',
-                        rarity: 'SR',
-                        price: 45,
-                        image: '',
-                        favorite: false
-                    },
-                    {
-                        id: 3,
-                        name: '皮卡丘',
-                        series: '宝可梦',
-                        rarity: 'SR',
-                        price: 32,
-                        image: '',
-                        favorite: false
-                    }
-                ];
-                localStorage.setItem('myCards', JSON.stringify(sampleCards));
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            await CardRealmDB.initSupabase();
+            
+            // 检查是否已登录
+            const user = await CardRealmDB.getCurrentUser();
+            if (!user && !localStorage.getItem('isGuest')) {
+                window.location.href = 'login.html';
+                return;
             }
-        }
-        
-        // 页面加载时初始化并渲染
-        document.addEventListener('DOMContentLoaded', function() {
-            initSampleData();
-            renderCards();
+            
+            loadMyCards();
         });
         
-        function logout() {
+        // 从Supabase加载我的卡牌
+        async function loadMyCards() {
+            const cardList = document.getElementById('cardList');
+            cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载中...</div>';
+            
+            myCards = await CardRealmDB.getMyCards();
+            
+            if (myCards.length === 0) {
+                cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">还没有卡牌，点击上方按钮添加</div>';
+                updateStats(0, 0, 0);
+                return;
+            }
+            
+            renderCards();
+        }
+        
+        // 渲染卡牌列表
+        function renderCards() {
+            const cardList = document.getElementById('cardList');
+            
+            cardList.innerHTML = myCards.map(card => `
+                <div class="card-item">
+                    <button class="favorite-btn ${card.favorite ? 'active' : ''}" onclick="toggleFav('${card.id}', ${card.favorite})">${card.favorite ? '❤️' : '🤍'}</button>
+                    <div class="card-img" style="${card.image_url ? 'background-image: url(' + card.image_url + '); background-size: cover; background-position: center;' : getGradientStyle(card.name)}">
+                        ${card.image_url ? '' : '<span>' + card.name.substring(0, 2) + '</span>'}
+                    </div>
+                    <div class="card-info">
+                        <div class="card-name">${card.name}</div>
+                        <div class="card-meta">${card.series} · ${card.rarity}</div>
+                        <div class="card-price">¥${card.price || 0}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // 更新统计
+            const totalValue = myCards.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
+            updateStats(myCards.length, totalValue, myCards.filter(c => c.favorite).length);
+        }
+        
+        // 切换收藏状态
+        async function toggleFav(cardId, currentStatus) {
+            const result = await CardRealmDB.toggleFavorite(cardId, currentStatus);
+            if (result.success) {
+                loadMyCards();
+            }
+        }
+        
+        // 登出
+        async function logout() {
             if (confirm('确定要退出登录吗？')) {
-                localStorage.removeItem('currentUser');
+                await CardRealmDB.signOut();
                 window.location.href = 'login.html';
             }
         }
@@ -562,6 +530,7 @@
                 .catch((err) => console.log('Service Worker 注册失败:', err));
         }
     </script>
+    <script src="js/supabase.js"></script>
     <!-- 添加卡牌弹窗 -->
     <div id="addModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto;">
