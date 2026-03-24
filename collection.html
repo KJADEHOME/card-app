@@ -316,8 +316,8 @@
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         
-        // 初始化Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 初始化Supabase（使用window.supabase避免重复声明）
+        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         // 当前用户卡牌列表
         let myCards = [];
@@ -327,7 +327,7 @@
             console.log('页面加载完成');
             
             // 检查登录状态
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
             console.log('当前用户:', user);
             
             if (!user && !localStorage.getItem('isGuest')) {
@@ -360,13 +360,13 @@
                         const fileExt = file.name.split('.').pop();
                         const fileName = `${Date.now()}.${fileExt}`;
                         
-                        const { data: uploadData, error: uploadError } = await supabase
+                        const { data: uploadData, error: uploadError } = await window.supabaseClient
                             .storage
                             .from('card-images')
                             .upload(fileName, file);
                         
                         if (!uploadError) {
-                            const { data: { publicUrl } } = supabase
+                            const { data: { publicUrl } } = window.supabaseClient
                                 .storage
                                 .from('card-images')
                                 .getPublicUrl(fileName);
@@ -375,7 +375,7 @@
                     }
                     
                     // 保存卡牌数据
-                    const { data, error } = await supabase
+                    const { data, error } = await window.supabaseClient
                         .from('cards')
                         .insert([{
                             user_id: user.id,
@@ -447,13 +447,13 @@
             const cardList = document.getElementById('cardList');
             cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载中...</div>';
             
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
             if (!user) {
                 cardList.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">请先登录</div>';
                 return;
             }
             
-            const { data, error } = await supabase
+            const { data, error } = await window.supabaseClient
                 .from('cards')
                 .select('*')
                 .eq('user_id', user.id)
@@ -533,7 +533,7 @@
         // 登出
         async function logout() {
             if (confirm('确定要退出登录吗？')) {
-                await supabase.auth.signOut();
+                await window.supabaseClient.auth.signOut();
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('isGuest');
                 window.location.href = 'login.html';
