@@ -9,7 +9,6 @@
                 window.location.href = 'login.html';
                 return;
             }
-            // 兼容旧数据：如果是纯字符串，转换为对象
             try {
                 const parsed = JSON.parse(userData);
                 if (typeof parsed === 'string') {
@@ -19,7 +18,6 @@
                     }));
                 }
             } catch (e) {
-                // 不是JSON，是纯字符串用户名
                 localStorage.setItem('currentUser', JSON.stringify({
                     username: userData,
                     id: 'user_' + Date.now()
@@ -258,6 +256,7 @@
             font-size: 16px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             transition: all 0.2s;
+            z-index: 10;
         }
         
         .favorite-btn:hover {
@@ -341,7 +340,7 @@
             margin-top: 4px;
         }
         
-        /* 添加卡牌弹窗 */
+        /* 弹窗样式 */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -408,6 +407,41 @@
             min-height: 80px;
         }
         
+        /* 图片上传区域 */
+        .image-upload {
+            width: 100%;
+            height: 150px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        .image-upload:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+        
+        .image-upload.has-image {
+            border: none;
+            background: transparent;
+        }
+        
+        .image-upload img {
+            max-width: 100%;
+            max-height: 140px;
+            border-radius: 8px;
+        }
+        
+        .image-upload input[type="file"] {
+            display: none;
+        }
+        
         .modal-buttons {
             display: flex;
             gap: 10px;
@@ -429,18 +463,27 @@
             color: white;
         }
         
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #666;
-        }
-        
         .btn-primary:hover {
             opacity: 0.9;
             transform: translateY(-1px);
         }
         
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
         .btn-secondary:hover {
             background: #e0e0e0;
+        }
+        
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #ff5252;
         }
         
         @media (max-width: 600px) {
@@ -505,11 +548,24 @@
         </div>
     </div>
     
-    <!-- 添加卡牌弹窗 -->
-    <div id="addModal" class="modal-overlay">
+    <!-- 添加/编辑卡牌弹窗 -->
+    <div id="cardModal" class="modal-overlay">
         <div class="modal">
-            <h2>添加新卡牌</h2>
-            <form id="addCardForm">
+            <h2 id="modalTitle">添加新卡牌</h2>
+            <form id="cardForm">
+                <input type="hidden" id="cardId">
+                
+                <!-- 图片上传 -->
+                <div class="form-group">
+                    <label>卡牌图片</label>
+                    <div class="image-upload" id="imageUpload" onclick="document.getElementById('cardImageFile').click()">
+                        <span id="uploadText">📷 点击上传图片</span>
+                        <img id="uploadPreview" style="display: none;">
+                    </div>
+                    <input type="file" id="cardImageFile" accept="image/*" onchange="handleImageUpload(this)">
+                    <input type="hidden" id="cardImageUrl">
+                </div>
+                
                 <div class="form-group">
                     <label>卡牌名称 *</label>
                     <input type="text" id="cardName" required placeholder="例如：青眼白龙">
@@ -544,16 +600,14 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>图片链接</label>
-                    <input type="url" id="cardImageUrl" placeholder="https://...">
-                </div>
-                <div class="form-group">
                     <label>备注</label>
                     <textarea id="cardNote" placeholder="添加描述、交易意向等..."></textarea>
                 </div>
+                
                 <div class="modal-buttons">
-                    <button type="button" class="btn-secondary" onclick="hideAddForm()">取消</button>
-                    <button type="submit" class="btn-primary">保存卡牌</button>
+                    <button type="button" class="btn-secondary" onclick="hideCardForm()">取消</button>
+                    <button type="button" class="btn-danger" id="deleteBtn" onclick="deleteCard()" style="display: none;">删除</button>
+                    <button type="submit" class="btn-primary">保存</button>
                 </div>
             </form>
         </div>
@@ -564,33 +618,29 @@
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ';
         
-        // 初始化 Supabase
         let supabaseClient;
         try {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log('Supabase 初始化成功');
         } catch (e) {
             console.error('Supabase 初始化失败:', e);
         }
         
-        // ===== 全局变量 =====
         let currentUser = null;
         let allCards = [];
+        let isEditing = false;
+        let currentImageBase64 = null;
         
-        // ===== 页面加载时初始化 =====
+        // ===== 页面初始化 =====
         document.addEventListener('DOMContentLoaded', async () => {
-            // 获取并解析用户信息
             const userData = localStorage.getItem('currentUser');
             if (userData) {
                 try {
                     currentUser = JSON.parse(userData);
-                    // 如果是字符串（旧数据），转换格式
                     if (typeof currentUser === 'string') {
                         currentUser = { username: currentUser, id: 'user_' + Date.now() };
                     }
                     document.getElementById('usernameDisplay').textContent = currentUser.username || '用户';
                 } catch (e) {
-                    // 解析失败，使用默认值
                     currentUser = { username: userData, id: 'user_' + Date.now() };
                     document.getElementById('usernameDisplay').textContent = userData || '用户';
                 }
@@ -598,12 +648,22 @@
             }
         });
         
-        // ===== 返回按钮 =====
+        // ===== 返回按钮（App模式智能返回）=====
         function goBack() {
-            if (window.history.length > 1) {
-                window.history.back();
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+                              || navigator.standalone;
+            
+            if (isStandalone) {
+                // App模式：返回App内部上一页
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    // 已经在首页，最小化或提示
+                    console.log('已在首页');
+                }
             } else {
-                window.location.href = 'index.html';
+                // 网页模式：返回浏览器上一页
+                window.history.back();
             }
         }
         
@@ -618,24 +678,87 @@
         
         // ===== 显示添加表单 =====
         function showAddForm() {
-            document.getElementById('addModal').classList.add('active');
+            isEditing = false;
+            currentImageBase64 = null;
+            document.getElementById('modalTitle').textContent = '添加新卡牌';
+            document.getElementById('cardId').value = '';
+            document.getElementById('cardForm').reset();
+            document.getElementById('deleteBtn').style.display = 'none';
+            resetImageUpload();
+            document.getElementById('cardModal').classList.add('active');
         }
         
-        // ===== 隐藏添加表单 =====
-        function hideAddForm() {
-            document.getElementById('addModal').classList.remove('active');
-            document.getElementById('addCardForm').reset();
-        }
-        
-        // 点击弹窗外部关闭
-        document.getElementById('addModal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                hideAddForm();
+        // ===== 显示编辑表单 =====
+        function showEditForm(cardId) {
+            const card = allCards.find(c => c.id === cardId);
+            if (!card) return;
+            
+            isEditing = true;
+            currentImageBase64 = card.image_url || null;
+            
+            document.getElementById('modalTitle').textContent = '编辑卡牌';
+            document.getElementById('cardId').value = card.id;
+            document.getElementById('cardName').value = card.name || '';
+            document.getElementById('cardSeries').value = card.series || '';
+            document.getElementById('cardRarity').value = card.rarity || 'N';
+            document.getElementById('cardPrice').value = card.price || '';
+            document.getElementById('cardCondition').value = card.condition || 'mint';
+            document.getElementById('cardNote').value = card.note || '';
+            
+            // 显示图片
+            if (card.image_url) {
+                showImagePreview(card.image_url);
+            } else {
+                resetImageUpload();
             }
-        });
+            
+            document.getElementById('deleteBtn').style.display = 'block';
+            document.getElementById('cardModal').classList.add('active');
+        }
         
-        // ===== 提交表单 =====
-        document.getElementById('addCardForm').addEventListener('submit', async (e) => {
+        // ===== 隐藏表单 =====
+        function hideCardForm() {
+            document.getElementById('cardModal').classList.remove('active');
+            document.getElementById('cardForm').reset();
+            currentImageBase64 = null;
+        }
+        
+        // ===== 图片上传处理 =====
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageBase64 = e.target.result;
+                showImagePreview(currentImageBase64);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function showImagePreview(src) {
+            const uploadArea = document.getElementById('imageUpload');
+            const preview = document.getElementById('uploadPreview');
+            const text = document.getElementById('uploadText');
+            
+            uploadArea.classList.add('has-image');
+            preview.src = src;
+            preview.style.display = 'block';
+            text.style.display = 'none';
+        }
+        
+        function resetImageUpload() {
+            const uploadArea = document.getElementById('imageUpload');
+            const preview = document.getElementById('uploadPreview');
+            const text = document.getElementById('uploadText');
+            
+            uploadArea.classList.remove('has-image');
+            preview.style.display = 'none';
+            text.style.display = 'block';
+        }
+        
+        // ===== 提交表单（添加/编辑）=====
+        document.getElementById('cardForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             if (!currentUser) {
@@ -651,63 +774,122 @@
                 price: parseFloat(document.getElementById('cardPrice').value) || 0,
                 condition: document.getElementById('cardCondition').value,
                 note: document.getElementById('cardNote').value,
-                image_url: document.getElementById('cardImageUrl').value || null,
-                is_favorite: false,
-                created_at: new Date().toISOString()
+                image_url: currentImageBase64,
+                updated_at: new Date().toISOString()
             };
             
-            try {
-                const { data, error } = await supabaseClient
-                    .from('cards')
-                    .insert([cardData])
-                    .select();
+            if (isEditing) {
+                // 编辑模式
+                const cardId = document.getElementById('cardId').value;
+                try {
+                    const { error } = await supabaseClient
+                        .from('cards')
+                        .update(cardData)
+                        .eq('id', cardId);
+                    
+                    if (error) throw error;
+                    
+                    alert('卡牌更新成功！');
+                    hideCardForm();
+                    await loadCards();
+                } catch (error) {
+                    console.error('更新失败:', error);
+                    alert('更新失败: ' + error.message);
+                    updateLocalCard(cardId, cardData);
+                }
+            } else {
+                // 添加模式
+                cardData.created_at = new Date().toISOString();
+                cardData.is_favorite = false;
                 
-                if (error) throw error;
-                
-                alert('卡牌添加成功！');
-                hideAddForm();
-                await loadCards();
-            } catch (error) {
-                console.error('添加卡牌失败:', error);
-                alert('添加失败: ' + error.message);
-                saveCardLocally(cardData);
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('cards')
+                        .insert([cardData])
+                        .select();
+                    
+                    if (error) throw error;
+                    
+                    alert('卡牌添加成功！');
+                    hideCardForm();
+                    await loadCards();
+                } catch (error) {
+                    console.error('添加失败:', error);
+                    alert('添加失败: ' + error.message);
+                    saveCardLocally(cardData);
+                }
             }
         });
         
-        // ===== 本地存储（备用）=====
+        // ===== 删除卡牌 =====
+        async function deleteCard() {
+            if (!confirm('确定要删除这张卡牌吗？')) return;
+            
+            const cardId = document.getElementById('cardId').value;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('cards')
+                    .delete()
+                    .eq('id', cardId);
+                
+                if (error) throw error;
+                
+                alert('卡牌已删除');
+                hideCardForm();
+                await loadCards();
+            } catch (error) {
+                console.error('删除失败:', error);
+                deleteLocalCard(cardId);
+            }
+        }
+        
+        // ===== 本地存储操作 =====
         function saveCardLocally(cardData) {
             let localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
             cardData.id = Date.now();
             localCards.push(cardData);
             localStorage.setItem('localCards', JSON.stringify(localCards));
-            alert('卡牌已保存到本地（Supabase 未连接）');
-            hideAddForm();
+            alert('已保存到本地');
+            hideCardForm();
             loadLocalCards();
         }
         
-        // ===== 从 Supabase 加载卡牌 =====
+        function updateLocalCard(cardId, cardData) {
+            let localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
+            const index = localCards.findIndex(c => c.id == cardId);
+            if (index !== -1) {
+                localCards[index] = { ...localCards[index], ...cardData };
+                localStorage.setItem('localCards', JSON.stringify(localCards));
+                hideCardForm();
+                loadLocalCards();
+            }
+        }
+        
+        function deleteLocalCard(cardId) {
+            let localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
+            localCards = localCards.filter(c => c.id != cardId);
+            localStorage.setItem('localCards', JSON.stringify(localCards));
+            alert('已删除（本地）');
+            hideCardForm();
+            loadLocalCards();
+        }
+        
+        // ===== 加载卡牌 =====
         async function loadCards() {
-            const cardList = document.getElementById('cardList');
-            
             if (!supabaseClient) {
-                console.log('Supabase 未初始化，使用本地数据');
                 loadLocalCards();
                 return;
             }
             
             try {
-                console.log('开始加载卡牌...');
                 const { data: cards, error } = await supabaseClient
                     .from('cards')
                     .select('*')
                     .order('created_at', { ascending: false });
                 
-                if (error) {
-                    console.error('Supabase 查询错误:', error);
-                    throw error;
-                }
+                if (error) throw error;
                 
-                console.log('加载到卡牌:', cards);
                 allCards = cards || [];
                 
                 if (allCards.length > 0) {
@@ -717,12 +899,11 @@
                     loadLocalCards();
                 }
             } catch (error) {
-                console.error('加载卡牌失败:', error);
+                console.error('加载失败:', error);
                 loadLocalCards();
             }
         }
         
-        // ===== 加载本地卡牌 =====
         function loadLocalCards() {
             const localCards = JSON.parse(localStorage.getItem('localCards') || '[]');
             allCards = localCards;
@@ -735,29 +916,26 @@
             }
         }
         
-        // ===== 渲染卡牌列表 =====
+        // ===== 渲染卡牌 =====
         function renderCards(cards) {
             const cardList = document.getElementById('cardList');
             
             cardList.innerHTML = cards.map(card => `
-                <div class="card-item" onclick="viewCardDetail(${card.id})">
+                <div class="card-item" onclick="showEditForm(${card.id})">
                     <button class="favorite-btn ${card.is_favorite ? 'active' : ''}" 
-                            onclick="toggleFavorite(event, ${card.id})" 
-                            title="${card.is_favorite ? '取消收藏' : '收藏'}">
+                            onclick="toggleFavorite(event, ${card.id})">
                         ${card.is_favorite ? '❤️' : '🤍'}
                     </button>
                     <div class="card-img">
-                        ${card.image_url ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(card.name)}" onerror="this.style.display='none'; this.parentElement.textContent='🃏';">` : '🃏'}
+                        ${card.image_url ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(card.name)}" onerror="this.src=''">` : '🃏'}
                     </div>
                     <div class="card-name">${escapeHtml(card.name)}</div>
                     <div class="card-info">${escapeHtml(card.series)} · ${escapeHtml(card.rarity)}</div>
                     ${card.price ? `<div class="card-price">¥${card.price}</div>` : ''}
-                    ${card.condition ? `<div class="card-condition">${getConditionText(card.condition)}</div>` : ''}
                 </div>
             `).join('');
         }
         
-        // ===== 显示空状态 =====
         function showEmptyState() {
             document.getElementById('cardList').innerHTML = `
                 <div class="empty-state" style="grid-column: 1/-1;">
@@ -769,7 +947,6 @@
             updateStats([]);
         }
         
-        // ===== 更新统计 =====
         function updateStats(cards) {
             const total = cards.length;
             const totalValue = cards.reduce((sum, card) => sum + (parseFloat(card.price) || 0), 0);
@@ -780,7 +957,7 @@
             document.getElementById('favCards').textContent = favorites;
         }
         
-        // ===== 切换收藏状态 =====
+        // ===== 收藏功能 =====
         async function toggleFavorite(event, cardId) {
             event.stopPropagation();
             
@@ -801,22 +978,10 @@
                 renderCards(allCards);
                 updateStats(allCards);
             } catch (error) {
-                console.error('更新收藏状态失败:', error);
-                alert('操作失败: ' + error.message);
+                console.error('收藏失败:', error);
             }
         }
         
-        // ===== 查看卡牌详情 =====
-        function viewCardDetail(cardId) {
-            const card = allCards.find(c => c.id === cardId);
-            if (!card) return;
-            
-            const detail = `名称: ${card.name}\n系列: ${card.series}\n稀有度: ${card.rarity}\n价格: ¥${card.price || 0}\n状态: ${getConditionText(card.condition)}\n备注: ${card.note || '无'}`;
-            
-            alert(detail);
-        }
-        
-        // ===== 辅助函数 =====
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -824,21 +989,17 @@
             return div.innerHTML;
         }
         
-        function getConditionText(condition) {
-            const map = {
-                'mint': '全新',
-                'near_mint': '近全新',
-                'excellent': '优秀',
-                'good': '良好',
-                'played': '有磨损'
-            };
-            return map[condition] || condition;
-        }
+        // 点击弹窗外部关闭
+        document.getElementById('cardModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                hideCardForm();
+            }
+        });
         
-        // ===== 键盘快捷键 =====
+        // ESC键关闭
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                hideAddForm();
+                hideCardForm();
             }
         });
     </script>
