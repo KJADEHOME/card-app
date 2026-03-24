@@ -340,6 +340,72 @@
             margin-top: 4px;
         }
         
+        /* 搜索筛选栏 */
+        .search-filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .search-filter-bar select {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .search-filter-bar select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-clear {
+            padding: 12px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 25px;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-clear:hover {
+            background: #e0e0e0;
+        }
+        
         /* 弹窗样式 */
         .modal-overlay {
             display: none;
@@ -485,6 +551,82 @@
         .btn-danger:hover {
             background: #ff5252;
         }
+
+        /* PWA 安装提示 */
+        .install-prompt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            z-index: 9999;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideDown 0.5s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        .install-content {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .install-icon {
+            font-size: 32px;
+        }
+
+        .install-text {
+            flex: 1;
+        }
+
+        .install-title {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .install-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .install-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .install-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .install-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* 已安装时隐藏提示 */
+        body.installed .install-prompt {
+            display: none !important;
+        }
         
         @media (max-width: 600px) {
             .container {
@@ -505,20 +647,96 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
-    </style>
+            /* 游戏选择器 */
+        .game-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 25px;
+            color: white;
+            transition: all 0.3s;
+        }
+        
+        .game-selector:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        
+        .game-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .game-lang {
+            font-size: 11px;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .dropdown-arrow {
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        
+        /* 发售日历按钮 */
+        .calendar-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-right: 10px;
+            box-shadow: 0 2px 8px rgba(255,107,107,0.3);
+        }
+        
+        .calendar-icon {
+            font-size: 18px;
+        }
+        
+        .calendar-text {
+            line-height: 1.3;
+            font-weight: bold;
+        }</style>
 </head>
 <body>
+    <!-- PWA 安装提示 -->
+    <div id="installPrompt" class="install-prompt" style="display: none;">
+        <div class="install-content">
+            <div class="install-icon">🃏</div>
+            <div class="install-text">
+                <div class="install-title">安装卡域到手机</div>
+                <div class="install-subtitle">像原生 App 一样使用，离线也能查看</div>
+            </div>
+            <button class="install-btn" onclick="installPWA()">安装</button>
+            <button class="install-close" onclick="hideInstallPrompt()">✕</button>
+        </div>
+    </div>
+    
     <div class="container">
         <div class="header">
             <div class="header-left">
                 <button class="btn btn-back" onclick="goBack()">← 返回</button>
-                <h1 style="margin: 0; font-size: 24px;">🃏 卡域 CardRealm</h1>
+                                <div class="game-selector" onclick="switchGame()">
+                    <span class="game-title" id="currentGame">游戏王</span>
+                    <span class="game-lang">日文</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
             </div>
-            <div class="header-right">
+                       <div class="header-right">
+                <div class="calendar-btn" onclick="showCalendar()">
+                    <div class="calendar-icon">📅</div>
+                    <div class="calendar-text">发售<br>日历</div>
+                </div>
                 <span id="usernameDisplay" class="username">加载中...</span>
-                <button class="btn btn-logout" onclick="logout()">退出登录</button>
-            </div>
-        </div>
+                <button class="btn btn-logout" onclick="logout()">退出</button>
+            </div> 
         
         <p class="subtitle">管理你的卡牌收藏，发现交易机会</p>
         
@@ -537,6 +755,29 @@
                 <div class="stat-label">收藏</div>
             </div>
         </div>
+        
+        <!-- 搜索筛选栏 -->
+        <div class="search-filter-bar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索卡牌名称..." oninput="filterCards()">
+                <span class="search-icon">🔍</span>
+            </div>
+            <select id="seriesFilter" onchange="filterCards()">
+                <option value="">所有系列</option>
+            </select>
+            <select id="rarityFilter" onchange="filterCards()">
+                <option value="">所有稀有度</option>
+                <option value="N">普通 (N)</option>
+                <option value="R">稀有 (R)</option>
+                <option value="SR">超稀有 (SR)</option>
+                <option value="SSR">极度稀有 (SSR)</option>
+                <option value="UR">终极稀有 (UR)</option>
+                <option value="LR">传说 (LR)</option>
+            </select>
+            <button class="btn-clear" onclick="clearFilters()">清空</button>
+        </div>
+        
+        <div id="resultInfo"></div>
         
         <button class="add-btn" onclick="showAddForm()">+ 添加卡牌</button>
         
@@ -614,6 +855,72 @@
     </div>
 
     <script>
+        // ===== PWA 安装提示 =====
+        let deferredPrompt = null;
+        let isInstalled = false;
+
+        // 检测是否已安装
+        function checkInstalled() {
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
+                isInstalled = true;
+                return true;
+            }
+            return false;
+        }
+
+        // 监听安装提示事件
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallPrompt();
+        });
+
+        // 监听已安装
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            isInstalled = true;
+            hideInstallPrompt();
+            console.log('PWA 已安装');
+        });
+
+        // ===== 显示/隐藏安装提示 =====
+        function showInstallPrompt() {
+            if (checkInstalled()) return;
+            if (localStorage.getItem('installPromptDismissed')) return;
+            
+            const prompt = document.getElementById('installPrompt');
+            if (prompt && deferredPrompt) {
+                prompt.style.display = 'block';
+            }
+        }
+
+        function hideInstallPrompt() {
+            const prompt = document.getElementById('installPrompt');
+            if (prompt) {
+                prompt.style.display = 'none';
+            }
+            localStorage.setItem('installPromptDismissed', 'true');
+        }
+
+        // ===== 执行安装 =====
+        async function installPWA() {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('用户接受安装');
+                isInstalled = true;
+            } else {
+                console.log('用户拒绝安装');
+                localStorage.setItem('installPromptDismissed', 'true');
+            }
+            deferredPrompt = null;
+            hideInstallPrompt();
+        }
+
         // ===== Supabase 配置 =====
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MDU2MzMsImV4cCI6MjA4OTQ4MTYzM30.ODg0ZNoIMonj-6WoBBkvdeJ2O3IXcH0nxrrSLiSPASQ';
@@ -646,23 +953,28 @@
                 }
                 await loadCards();
             }
+            
+            // PWA 安装检查
+            if (checkInstalled()) {
+                document.body.classList.add('installed');
+            }
+            setTimeout(() => {
+                if (deferredPrompt && !checkInstalled()) {
+                    showInstallPrompt();
+                }
+            }, 3000);
         });
         
-        // ===== 返回按钮（App模式智能返回）=====
+        // ===== 返回按钮 =====
         function goBack() {
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
                               || navigator.standalone;
             
             if (isStandalone) {
-                // App模式：返回App内部上一页
                 if (window.history.length > 1) {
                     window.history.back();
-                } else {
-                    // 已经在首页，最小化或提示
-                    console.log('已在首页');
                 }
             } else {
-                // 网页模式：返回浏览器上一页
                 window.history.back();
             }
         }
@@ -674,6 +986,25 @@
                 localStorage.removeItem('token');
                 window.location.href = 'login.html';
             }
+        }
+                function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            }
+        }
+        
+        // ===== 在这里添加新函数 =====
+        function switchGame() {
+            const games = ['游戏王', '宝可梦', '万智牌', '数码宝贝'];
+            const current = document.getElementById('currentGame').textContent;
+            const nextIndex = (games.indexOf(current) + 1) % games.length;
+            document.getElementById('currentGame').textContent = games[nextIndex];
+        }
+        
+        function showCalendar() {
+            alert('发售日历功能开发中...');
         }
         
         // ===== 显示添加表单 =====
@@ -705,7 +1036,6 @@
             document.getElementById('cardCondition').value = card.condition || 'mint';
             document.getElementById('cardNote').value = card.note || '';
             
-            // 显示图片
             if (card.image_url) {
                 showImagePreview(card.image_url);
             } else {
@@ -723,15 +1053,62 @@
             currentImageBase64 = null;
         }
         
-        // ===== 图片上传处理 =====
-        function handleImageUpload(input) {
+        // ===== 图片上传到 Supabase Storage =====
+        async function uploadImageToStorage(file) {
+            if (!file) return null;
+            
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+            const filePath = `${currentUser.id}/${fileName}`;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .storage
+                    .from('card-images')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+                
+                if (error) throw error;
+                
+                const { data: { publicUrl } } = supabaseClient
+                    .storage
+                    .from('card-images')
+                    .getPublicUrl(filePath);
+                
+                return publicUrl;
+                
+            } catch (error) {
+                console.error('上传失败:', error);
+                alert('图片上传失败: ' + error.message);
+                return null;
+            }
+        }
+
+        // ===== 图片选择处理 =====
+        async function handleImageUpload(input) {
             const file = input.files[0];
             if (!file) return;
             
+            if (file.size > 5 * 1024 * 1024) {
+                alert('图片太大，请选择小于 5MB 的图片');
+                input.value = '';
+                return;
+            }
+            
             const reader = new FileReader();
-            reader.onload = function(e) {
-                currentImageBase64 = e.target.result;
-                showImagePreview(currentImageBase64);
+            reader.onload = async function(e) {
+                showImagePreview(e.target.result);
+                document.getElementById('uploadText').innerHTML = '⏳ 上传中...';
+                
+                const publicUrl = await uploadImageToStorage(file);
+                if (publicUrl) {
+                    currentImageBase64 = publicUrl;
+                    document.getElementById('uploadText').innerHTML = '✅ 上传成功';
+                } else {
+                    resetImageUpload();
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -802,6 +1179,7 @@
                 cardData.created_at = new Date().toISOString();
                 cardData.is_favorite = false;
                 
+                // 尝试在线保存，失败则转本地
                 try {
                     const { data, error } = await supabaseClient
                         .from('cards')
@@ -814,9 +1192,13 @@
                     hideCardForm();
                     await loadCards();
                 } catch (error) {
-                    console.error('添加失败:', error);
-                    alert('添加失败: ' + error.message);
+                    console.error('在线保存失败，转本地:', error);
+                    // 出错时存本地
+                    cardData._pendingSync = true;
                     saveCardLocally(cardData);
+                    alert('已保存到本地，联网后自动同步');
+                    hideCardForm();
+                    loadLocalCards();
                 }
             }
         });
@@ -895,6 +1277,7 @@
                 if (allCards.length > 0) {
                     renderCards(allCards);
                     updateStats(allCards);
+                    initFilterOptions();
                 } else {
                     loadLocalCards();
                 }
@@ -927,7 +1310,12 @@
                         ${card.is_favorite ? '❤️' : '🤍'}
                     </button>
                     <div class="card-img">
-                        ${card.image_url ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(card.name)}" onerror="this.src=''">` : '🃏'}
+                        ${card.image_url ? 
+                            `<img src="${escapeHtml(card.image_url)}" 
+                                  alt="${escapeHtml(card.name)}" 
+                                  loading="lazy"
+                                  onerror="this.onerror=null; this.parentElement.innerHTML='🃏';">` 
+                            : '🃏'}
                     </div>
                     <div class="card-name">${escapeHtml(card.name)}</div>
                     <div class="card-info">${escapeHtml(card.series)} · ${escapeHtml(card.rarity)}</div>
@@ -980,6 +1368,56 @@
             } catch (error) {
                 console.error('收藏失败:', error);
             }
+        }
+        
+        // ===== 搜索筛选 =====
+        function initFilterOptions() {
+            const seriesSet = new Set(allCards.map(c => c.series).filter(Boolean));
+            const seriesSelect = document.getElementById('seriesFilter');
+            
+            while (seriesSelect.options.length > 1) {
+                seriesSelect.remove(1);
+            }
+            
+            Array.from(seriesSet).sort().forEach(series => {
+                const option = document.createElement('option');
+                option.value = series;
+                option.textContent = series;
+                seriesSelect.appendChild(option);
+            });
+        }
+
+        function filterCards() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+            const seriesValue = document.getElementById('seriesFilter').value;
+            const rarityValue = document.getElementById('rarityFilter').value;
+            
+            let filtered = allCards.filter(card => {
+                const matchName = !searchText || 
+                    (card.name && card.name.toLowerCase().includes(searchText));
+                const matchSeries = !seriesValue || card.series === seriesValue;
+                const matchRarity = !rarityValue || card.rarity === rarityValue;
+                
+                return matchName && matchSeries && matchRarity;
+            });
+            
+            renderCards(filtered);
+            
+            const resultInfo = document.getElementById('resultInfo');
+            if (filtered.length === 0) {
+                resultInfo.innerHTML = '<div class="empty-state" style="padding:40px 20px;"><div class="empty-icon">🔍</div><div class="empty-text">没有找到匹配的卡牌</div></div>';
+            } else if (filtered.length !== allCards.length) {
+                resultInfo.innerHTML = `<div style="text-align:center;color:#666;font-size:14px;margin-bottom:15px;">显示 ${filtered.length} / ${allCards.length} 张卡牌</div>`;
+            } else {
+                resultInfo.innerHTML = '';
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('seriesFilter').value = '';
+            document.getElementById('rarityFilter').value = '';
+            filterCards();
         }
         
         function escapeHtml(text) {
