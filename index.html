@@ -366,16 +366,7 @@
     </style>
 </head>
 <body>
-    <!-- 登录检查 -->
-    <script>
-        (function() {
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
-                window.location.replace('/login.html');
-            }
-        })();
-    </script>
-    <!-- 其他内容... -->
+    <!-- 顶部 -->
     
     <!-- 顶部 -->
     <div class="header">
@@ -544,7 +535,7 @@
             <span class="nav-icon">💬</span>
             <span>消息</span>
         </a>
-        <a href="collection.html" class="nav-item">  <!-- 确保是 collection.html -->
+        <a href="#" class="nav-item" onclick="goToProfile(event)">
             <span class="nav-icon">👤</span>
             <span>个人</span>
         </a>
@@ -561,6 +552,17 @@
         
         function showCalendar() {
             alert('发售日历功能开发中...');
+        }
+        
+        // 点击个人导航时检查登录
+        function goToProfile(e) {
+            e.preventDefault();
+            const user = localStorage.getItem('currentUser');
+            if (!user) {
+                window.location.href = 'login.html';
+            } else {
+                window.location.href = 'collection.html';
+            }
         }
     </script>
 </body>
