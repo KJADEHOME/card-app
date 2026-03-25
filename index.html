@@ -53,6 +53,40 @@
             <div class="filter-tab" onclick="filterSeries('万智牌')">万智牌</div>
         </div>
         
+        <!-- WIKI & 卡组 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div style="background: white; border-radius: 12px; padding: 15px;" onclick="showWiki()">
+                <div style="font-weight: bold; margin-bottom: 10px;">📖 WIKI</div>
+                <div style="font-size: 13px; color: #666;">游戏王新手百科</div>
+                <div style="font-size: 12px; color: #667eea;">GO →</div>
+            </div>
+            <div style="background: white; border-radius: 12px; padding: 15px;" onclick="showDeck()">
+                <div style="font-weight: bold; margin-bottom: 10px;">🎴 卡组</div>
+                <div style="font-size: 13px; color: #666;">热门卡组推荐</div>
+                <div style="font-size: 12px; color: #667eea;">157 上位数</div>
+            </div>
+        </div>
+        
+        <!-- 交易区 -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+            <div style="background: white; border-radius: 12px; padding: 12px;" onclick="showMarket('行情')">
+                <div style="font-size: 12px; color: #4caf50; margin-bottom: 5px;">● 行情</div>
+                <div style="font-size: 13px; font-weight: bold;">多多迷宝</div>
+                <div style="font-size: 14px; color: #667eea;">¥19.60</div>
+            </div>
+            <div style="background: white; border-radius: 12px; padding: 12px;" onclick="showMarket('集换仓')">
+                <div style="font-size: 12px; color: #2196f3; margin-bottom: 5px;">● 集换仓</div>
+                <div style="font-size: 13px; font-weight: bold;">枪管上膛</div>
+                <div style="font-size: 14px; color: #667eea;">¥1.10</div>
+            </div>
+            <div style="background: white; border-radius: 12px; padding: 12px;" onclick="showMarket('竞价')">
+                <div style="font-size: 12px; color: #f44336; margin-bottom: 5px;">● 竞价</div>
+                <div style="font-size: 13px; font-weight: bold;">BGS 9 万物</div>
+                <div style="font-size: 14px; color: #f44336;">26h</div>
+            </div>
+        </div>
+        
+        <!-- 最新发布 -->
         <div class="section-title">
             <span>🔥 最新发布</span>
             <a href="publish.html">+ 发布</a>
@@ -82,7 +116,7 @@
             
             const { data, error } = await db
                 .from('market_listings')
-                .select('*, profiles(username)')
+                .select('*')
                 .eq('status', 'active')
                 .order('created_at', { ascending: false });
             
@@ -125,7 +159,7 @@
                         </div>
                         <div class="card-meta">${item.series} · ${item.rarity}</div>
                         <div class="card-price">¥${item.price}</div>
-                        <div class="card-seller">卖家: ${item.profiles?.username || '未知'}</div>
+                        <div class="card-seller">卖家ID: ${item.seller_id?.substring(0, 8) || '未知'}</div>
                     </div>
                 </div>
             `).join('');
@@ -163,6 +197,21 @@
         // 查看详情
         function viewDetail(id) {
             window.location.href = 'card-detail.html?id=' + id;
+        }
+        
+        // WIKI
+        function showWiki() {
+            alert('📖 WIKI\n\n游戏王新手百科\n\n• 基础规则\n• 卡牌类型\n• 召唤方式\n• 连锁系统');
+        }
+        
+        // 卡组
+        function showDeck() {
+            alert('🎴 热门卡组\n\n• 青眼白龙卡组\n• 黑魔导卡组\n• 电子龙卡组\n• 闪刀姬卡组');
+        }
+        
+        // 市场行情
+        function showMarket(type) {
+            alert('📊 ' + type + '\n\n功能开发中，敬请期待！');
         }
         
         // 页面加载
