@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 卡牌详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 100px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .card-image { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .info { background: white; padding: 20px; margin-bottom: 15px; }
+        .card-name { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+        .card-meta { color: #666; font-size: 14px; margin-bottom: 15px; }
+        .card-price { font-size: 28px; font-weight: bold; color: #667eea; margin-bottom: 15px; }
+        .tag { display: inline-block; padding: 4px 12px; border-radius: 15px; font-size: 12px; margin-right: 10px; }
+        .tag-sell { background: #e3f2fd; color: #1976d2; }
+        .tag-buy { background: #fff3e0; color: #f57c00; }
+        .section { background: white; padding: 20px; margin-bottom: 15px; }
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .section-content { color: #666; font-size: 14px; line-height: 1.6; }
+        .seller { display: flex; align-items: center; gap: 15px; }
+        .seller-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; }
+        .seller-name { font-weight: bold; font-size: 16px; }
+        .seller-time { color: #999; font-size: 12px; }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; display: flex; gap: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        .btn-primary { flex: 1; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-secondary { padding: 15px 20px; background: #f0f0f0; border: none; border-radius: 12px; font-size: 20px; cursor: pointer; }
+        .loading { text-align: center; padding: 100px 20px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html" class="back">←</a>
+        <div class="header-title">卡牌详情</div>
+    </div>
+    
+    <div id="content">
+        <div class="loading">加载中...</div>
+    </div>
+    
+    <div class="bottom-bar" id="bottomBar" style="display: none;">
+        <button class="btn-secondary" onclick="toggleFav()">🤍</button>
+        <button class="btn-primary" onclick="contactSeller()">联系卖家</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        
+        // 获取URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const cardId = urlParams.get('id');
+        
+        let currentCard = null;
+        let currentUser = null;
+        
+        // 加载详情
+        async function loadDetail() {
+            if (!cardId) {
+                document.getElementById('content').innerHTML = '<div class="loading">卡牌不存在</div>';
+                return;
+            }
+            
+            // 获取当前用户
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            
+            // 获取卡牌详情
+            const { data, error } = await db
+                .from('market_listings')
+                .select('*')
+                .eq('id', cardId)
+                .single();
+            
+            if (error || !data) {
+                document.getElementById('content').innerHTML = '<div class="loading">卡牌不存在或已下架</div>';
+                return;
+            }
+            
+            currentCard = data;
+            renderDetail(data);
+        }
+        
+        // 渲染详情
+        function renderDetail(card) {
+            const gradients = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #ff6b9d 0%, #feca57 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+            ];
+            
+            const bgStyle = card.image_url 
+                ? 'background-image: url(' + card.image_url + '); background-size: cover;' 
+                : 'background: ' + gradients[0];
+            
+            const timeStr = new Date(card.created_at).toLocaleString('zh-CN');
+            
+            document.getElementById('content').innerHTML = `
+                <div class="card-image" style="${bgStyle}">
+                    ${card.image_url ? '' : card.name.substring(0, 2)}
+                </div>
+                
+                <div class="info">
+                    <div>
+                        <span class="tag ${card.type === 'sell' ? 'tag-sell' : 'tag-buy'}">${card.type === 'sell' ? '出售' : '求购'}</span>
+                    </div>
+                    <div class="card-name">${card.name}</div>
+                    <div class="card-meta">${card.series} · ${card.rarity}</div>
+                    <div class="card-price">¥${card.price}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">📝 描述</div>
+                    <div class="section-content">${card.description || '暂无描述'}</div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">👤 卖家信息</div>
+                    <div class="seller">
+                        <div class="seller-avatar">👤</div>
+                        <div>
+                            <div class="seller-name">卖家ID: ${card.seller_id?.substring(0, 8) || '未知'}</div>
+                            <div class="seller-time">发布时间: ${timeStr}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 显示底部按钮
+            document.getElementById('bottomBar').style.display = 'flex';
+        }
+        
+        // 联系卖家
+        function contactSeller() {
+            if (!currentUser) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            if (currentUser.id === currentCard.seller_id) {
+                alert('这是你自己发布的卡牌');
+                return;
+            }
+            
+            // 跳转到消息页
+            window.location.href = 'message.html?seller=' + currentCard.seller_id + '&card=' + cardId;
+        }
+        
+        // 收藏
+        function toggleFav() {
+            alert('收藏功能开发中...');
+        }
+        
+        // 加载
+        loadDetail();
+    </script>
+</body>
+</html>
