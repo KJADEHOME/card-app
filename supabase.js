@@ -134,7 +134,12 @@ async function getMyCards() {
     const supabase = await initSupabase();
     const user = await getCurrentUser();
     
-    if (!user) return [];
+    console.log('获取我的卡牌 - 当前用户:', user);
+    
+    if (!user) {
+        console.log('用户未登录');
+        return [];
+    }
     
     const { data, error } = await supabase
         .from('cards')
@@ -142,8 +147,11 @@ async function getMyCards() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
     
+    console.log('Supabase返回:', { data, error });
+    
     if (error) {
         console.log('获取我的卡牌失败:', error);
+        alert('获取卡牌失败: ' + error.message);
         return [];
     }
     
@@ -182,6 +190,14 @@ async function addCard(cardData) {
     }
     
     // 插入卡牌数据
+    console.log('准备插入卡牌:', {
+        user_id: user.id,
+        name: cardData.name,
+        series: cardData.series,
+        rarity: cardData.rarity,
+        price: parseFloat(cardData.price) || 0
+    });
+    
     const { data, error } = await supabase
         .from('cards')
         .insert([{
@@ -195,6 +211,8 @@ async function addCard(cardData) {
             favorite: cardData.favorite || false
         }])
         .select();
+    
+    console.log('插入结果:', { data, error });
     
     if (error) {
         console.log('添加卡牌失败:', error);
