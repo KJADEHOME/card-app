@@ -37,6 +37,16 @@
         .btn-half { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
         .btn-cancel { background: #f0f0f0; }
         .btn-save { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .tabs { display: flex; background: white; border-radius: 12px; margin-bottom: 15px; overflow: hidden; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; }
+        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .card-actions { display: flex; gap: 5px; margin-top: 8px; }
+        .card-actions button { flex: 1; padding: 6px; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
+        .btn-edit { background: #e3f2fd; color: #1976d2; }
+        .btn-delete { background: #ffebee; color: #f44336; }
+        .status-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-bottom: 5px; }
+        .status-active { background: #e8f5e9; color: #4caf50; }
+        .status-sold { background: #ffebee; color: #f44336; }
     </style>
 </head>
 <body>
@@ -46,21 +56,49 @@
     </div>
     
     <div class="content">
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-num" id="total">0</div>
-                <div class="stat-label">总卡牌</div>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('collection')" id="tab-collection">我的收藏</div>
+            <div class="tab" onclick="switchTab('listings')" id="tab-listings">我的发布</div>
+        </div>
+        
+        <!-- 我的收藏 -->
+        <div id="collectionView">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-num" id="total">0</div>
+                    <div class="stat-label">总卡牌</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-num" id="value">¥0</div>
+                    <div class="stat-label">总价值</div>
+                </div>
             </div>
-            <div class="stat">
-                <div class="stat-num" id="value">¥0</div>
-                <div class="stat-label">总价值</div>
+            
+            <button class="add-btn" onclick="showAdd()">+ 添加卡牌</button>
+            
+            <div class="cards" id="cardList">
+                <div class="empty">加载中...</div>
             </div>
         </div>
         
-        <button class="add-btn" onclick="showAdd()">+ 添加卡牌</button>
-        
-        <div class="cards" id="cardList">
-            <div class="empty">加载中...</div>
+        <!-- 我的发布 -->
+        <div id="listingsView" style="display: none;">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-num" id="listingTotal">0</div>
+                    <div class="stat-label">发布中</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-num" id="listingSold">0</div>
+                    <div class="stat-label">已售出</div>
+                </div>
+            </div>
+            
+            <a href="publish.html" class="add-btn" style="display: block; text-align: center; text-decoration: none;">+ 发布新卡牌</a>
+            
+            <div class="cards" id="listingList">
+                <div class="empty">加载中...</div>
+            </div>
         </div>
     </div>
     
@@ -219,6 +257,81 @@
                 alert('✅ 添加成功！');
                 hideAdd();
                 load();
+            }
+        }
+        
+        // Tab切换
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            if (tab === 'collection') {
+                document.getElementById('collectionView').style.display = 'block';
+                document.getElementById('listingsView').style.display = 'none';
+                load();
+            } else {
+                document.getElementById('collectionView').style.display = 'none';
+                document.getElementById('listingsView').style.display = 'block';
+                loadListings();
+            }
+        }
+        
+        // 加载我的发布
+        async function loadListings() {
+            const list = document.getElementById('listingList');
+            
+            if (!uid) {
+                list.innerHTML = '<div class="empty">请先登录</div>';
+                return;
+            }
+            
+            const { data, error } = await db.from('market_listings').select('*').eq('seller_id', uid).order('created_at', { ascending: false });
+            
+            if (error) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
+                return;
+            }
+            
+            const listings = data || [];
+            
+            // 统计
+            const activeCount = listings.filter(l => l.status === 'active').length;
+            const soldCount = listings.filter(l => l.status === 'sold').length;
+            document.getElementById('listingTotal').textContent = activeCount;
+            document.getElementById('listingSold').textContent = soldCount;
+            
+            if (listings.length === 0) {
+                list.innerHTML = '<div class="empty">还没有发布，点击上方按钮发布</div>';
+                return;
+            }
+            
+            list.innerHTML = listings.map(l => `
+                <div class="card">
+                    <div class="card-img" style="${l.image_url ? 'background-image: url(' + l.image_url + '); background-size: cover;' : ''}">${l.image_url ? '' : l.name.substring(0, 2)}</div>
+                    <div class="card-info">
+                        <span class="status-tag ${l.status === 'active' ? 'status-active' : 'status-sold'}">${l.status === 'active' ? '出售中' : '已售出'}</span>
+                        <div class="card-name">${l.name}</div>
+                        <div class="card-meta">${l.series} · ${l.rarity}</div>
+                        <div class="card-price">¥${l.price}</div>
+                        <div class="card-actions">
+                            ${l.status === 'active' ? `<button class="btn-delete" onclick="deleteListing('${l.id}')">下架</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 下架发布
+        async function deleteListing(id) {
+            if (!confirm('确定下架这张卡牌？')) return;
+            
+            const { error } = await db.from('market_listings').update({ status: 'cancelled' }).eq('id', id);
+            
+            if (error) {
+                alert('下架失败: ' + error.message);
+            } else {
+                alert('✅ 已下架');
+                loadListings();
             }
         }
         
