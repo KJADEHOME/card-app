@@ -123,7 +123,7 @@
                     <div class="seller">
                         <div class="seller-avatar">👤</div>
                         <div>
-                            <div class="seller-name">卖家ID: ${card.seller_id?.substring(0, 8) || '未知'}</div>
+                            <div class="seller-name">卖家ID: ${(card.seller_id || '').substring(0, 8) || '未知'}</div>
                             <div class="seller-time">发布时间: ${timeStr}</div>
                         </div>
                     </div>
