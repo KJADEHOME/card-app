@@ -2,294 +2,280 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卡域 - 消息</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="卡域">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            padding-bottom: 80px;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header-title {
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .header-action {
-            color: white;
-            font-size: 14px;
-        }
-        .content {
-            padding: 15px;
-        }
-        .message-list {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .message-item {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            cursor: pointer;
-        }
-        .message-item:last-child {
-            border-bottom: none;
-        }
-        .avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 20px;
-            margin-right: 15px;
-        }
-        .message-content {
-            flex: 1;
-        }
-        .message-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .message-text {
-            font-size: 13px;
-            color: #999;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .message-meta {
-            text-align: right;
-        }
-        .message-time {
-            font-size: 12px;
-            color: #999;
-        }
-        .unread-badge {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #f44336;
-            border-radius: 50%;
-            margin-top: 5px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-        .empty-state-icon {
-            font-size: 60px;
-            margin-bottom: 15px;
-        }
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        }
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            color: #999;
-            font-size: 11px;
-            text-decoration: none;
-        }
-        .nav-item.active {
-            color: #667eea;
-        }
-        .nav-icon {
-            font-size: 24px;
-        }
-        .nav-add {
-            background: #ffeb3b;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            margin-top: -20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            color: #333;
-            text-decoration: none;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* 头部 */
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; flex: 1; }
+        
+        /* 聊天列表 */
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { display: flex; align-items: center; padding: 15px; background: white; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+        .chat-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; margin-right: 15px; }
+        .chat-info { flex: 1; }
+        .chat-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+        .chat-preview { color: #999; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .chat-meta { text-align: right; }
+        .chat-time { color: #999; font-size: 12px; }
+        .unread { display: inline-block; width: 8px; height: 8px; background: #f44336; border-radius: 50%; margin-top: 5px; }
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        
+        /* 聊天界面 */
+        .chat-room { display: none; flex: 1; flex-direction: column; }
+        .chat-header { background: white; padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 15px; background: #f5f5f5; }
+        .message { margin-bottom: 15px; display: flex; }
+        .message.self { justify-content: flex-end; }
+        .message-bubble { max-width: 70%; padding: 12px 15px; border-radius: 18px; font-size: 14px; line-height: 1.5; }
+        .message.other .message-bubble { background: white; border-bottom-left-radius: 4px; }
+        .message.self .message-bubble { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-bottom-right-radius: 4px; }
+        .message-time { font-size: 11px; color: #999; margin-top: 5px; text-align: right; }
+        
+        /* 输入框 */
+        .chat-input { background: white; padding: 10px 15px; display: flex; gap: 10px; border-top: 1px solid #f0f0f0; }
+        .chat-input input { flex: 1; padding: 12px 15px; border: 1px solid #e0e0e0; border-radius: 20px; outline: none; font-size: 14px; }
+        .chat-input button { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 20px; font-size: 14px; cursor: pointer; }
+        
+        /* 底部导航 */
+        .nav { background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; }
+        .nav-item.active { color: #667eea; }
+        .nav-icon { font-size: 24px; }
+        .nav-add { background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: -20px; color: #333; text-decoration: none; }
     </style>
 </head>
 <body>
+    <!-- 聊天列表 -->
     <div class="header">
-        <div class="header-title">消息</div>
-        <div class="header-action" onclick="clearAll()">全部已读</div>
+        <div class="header-title">💬 消息</div>
     </div>
     
-    <div class="content">
-        <div id="messageList" class="message-list">
-            <!-- 消息列表将在这里渲染 -->
+    <div class="chat-list" id="chatList">
+        <div class="empty">加载中...</div>
+    </div>
+    
+    <!-- 聊天界面 -->
+    <div class="chat-room" id="chatRoom">
+        <div class="chat-header">
+            <span class="back" onclick="backToList()">←</span>
+            <span id="chatTitle">聊天</span>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter')sendMessage()">
+            <button onclick="sendMessage()">发送</button>
         </div>
     </div>
     
     <!-- 底部导航 -->
-    <div class="bottom-nav">
-        <a href="index.html" class="nav-item">
-            <span class="nav-icon">🔍</span>
-            <span>探索</span>
-        </a>
-        <a href="#" class="nav-item">
-            <span class="nav-icon">🔄</span>
-            <span>集换</span>
-        </a>
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
         <a href="publish.html" class="nav-add">+</a>
-        <a href="message.html" class="nav-item active">
-            <span class="nav-icon">💬</span>
-            <span>消息</span>
-        </a>
-        <a href="#" class="nav-item" onclick="goToProfile(event)">
-            <span class="nav-icon">👤</span>
-            <span>个人</span>
-        </a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        // 示例消息数据
-        const sampleMessages = [
-            {
-                id: 1,
-                name: '卡友A',
-                avatar: '👤',
-                text: '你好，青眼白龙还在吗？',
-                time: '10:30',
-                unread: true
-            },
-            {
-                id: 2,
-                name: '卡友B',
-                avatar: '👤',
-                text: '价格可以商量吗？',
-                time: '昨天',
-                unread: true
-            },
-            {
-                id: 3,
-                name: '系统通知',
-                avatar: '📢',
-                text: '您发布的卡牌已通过审核',
-                time: '昨天',
-                unread: false
-            }
-        ];
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        function renderMessages() {
-            const list = document.getElementById('messageList');
-            const user = localStorage.getItem('currentUser');
-            
-            if (!user) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🔒</div>
-                        <div>请先登录后查看消息</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            // 获取保存的消息或显示示例
-            let messages = JSON.parse(localStorage.getItem('messages') || '[]');
-            if (messages.length === 0) {
-                messages = sampleMessages;
-                localStorage.setItem('messages', JSON.stringify(messages));
-            }
-            
-            if (messages.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">💬</div>
-                        <div>暂无消息</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            list.innerHTML = messages.map(msg => `
-                <div class="message-item" onclick="openChat(${msg.id})">
-                    <div class="avatar">${msg.avatar}</div>
-                    <div class="message-content">
-                        <div class="message-name">${msg.name}</div>
-                        <div class="message-text">${msg.text}</div>
-                    </div>
-                    <div class="message-meta">
-                        <div class="message-time">${msg.time}</div>
-                        ${msg.unread ? '<div class="unread-badge"></div>' : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
+        let currentUser = null;
+        let currentChat = null; // { sellerId, cardId, sellerName }
+        let messages = [];
         
-        function openChat(msgId) {
-            const messages = JSON.parse(localStorage.getItem('messages') || '[]');
-            const msg = messages.find(m => m.id === msgId);
-            if (msg) {
-                msg.unread = false;
-                localStorage.setItem('messages', JSON.stringify(messages));
-                renderMessages();
-                
-                // 显示聊天窗口
-                alert(`💬 与 ${msg.name} 的聊天\n\n${msg.text}\n\n(完整聊天功能开发中)`);
-            }
-        }
-        
-        function clearAll() {
-            const messages = JSON.parse(localStorage.getItem('messages') || '[]');
-            messages.forEach(m => m.unread = false);
-            localStorage.setItem('messages', JSON.stringify(messages));
-            renderMessages();
-            alert('已全部标记为已读');
-        }
-        
-        function goToProfile(e) {
-            e.preventDefault();
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
+        // 初始化
+        (async function() {
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            
+            if (!user && !localStorage.getItem('isGuest')) {
                 window.location.href = 'login.html';
-            } else {
-                window.location.href = 'collection.html';
+                return;
             }
+            
+            // 检查URL参数（从详情页跳转）
+            const urlParams = new URLSearchParams(window.location.search);
+            const sellerId = urlParams.get('seller');
+            const cardId = urlParams.get('card');
+            
+            if (sellerId && cardId) {
+                // 直接进入聊天
+                startChat(sellerId, cardId, '卖家');
+            } else {
+                // 显示聊天列表
+                loadChatList();
+            }
+        })();
+        
+        // 加载聊天列表
+        async function loadChatList() {
+            const list = document.getElementById('chatList');
+            
+            if (!currentUser) {
+                list.innerHTML = '<div class="empty">请先登录</div>';
+                return;
+            }
+            
+            // 获取所有消息，按对话分组
+            const { data, error } = await db
+                .from('messages')
+                .select('*')
+                .or('sender_id.eq.' + currentUser.id + ',receiver_id.eq.' + currentUser.id)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
+                return;
+            }
+            
+            if (!data || data.length === 0) {
+                list.innerHTML = '<div class="empty">暂无消息<br>浏览卡牌并联系卖家开始聊天</div>';
+                return;
+            }
+            
+            // 按对话分组
+            const chats = {};
+            data.forEach(msg => {
+                const otherId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
+                if (!chats[otherId]) {
+                    chats[otherId] = {
+                        userId: otherId,
+                        lastMessage: msg,
+                        unread: 0
+                    };
+                }
+                if (msg.receiver_id === currentUser.id && !msg.is_read) {
+                    chats[otherId].unread++;
+                }
+            });
+            
+            // 渲染列表
+            list.innerHTML = Object.values(chats).map(chat => {
+                const msg = chat.lastMessage;
+                const time = new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                const preview = msg.content.length > 20 ? msg.content.substring(0, 20) + '...' : msg.content;
+                
+                return `
+                    <div class="chat-item" onclick="startChat('${chat.userId}', '${msg.card_id || ''}', '用户${chat.userId.substring(0, 6)}')">
+                        <div class="chat-avatar">👤</div>
+                        <div class="chat-info">
+                            <div class="chat-name">用户${chat.userId.substring(0, 6)}</div>
+                            <div class="chat-preview">${preview}</div>
+                        </div>
+                        <div class="chat-meta">
+                            <div class="chat-time">${time}</div>
+                            ${chat.unread > 0 ? '<div class="unread"></div>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
         
-        // 页面加载时渲染
-        document.addEventListener('DOMContentLoaded', renderMessages);
-        
-        // 注册 Service Worker (PWA支持)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-                .then((reg) => console.log('Service Worker 注册成功:', reg))
-                .catch((err) => console.log('Service Worker 注册失败:', err));
+        // 开始聊天
+        async function startChat(sellerId, cardId, sellerName) {
+            currentChat = { sellerId, cardId, sellerName };
+            
+            document.getElementById('chatList').style.display = 'none';
+            document.querySelector('.header').style.display = 'none';
+            document.getElementById('chatRoom').style.display = 'flex';
+            document.getElementById('chatTitle').textContent = '与 ' + sellerName + ' 聊天';
+            
+            // 加载历史消息
+            await loadMessages();
+            
+            // 标记已读
+            await db.from('messages')
+                .update({ is_read: true })
+                .eq('receiver_id', currentUser.id)
+                .eq('sender_id', sellerId);
         }
+        
+        // 返回列表
+        function backToList() {
+            document.getElementById('chatRoom').style.display = 'none';
+            document.getElementById('chatList').style.display = 'block';
+            document.querySelector('.header').style.display = 'flex';
+            currentChat = null;
+            loadChatList();
+        }
+        
+        // 加载消息
+        async function loadMessages() {
+            if (!currentChat) return;
+            
+            const { data, error } = await db
+                .from('messages')
+                .select('*')
+                .or('and(sender_id.eq.' + currentUser.id + ',receiver_id.eq.' + currentChat.sellerId + '),and(sender_id.eq.' + currentChat.sellerId + ',receiver_id.eq.' + currentUser.id + ')')
+                .eq('card_id', currentChat.cardId)
+                .order('created_at', { ascending: true });
+            
+            if (error) return;
+            
+            messages = data || [];
+            renderMessages();
+        }
+        
+        // 渲染消息
+        function renderMessages() {
+            const container = document.getElementById('chatMessages');
+            
+            if (messages.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">开始聊天吧~</div>';
+                return;
+            }
+            
+            container.innerHTML = messages.map(msg => {
+                const isSelf = msg.sender_id === currentUser.id;
+                const time = new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                
+                return `
+                    <div class="message ${isSelf ? 'self' : 'other'}">
+                        <div>
+                            <div class="message-bubble">${msg.content}</div>
+                            <div class="message-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // 滚动到底部
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            
+            if (!content || !currentChat) return;
+            
+            const { error } = await db.from('messages').insert([{
+                sender_id: currentUser.id,
+                receiver_id: currentChat.sellerId,
+                card_id: currentChat.cardId,
+                content: content
+            }]);
+            
+            if (error) {
+                alert('发送失败: ' + error.message);
+                return;
+            }
+            
+            input.value = '';
+            await loadMessages();
+        }
+        
+        // 定时刷新消息（每3秒）
+        setInterval(() => {
+            if (currentChat) {
+                loadMessages();
+            }
+        }, 3000);
     </script>
 </body>
 </html>

@@ -147,8 +147,16 @@
                 return;
             }
             
-            // 跳转到消息页
-            window.location.href = 'message.html?seller=' + currentCard.seller_id + '&card=' + cardId;
+            // 先发送一条默认消息
+            db.from('messages').insert([{
+                sender_id: currentUser.id,
+                receiver_id: currentCard.seller_id,
+                card_id: cardId,
+                content: '你好，我对这张卡牌感兴趣：' + currentCard.name
+            }]).then(() => {
+                // 跳转到消息页
+                window.location.href = 'message.html?seller=' + currentCard.seller_id + '&card=' + cardId;
+            });
         }
         
         // 收藏
