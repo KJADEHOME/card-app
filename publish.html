@@ -2,177 +2,48 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卡域 - 发布交易</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="卡域">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            padding-bottom: 80px;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .back-btn {
-            color: white;
-            font-size: 24px;
-            text-decoration: none;
-        }
-        .header-title {
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .content {
-            padding: 15px;
-        }
-        .form-group {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        .form-label {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 8px;
-            display: block;
-        }
-        .form-input, .form-select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-        }
-        .form-input:focus, .form-select:focus {
-            border-color: #667eea;
-        }
-        .image-upload {
-            width: 100%;
-            height: 200px;
-            border: 2px dashed #e0e0e0;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            background: #f9f9f9;
-        }
-        .image-upload.has-image {
-            border: none;
-            background-size: cover;
-            background-position: center;
-        }
-        .price-input {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .price-input span {
-            font-size: 18px;
-            color: #667eea;
-            font-weight: bold;
-        }
-        .submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-        .type-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .type-tab {
-            flex: 1;
-            padding: 12px;
-            text-align: center;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-        }
-        .type-tab.active {
-            border-color: #667eea;
-            color: #667eea;
-            font-weight: bold;
-        }
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        }
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            color: #999;
-            font-size: 11px;
-            text-decoration: none;
-        }
-        .nav-item.active {
-            color: #667eea;
-        }
-        .nav-icon {
-            font-size: 24px;
-        }
-        .nav-add {
-            background: #ffeb3b;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            margin-top: -20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            color: #333;
-            text-decoration: none;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .content { padding: 15px; }
+        .type-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .type-tab { flex: 1; padding: 12px; text-align: center; background: white; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
+        .type-tab.active { border-color: #667eea; color: #667eea; font-weight: bold; }
+        .form-group { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #666; font-size: 14px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .image-upload { width: 100%; height: 180px; border: 2px dashed #e0e0e0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #f9f9f9; }
+        .image-upload.has-image { border: none; background-size: cover; background-position: center; }
+        .submit-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 20px; }
+        .submit-btn:disabled { opacity: 0.6; }
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; }
+        .nav-item.active { color: #667eea; }
+        .nav-icon { font-size: 24px; }
+        .nav-add { background: #667eea; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: -20px; color: white; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="index.html" class="back-btn">←</a>
+        <a href="index.html" class="back">←</a>
         <div class="header-title">发布交易</div>
     </div>
     
     <div class="content">
         <div class="type-tabs">
-            <div class="type-tab active" onclick="switchType('sell', this)">我要卖</div>
-            <div class="type-tab" onclick="switchType('buy', this)">我要买</div>
+            <div class="type-tab active" onclick="setType('sell')">我要卖</div>
+            <div class="type-tab" onclick="setType('buy')">我要买</div>
         </div>
         
         <div class="form-group">
-            <label class="form-label">卡牌图片</label>
-            <input type="file" id="cardImage" accept="image/*" style="display: none;" onchange="previewImage(event)">
+            <label>卡牌图片 *</label>
+            <input type="file" id="cardImage" accept="image/*" style="display: none;">
             <div class="image-upload" id="imagePreview" onclick="document.getElementById('cardImage').click()">
                 <span style="font-size: 40px;">📷</span>
                 <span style="color: #999; margin-top: 10px;">点击上传卡牌图片</span>
@@ -180,79 +51,78 @@
         </div>
         
         <div class="form-group">
-            <label class="form-label">卡牌名称 *</label>
-            <input type="text" class="form-input" id="cardName" placeholder="例如：青眼白龙">
+            <label>卡牌名称 *</label>
+            <input type="text" id="cardName" placeholder="例如：青眼白龙">
         </div>
         
         <div class="form-group">
-            <label class="form-label">系列</label>
-            <select class="form-select" id="cardSeries">
+            <label>系列</label>
+            <select id="cardSeries">
                 <option value="游戏王">游戏王</option>
                 <option value="宝可梦">宝可梦</option>
                 <option value="万智牌">万智牌</option>
                 <option value="数码宝贝">数码宝贝</option>
+                <option value="其他">其他</option>
             </select>
         </div>
         
         <div class="form-group">
-            <label class="form-label">稀有度</label>
-            <select class="form-select" id="cardRarity">
+            <label>稀有度</label>
+            <select id="cardRarity">
                 <option value="N">普通 (N)</option>
                 <option value="R">稀有 (R)</option>
                 <option value="SR">超稀有 (SR)</option>
                 <option value="UR">终极稀有 (UR)</option>
-                <option value="SEC"> secret稀有 (SEC)</option>
+                <option value="SEC">Secret稀有 (SEC)</option>
             </select>
         </div>
         
         <div class="form-group">
-            <label class="form-label">价格 (¥)</label>
-            <div class="price-input">
-                <span>¥</span>
-                <input type="number" class="form-input" id="cardPrice" placeholder="0.00">
-            </div>
+            <label>价格 (¥) *</label>
+            <input type="number" id="cardPrice" placeholder="0.00">
         </div>
         
         <div class="form-group">
-            <label class="form-label">描述</label>
-            <input type="text" class="form-input" id="cardDesc" placeholder="卡牌状态、交易方式等">
+            <label>描述</label>
+            <textarea id="cardDesc" placeholder="卡牌状态、交易方式、联系方式等..."></textarea>
         </div>
         
-        <button class="submit-btn" onclick="publishCard()">发布</button>
+        <button class="submit-btn" onclick="publish()" id="publishBtn">发布</button>
     </div>
     
-    <!-- 底部导航 -->
-    <div class="bottom-nav">
-        <a href="index.html" class="nav-item">
-            <span class="nav-icon">🔍</span>
-            <span>探索</span>
-        </a>
-        <a href="#" class="nav-item">
-            <span class="nav-icon">🔄</span>
-            <span>集换</span>
-        </a>
-        <a href="publish.html" class="nav-add" style="background: #667eea; color: white;">+</a>
-        <a href="message.html" class="nav-item">
-            <span class="nav-icon">💬</span>
-            <span>消息</span>
-        </a>
-        <a href="#" class="nav-item" onclick="goToProfile(event)">
-            <span class="nav-icon">👤</span>
-            <span>个人</span>
-        </a>
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
+        <a href="publish.html" class="nav-add">+</a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        let publishType = 'sell';
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        function switchType(type, el) {
+        let publishType = 'sell';
+        let currentUser = null;
+        
+        // 检查登录
+        (async function() {
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            if (!user && !localStorage.getItem('isGuest')) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+            }
+        })();
+        
+        // 切换类型
+        function setType(type) {
             publishType = type;
             document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
+            event.target.classList.add('active');
         }
         
-        function previewImage(event) {
-            const file = event.target.files[0];
+        // 图片预览
+        document.getElementById('cardImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -263,73 +133,60 @@
                 };
                 reader.readAsDataURL(file);
             }
-        }
+        });
         
-        function publishCard() {
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
-                alert('请先登录后再发布');
-                window.location.href = 'login.html';
+        // 发布
+        async function publish() {
+            if (!currentUser) {
+                alert('请先登录');
                 return;
             }
             
             const name = document.getElementById('cardName').value.trim();
-            const price = document.getElementById('cardPrice').value;
+            const price = parseFloat(document.getElementById('cardPrice').value);
+            const imageInput = document.getElementById('cardImage');
             
-            if (!name) {
-                alert('请输入卡牌名称');
-                return;
-            }
-            if (!price || price <= 0) {
-                alert('请输入有效价格');
-                return;
+            if (!name) { alert('请输入卡牌名称'); return; }
+            if (!price || price <= 0) { alert('请输入有效价格'); return; }
+            
+            const btn = document.getElementById('publishBtn');
+            btn.disabled = true;
+            btn.textContent = '发布中...';
+            
+            // 上传图片
+            let imageUrl = null;
+            if (imageInput.files[0]) {
+                const file = imageInput.files[0];
+                const fileName = currentUser.id + '/' + Date.now() + '.' + file.name.split('.').pop();
+                const { error: upErr } = await db.storage.from('card-images').upload(fileName, file);
+                if (!upErr) {
+                    const { data } = db.storage.from('card-images').getPublicUrl(fileName);
+                    imageUrl = data.publicUrl;
+                }
             }
             
-            const card = {
-                id: Date.now(),
+            // 保存到数据库
+            const { error } = await db.from('market_listings').insert([{
+                seller_id: currentUser.id,
                 name: name,
                 series: document.getElementById('cardSeries').value,
                 rarity: document.getElementById('cardRarity').value,
-                price: parseFloat(price),
-                desc: document.getElementById('cardDesc').value,
+                price: price,
+                description: document.getElementById('cardDesc').value,
+                image_url: imageUrl,
                 type: publishType,
-                seller: user,
-                time: new Date().toLocaleString()
-            };
+                status: 'active'
+            }]);
             
-            // 保存到市场列表
-            let marketCards = JSON.parse(localStorage.getItem('marketCards') || '[]');
-            marketCards.unshift(card);
-            localStorage.setItem('marketCards', JSON.stringify(marketCards));
+            btn.disabled = false;
+            btn.textContent = '发布';
             
-            alert('发布成功！');
-            window.location.href = 'index.html';
-        }
-        
-        function goToProfile(e) {
-            e.preventDefault();
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
-                window.location.href = 'login.html';
+            if (error) {
+                alert('发布失败: ' + error.message);
             } else {
-                window.location.href = 'collection.html';
+                alert('✅ 发布成功！');
+                window.location.href = 'index.html';
             }
-        }
-        
-        // 检查登录
-        (function() {
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
-                alert('请先登录');
-                window.location.href = 'login.html';
-            }
-        })();
-        
-        // 注册 Service Worker (PWA支持)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-                .then((reg) => console.log('Service Worker 注册成功:', reg))
-                .catch((err) => console.log('Service Worker 注册失败:', err));
         }
     </script>
 </body>

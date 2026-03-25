@@ -2,814 +2,171 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>卡域 - 首页</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="卡域">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%23667eea' width='192' height='192' rx='48'/%3E%3Ctext x='96' y='120' font-size='80' text-anchor='middle'%3E🃏%3C/text%3E%3C/svg%3E">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 探索</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            padding-bottom: 80px;
-        }
-        
-        /* 顶部 */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 10px 15px 20px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        /* 游戏选择器 */
-        .game-selector {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-            font-size: 22px;
-            font-weight: bold;
-        }
-        
-        .game-lang {
-            background: rgba(0,0,0,0.3);
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-        }
-        
-        .dropdown-arrow {
-            font-size: 12px;
-            margin-left: 5px;
-        }
-        
-        /* 发售日历 */
-        .calendar-btn {
-            background: rgba(255,255,255,0.2);
-            padding: 6px 12px;
-            border-radius: 15px;
-            color: white;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        /* 搜索栏 */
-        .search-box {
-            display: flex;
-            align-items: center;
-            background: white;
-            border-radius: 25px;
-            padding: 10px 15px;
-            gap: 10px;
-        }
-        
-        .search-input {
-            flex: 1;
-            border: none;
-            outline: none;
-            font-size: 14px;
-            color: #999;
-        }
-        
-        .camera-btn {
-            background: #333;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        /* 内容区域 */
-        .content {
-            padding: 15px;
-        }
-        
-        /* WIKI和卡组区域 */
-        .info-cards {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .info-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .info-card-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        
-        .info-card-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .info-card-item:last-child {
-            border-bottom: none;
-        }
-        
-        .go-btn {
-            background: #333;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 10px;
-        }
-        
-        /* 交易区 */
-        .trade-section {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .trade-card {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .trade-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .trade-title {
-            font-weight: bold;
-            font-size: 16px;
-        }
-        
-        .trade-tag {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        
-        .tag-green { background: #e8f5e9; color: #4caf50; }
-        .tag-blue { background: #e3f2fd; color: #2196f3; }
-        .tag-red { background: #ffebee; color: #f44336; }
-        
-        .trade-item {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .trade-img {
-            width: 50px;
-            height: 70px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-        
-        .trade-info {
-            flex: 1;
-        }
-        
-        .trade-name {
-            font-size: 13px;
-            margin-bottom: 5px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .trade-price {
-            color: #667eea;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        
-        /* 近期更新 */
-        .update-section {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .section-header {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 15px;
-            overflow-x: auto;
-        }
-        
-        .section-tab {
-            font-size: 16px;
-            color: #999;
-            white-space: nowrap;
-            padding-bottom: 5px;
-        }
-        
-        .section-tab.active {
-            color: #333;
-            font-weight: bold;
-            border-bottom: 2px solid #667eea;
-        }
-        
-        .update-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-        }
-        
-        .update-item {
-            text-align: center;
-        }
-        
-        .update-img {
-            width: 100%;
-            aspect-ratio: 1;
-            background: #f0f0f0;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-        }
-        
-        .update-name {
-            font-size: 11px;
-            color: #666;
-        }
-        
-        /* 热门畅销 */
-        .hot-section {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .hot-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        
-        .hot-title {
-            font-size: 18px;
-            font-weight: bold;
-        }
-        
-        .hot-more {
-            color: #999;
-            font-size: 14px;
-        }
-        
-        .hot-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        
-        .hot-item {
-            background: #f8f8f8;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
-        .hot-img {
-            width: 100%;
-            aspect-ratio: 3/4;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-        }
-        
-        /* 底部导航 */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        }
-        
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            color: #999;
-            font-size: 11px;
-            text-decoration: none;
-        }
-        
-        .nav-item.active {
-            color: #667eea;
-        }
-        
-        .nav-icon {
-            font-size: 24px;
-        }
-        
-        .nav-add {
-            background: #ffeb3b;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            margin-top: -20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; }
+        .header-title { color: white; font-size: 20px; font-weight: bold; margin-bottom: 15px; }
+        .search-box { display: flex; align-items: center; background: white; border-radius: 25px; padding: 10px 15px; }
+        .search-box input { flex: 1; border: none; outline: none; font-size: 14px; }
+        .content { padding: 15px; }
+        .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .section-title a { font-size: 14px; color: #667eea; text-decoration: none; }
+        .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; }
+        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-info { padding: 12px; }
+        .card-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+        .card-meta { font-size: 12px; color: #999; margin-bottom: 5px; }
+        .card-price { font-size: 16px; font-weight: bold; color: #667eea; }
+        .card-seller { font-size: 11px; color: #999; margin-top: 5px; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px; }
+        .tag-sell { background: #e3f2fd; color: #1976d2; }
+        .tag-buy { background: #fff3e0; color: #f57c00; }
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; }
+        .nav-item.active { color: #667eea; }
+        .nav-icon { font-size: 24px; }
+        .nav-add { background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: -20px; color: #333; text-decoration: none; }
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; }
+        .filter-tab { padding: 8px 16px; background: white; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+        .filter-tab.active { background: #667eea; color: white; }
     </style>
 </head>
 <body>
-    <!-- 顶部 -->
-    
-    <!-- 顶部 -->
     <div class="header">
-        <div class="header-top">
-            <div class="game-selector" onclick="switchGame()">
-                游戏王 <span class="game-lang">日文</span> <span class="dropdown-arrow">▼</span>
-            </div>
-            <div class="calendar-btn" onclick="showCalendar()">
-                📅 发售日历
-            </div>
-        </div>
-        
+        <div class="header-title">🔍 探索</div>
         <div class="search-box">
             <span>🔍</span>
-            <input type="text" class="search-input" placeholder="同音字/拼音/首字母/编号" onkeypress="if(event.key==='Enter')searchCards()">
-            <div class="camera-btn" onclick="alert('📷 拍照查卡功能开发中...')">
-                📷 拍照查卡
-            </div>
+            <input type="text" id="searchInput" placeholder="搜索卡牌名称..." onkeyup="searchCards()">
         </div>
     </div>
     
-    <!-- 内容 -->
     <div class="content">
-        <!-- WIKI和卡组 -->
-        <div class="info-cards">
-            <div class="info-card">
-                <div class="info-card-title">📖 WIKI</div>
-                <div class="info-card-item" onclick="showWiki('beginner')" style="cursor: pointer;">
-                    <div>
-                        <div style="font-size: 13px; color: #666;">游戏王新手百科</div>
-                        <div style="font-size: 12px; color: #667eea;">你了解游戏王吗</div>
-                    </div>
-                    <span class="go-btn">GO</span>
-                </div>
-                <div class="info-card-item" onclick="showWiki('advanced')" style="cursor: pointer;">
-                    <div>
-                        <div style="font-size: 13px; color: #666;">游戏王进阶教学</div>
-                        <div style="font-size: 12px; color: #667eea;">成为决斗王吧！</div>
-                    </div>
-                    <span class="go-btn">GO</span>
-                </div>
-            </div>
-            
-            <div class="info-card" onclick="showDeck()" style="cursor: pointer;">
-                <div class="info-card-title">🎴 卡组</div>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <div style="width: 60px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 30px;">🃏</div>
-                    <div>
-                        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">已剑</div>
-                        <div style="font-size: 12px; color: #999; margin-bottom: 5px;">202601</div>
-                        <div style="font-size: 14px; color: #667eea; font-weight: bold;">157 上位数</div>
-                    </div>
-                </div>
-            </div>
+        <div class="filter-tabs">
+            <div class="filter-tab active" onclick="filterSeries('all')">全部</div>
+            <div class="filter-tab" onclick="filterSeries('游戏王')">游戏王</div>
+            <div class="filter-tab" onclick="filterSeries('宝可梦')">宝可梦</div>
+            <div class="filter-tab" onclick="filterSeries('万智牌')">万智牌</div>
         </div>
         
-        <!-- 交易区 -->
-        <div class="trade-section">
-            <div class="trade-card" onclick="showMarket('行情')" style="cursor: pointer;">
-                <div class="trade-header">
-                    <span class="trade-title">行情</span>
-                    <span class="trade-tag tag-green">力荐</span>
-                </div>
-                <div class="trade-item">
-                    <div class="trade-img">🃏</div>
-                    <div class="trade-info">
-                        <div class="trade-name">多多迷宝...</div>
-                        <div class="trade-price">¥19.60</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="trade-card" onclick="showMarket('集换仓')" style="cursor: pointer;">
-                <div class="trade-header">
-                    <span class="trade-title">集换仓</span>
-                    <span class="trade-tag tag-blue">寄售</span>
-                </div>
-                <div class="trade-item">
-                    <div class="trade-img">🃏</div>
-                    <div class="trade-info">
-                        <div class="trade-name">枪管上膛狞...</div>
-                        <div class="trade-price">¥1.10</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="trade-card" onclick="showMarket('竞价')" style="cursor: pointer;">
-                <div class="trade-header">
-                    <span class="trade-title">竞价</span>
-                    <span class="trade-tag tag-red">热门</span>
-                </div>
-                <div class="trade-item">
-                    <div class="trade-img">🃏</div>
-                    <div class="trade-info">
-                        <div class="trade-name">BGS 9 万物...</div>
-                        <div class="trade-price" style="color: #f44336;">26h...</div>
-                    </div>
-                </div>
-            </div>
+        <div class="section-title">
+            <span>🔥 最新发布</span>
+            <a href="publish.html">+ 发布</a>
         </div>
         
-        <!-- 近期更新 -->
-        <div class="update-section">
-            <div class="section-header">
-                <span class="section-tab active">近期更新</span>
-                <span class="section-tab">第十三期</span>
-                <span class="section-tab">第十二期</span>
-                <span class="section-tab">分类</span>
-            </div>
-            <div class="update-grid">
-                <div class="update-item" onclick="showUpdate('最新')" style="cursor: pointer;">
-                    <div class="update-img">🐱</div>
-                    <div class="update-name">最新</div>
-                </div>
-                <div class="update-item" onclick="showUpdate('界限超越')" style="cursor: pointer;">
-                    <div class="update-img">📦</div>
-                    <div class="update-name">界限超越...</div>
-                </div>
-                <div class="update-item" onclick="showUpdate('即将发售')" style="cursor: pointer;">
-                    <div class="update-img">🆕</div>
-                    <div class="update-name">即将发售</div>
-                </div>
-                <div class="update-item" onclick="showUpdate('LO特别')" style="cursor: pointer;">
-                    <div class="update-img">🎁</div>
-                    <div class="update-name">LO特别...</div>
-                </div>
-                <div class="update-item" onclick="showUpdate('VJUM')" style="cursor: pointer;">
-                    <div class="update-img">📚</div>
-                    <div class="update-name">VJUM</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 热门畅销 -->
-        <div class="hot-section">
-            <div class="hot-header" onclick="showHot()" style="cursor: pointer;">
-                <span class="hot-title">热门畅销</span>
-                <span class="hot-more">></span>
-            </div>
-            <div class="hot-grid">
-                <div class="hot-item" onclick="viewCardDetail(1)" style="cursor: pointer;">
-                    <div class="hot-img">🃏</div>
-                </div>
-                <div class="hot-item" onclick="viewCardDetail(2)" style="cursor: pointer;">
-                    <div class="hot-img">🃏</div>
-                </div>
-                <div class="hot-item" onclick="viewCardDetail(3)" style="cursor: pointer;">
-                    <div class="hot-img">🃏</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 下载APP -->
-        <div class="download-section" onclick="installApp()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 15px; margin-top: 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: white;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 30px;">📲</span>
-                <div>
-                    <div style="font-weight: bold; font-size: 16px;">下载卡域APP</div>
-                    <div style="font-size: 12px; opacity: 0.9;">添加到桌面，像原生APP一样使用</div>
-                </div>
-            </div>
-            <span style="font-size: 20px;">➡️</span>
+        <div class="cards" id="cardList">
+            <div class="empty">加载中...</div>
         </div>
     </div>
     
-     <!-- 底部导航 -->
-    <div class="bottom-nav">
-        <a href="index.html" class="nav-item active">
-            <span class="nav-icon">🔍</span>
-            <span>探索</span>
-        </a>
-        <a href="#" class="nav-item" onclick="showExchange(event)">
-            <span class="nav-icon">🔄</span>
-            <span>集换</span>
-        </a>
+    <div class="nav">
+        <a href="index.html" class="nav-item active"><span class="nav-icon">🔍</span><span>探索</span></a>
         <a href="publish.html" class="nav-add">+</a>
-        <a href="message.html" class="nav-item">
-            <span class="nav-icon">💬</span>
-            <span>消息</span>
-        </a>
-        <a href="#" class="nav-item" onclick="goToProfile(event)">
-            <span class="nav-icon">👤</span>
-            <span>个人</span>
-        </a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        function switchGame() {
-            const games = ['游戏王', '宝可梦', '万智牌', '数码宝贝'];
-            const current = document.querySelector('.game-selector').textContent.trim();
-            const nextIndex = (games.indexOf(current.split(' ')[0]) + 1) % games.length;
-            document.querySelector('.game-selector').innerHTML = 
-                games[nextIndex] + ' <span class="game-lang">日文</span> <span class="dropdown-arrow">▼</span>';
-        }
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        // 示例卡牌数据
-        const marketCards = [
-            { id: 1, name: '青眼白龙', series: '游戏王', rarity: 'UR', price: 88, seller: '卡友A', image: '' },
-            { id: 2, name: '黑魔导', series: '游戏王', rarity: 'SR', price: 45, seller: '卡友B', image: '' },
-            { id: 3, name: '皮卡丘', series: '宝可梦', rarity: 'SR', price: 32, seller: '卡友C', image: '' },
-            { id: 4, name: '喷火龙', series: '宝可梦', rarity: 'UR', price: 128, seller: '卡友D', image: '' },
-            { id: 5, name: '万智牌-闪电', series: '万智牌', rarity: 'R', price: 15, seller: '卡友E', image: '' },
-            { id: 6, name: '多多迷宝', series: '游戏王', rarity: 'N', price: 19.6, seller: '集换仓', image: '' },
-            { id: 7, name: '枪管上膛狞猛龙', series: '游戏王', rarity: 'SR', price: 1.1, seller: '竞价专区', image: '' },
-            { id: 8, name: 'BGS 9 万物创世龙', series: '游戏王', rarity: 'SEC', price: 2680, seller: '拍卖', image: '' }
-        ];
+        let allListings = [];
+        let currentFilter = 'all';
         
-        function showCalendar() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth() + 1;
-            const day = today.getDate();
+        // 加载市场列表
+        async function loadListings() {
+            const list = document.getElementById('cardList');
             
-            // 计算未来发售日期（基于当前日期动态计算）
-            const nextWeek = new Date(today);
-            nextWeek.setDate(today.getDate() + 7);
-            const twoWeeks = new Date(today);
-            twoWeeks.setDate(today.getDate() + 14);
-            const threeWeeks = new Date(today);
-            threeWeeks.setDate(today.getDate() + 21);
+            const { data, error } = await db
+                .from('market_listings')
+                .select('*, profiles(username)')
+                .eq('status', 'active')
+                .order('created_at', { ascending: false });
             
-            const formatDate = (d) => `${d.getMonth() + 1}月${d.getDate()}日`;
-            
-            alert(`📅 发售日历\n\n今天是 ${year}年${month}月${day}日\n\n近期发售：\n• 游戏王 1206 补充包 - ${formatDate(nextWeek)}\n• 宝可梦 SV8a - ${formatDate(twoWeeks)}\n• 万智牌 MH3 - ${formatDate(threeWeeks)}`);
-        }
-        
-        // 搜索功能
-        function searchCards() {
-            const keyword = document.querySelector('.search-input').value.trim();
-            if (!keyword) {
-                alert('请输入搜索关键词');
+            if (error) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
                 return;
             }
-            const results = marketCards.filter(c => c.name.includes(keyword) || c.series.includes(keyword));
-            if (results.length === 0) {
-                alert('未找到相关卡牌');
-            } else {
-                showSearchResults(results);
+            
+            allListings = data || [];
+            renderListings(allListings);
+        }
+        
+        // 渲染列表
+        function renderListings(listings) {
+            const list = document.getElementById('cardList');
+            
+            if (listings.length === 0) {
+                list.innerHTML = '<div class="empty">暂无卡牌，点击右下角 + 发布</div>';
+                return;
             }
-        }
-        
-        // 显示搜索结果
-        function showSearchResults(cards) {
-            let html = '<div style="padding: 15px;">';
-            html += '<h3 style="margin-bottom: 15px;">搜索结果 (' + cards.length + ')</h3>';
-            cards.forEach(card => {
-                html += `<div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="viewCardDetail(${card.id})">
-                    <div>
-                        <div style="font-weight: bold;">${card.name}</div>
-                        <div style="font-size: 12px; color: #999;">${card.series} · ${card.rarity}</div>
-                        <div style="font-size: 12px; color: #667eea;">卖家: ${card.seller}</div>
+            
+            const gradients = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #ff6b9d 0%, #feca57 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+            ];
+            
+            list.innerHTML = listings.map((item, i) => `
+                <div class="card" onclick="viewDetail('${item.id}')">
+                    <div class="card-img" style="${item.image_url ? 'background-image: url(' + item.image_url + '); background-size: cover;' : 'background: ' + gradients[i % gradients.length]}">
+                        ${item.image_url ? '' : item.name.substring(0, 2)}
                     </div>
-                    <div style="font-size: 18px; font-weight: bold; color: #667eea;">¥${card.price}</div>
-                </div>`;
-            });
-            html += '</div>';
-            
-            const modal = document.createElement('div');
-            modal.id = 'searchModal';
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f5f5f5; z-index: 1000; overflow-y: auto;';
-            modal.innerHTML = html + '<button onclick="closeSearchModal()" style="position: fixed; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #667eea; color: white; font-size: 20px;">✕</button>';
-            document.body.appendChild(modal);
-        }
-        
-        function closeSearchModal() {
-            const modal = document.getElementById('searchModal');
-            if (modal) modal.remove();
-        }
-        
-        // 查看卡牌详情
-        function viewCardDetail(cardId) {
-            const card = marketCards.find(c => c.id === cardId);
-            if (!card) return;
-            
-            const html = `
-                <div style="padding: 20px;">
-                    <h2 style="margin-bottom: 10px;">${card.name}</h2>
-                    <div style="color: #999; margin-bottom: 20px;">${card.series} · ${card.rarity}</div>
-                    <div style="width: 100%; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 60px; margin-bottom: 20px;">🃏</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div class="card-info">
                         <div>
-                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">¥${card.price}</div>
-                            <div style="font-size: 12px; color: #999;">卖家: ${card.seller}</div>
+                            <span class="tag ${item.type === 'sell' ? 'tag-sell' : 'tag-buy'}">${item.type === 'sell' ? '卖' : '买'}</span>
+                            <span class="card-name">${item.name}</span>
                         </div>
+                        <div class="card-meta">${item.series} · ${item.rarity}</div>
+                        <div class="card-price">¥${item.price}</div>
+                        <div class="card-seller">卖家: ${item.profiles?.username || '未知'}</div>
                     </div>
-                    <button onclick="contactSeller('${card.seller}', '${card.name}')" style="width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-bottom: 10px;">联系卖家</button>
-                    <button onclick="closeSearchModal()" style="width: 100%; padding: 15px; background: #f0f0f0; color: #666; border: none; border-radius: 12px; font-size: 16px;">返回</button>
                 </div>
-            `;
+            `).join('');
+        }
+        
+        // 筛选系列
+        function filterSeries(series) {
+            currentFilter = series;
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
             
-            const modal = document.getElementById('searchModal');
-            if (modal) modal.innerHTML = html + '<button onclick="closeSearchModal()" style="position: fixed; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #667eea; color: white; font-size: 20px;">✕</button>';
-        }
-        
-        // 联系卖家
-        function contactSeller(seller, cardName) {
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
-                alert('请先登录后再联系卖家');
-                window.location.href = 'login.html';
-                return;
-            }
-            alert(`💬 正在联系 ${seller} 关于 ${cardName}...\n\n(消息功能开发中，将跳转到聊天页面)`);
-        }
-        
-        // WIKI功能
-        function showWiki(type) {
-            if (type === 'beginner') {
-                alert('📖 游戏王新手百科\n\n游戏王是一款集换式卡牌游戏，玩家通过召唤怪兽、使用魔法和陷阱卡来击败对手。\n\n基本规则：\n1. 每回合抽一张卡\n2. 可以召唤怪兽\n3. 使用魔法卡和陷阱卡\n4. 攻击对方怪兽或玩家\n5. 对方LP归零即获胜');
+            if (series === 'all') {
+                renderListings(allListings);
             } else {
-                alert('📖 游戏王进阶教学\n\n进阶技巧：\n1. 连锁系统 - 理解连锁的优先级\n2. 时点把握 - 知道何时发动效果\n3. 卡组构筑 - 平衡怪兽、魔法、陷阱比例\n4. 资源管理 - 合理使用手牌和墓地资源\n5. 环境对策 - 了解当前主流卡组');
+                const filtered = allListings.filter(item => item.series === series);
+                renderListings(filtered);
             }
         }
         
-        // 卡组功能
-        function showDeck() {
-            alert('🎴 热门卡组推荐\n\n【已剑卡组】\n上位率: 15.7%\n核心卡: 已剑龙、已剑魔法\n价格: ¥2026\n\n其他热门卡组:\n• 青眼白龙卡组\n• 黑魔导卡组\n• 电子龙卡组');
-        }
-        
-        // 市场行情
-        function showMarket(type) {
-            let html = `<div style="padding: 20px;"><h2>${type}</h2>`;
-            marketCards.forEach(card => {
-                html += `<div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;" onclick="viewCardDetail(${card.id})">
-                    <div>
-                        <div style="font-weight: bold;">${card.name}</div>
-                        <div style="font-size: 12px; color: #999;">${card.series} · ${card.rarity}</div>
-                    </div>
-                    <div style="font-size: 18px; font-weight: bold; color: #667eea;">¥${card.price}</div>
-                </div>`;
-            });
-            html += '</div>';
-            
-            const modal = document.createElement('div');
-            modal.id = 'searchModal';
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f5f5f5; z-index: 1000; overflow-y: auto;';
-            modal.innerHTML = html + '<button onclick="closeSearchModal()" style="position: fixed; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #667eea; color: white; font-size: 20px;">✕</button>';
-            document.body.appendChild(modal);
-        }
-        
-        // 近期更新
-        function showUpdate(type) {
-            const updates = {
-                '最新': '🐱 最新更新\n\n• 游戏王 1206 补充包\n• 宝可梦 SV8a 高罕卡\n• 万智牌 MH3 预览',
-                '界限超越': '📦 界限超越\n\n• 超越龙系列\n• 新罕贵度公布\n• 限定卡盒发售',
-                '即将发售': '🆕 即将发售\n\n• 3月28日: 游戏王 1206\n• 4月5日: 宝可梦 SV8a\n• 4月12日: 万智牌 MH3',
-                'LO特别': '🎁 LO特别包\n\n• 限定闪卡\n• 纪念卡册\n• 限定卡套',
-                'VJUM': '📚 VJUM杂志\n\n• 本月附赠卡: 青眼亚白龙\n• 新卡预览\n• 构筑攻略'
-            };
-            alert(updates[type] || '暂无信息');
-        }
-        
-        // 热门畅销
-        function showHot() {
-            showMarket('热门畅销');
-        }
-        
-        // 集换功能
-        function showExchange(e) {
-            e.preventDefault();
-            alert('🔄 集换中心\n\n功能开发中，敬请期待！\n\n即将推出:\n• 卡牌交换\n• 以物易物\n• 估价系统');
-        }
-        
-        // 下载/安装APP
-        function installApp() {
-            // 检测是否已安装
-            if (window.matchMedia('(display-mode: standalone)').matches) {
-                alert('✅ 已经安装过了！\n\n您正在使用APP模式运行。');
+        // 搜索
+        function searchCards() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            if (!keyword) {
+                renderListings(allListings);
                 return;
             }
             
-            // 尝试触发安装
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('用户接受了安装');
-                    } else {
-                        console.log('用户拒绝了安装');
-                    }
-                    deferredPrompt = null;
-                });
-            } else {
-                // 如果没有触发自动弹窗，提供手动安装指南
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                const isAndroid = /Android/.test(navigator.userAgent);
-                
-                if (isIOS) {
-                    alert('📱 iPhone安装指南\n\n1. 点击底部"分享"按钮（方框+箭头）\n2. 选择"添加到主屏幕"\n3. 点击"添加"\n\n桌面就会出现卡域图标！');
-                } else if (isAndroid) {
-                    alert('📱 安卓安装指南\n\n1. 点击浏览器菜单（三个点）\n2. 选择"添加到主屏幕"或"安装应用"\n3. 点击"添加"\n\n桌面就会出现卡域图标！');
-                } else {
-                    alert('💻 电脑安装指南\n\n1. 点击浏览器地址栏右侧的"安装"图标\n2. 或在菜单中选择"安装卡域"\n\n桌面就会出现卡域图标！');
-                }
-            }
+            const filtered = allListings.filter(item => 
+                item.name.toLowerCase().includes(keyword) ||
+                item.series.toLowerCase().includes(keyword)
+            );
+            renderListings(filtered);
         }
         
-        // 点击个人导航时检查登录
-        function goToProfile(e) {
-            e.preventDefault();
-            const user = localStorage.getItem('currentUser');
-            if (!user) {
-                window.location.href = 'login.html';
-            } else {
-                window.location.href = 'collection.html';
-            }
+        // 查看详情
+        function viewDetail(id) {
+            window.location.href = 'card-detail.html?id=' + id;
         }
         
-        // 注册 Service Worker (PWA支持)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-                .then((reg) => console.log('Service Worker 注册成功:', reg))
-                .catch((err) => console.log('Service Worker 注册失败:', err));
-        }
-        
-        // 添加到桌面提示
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            // 显示安装提示
-            setTimeout(() => {
-                if (confirm('📲 将"卡域"添加到桌面？\n\n像APP一样快速访问！')) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('用户接受了安装');
-                        }
-                        deferredPrompt = null;
-                    });
-                }
-            }, 3000);
-        });
-        
-        // 检测是否已安装
-        window.addEventListener('appinstalled', (e) => {
-            console.log('APP已安装');
-            alert('🎉 安装成功！\n\n现在可以从桌面快速打开卡域了！');
-        });
+        // 页面加载
+        loadListings();
     </script>
 </body>
 </html>
