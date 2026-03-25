@@ -2,312 +2,236 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卡域 - 我的收藏</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         .header-title { color: white; font-size: 18px; font-weight: bold; }
-        .header-icon { color: white; font-size: 24px; cursor: pointer; }
+        .header-btn { color: white; font-size: 20px; cursor: pointer; }
         .content { padding: 15px; }
-        .stats-card { background: white; border-radius: 12px; padding: 20px; display: flex; justify-content: space-around; margin-bottom: 15px; }
-        .stat-item { text-align: center; }
-        .stat-value { font-size: 24px; font-weight: bold; color: #667eea; }
-        .stat-label { font-size: 12px; color: #999; margin-top: 5px; }
+        .stats { background: white; border-radius: 12px; padding: 20px; display: flex; justify-content: space-around; margin-bottom: 15px; }
+        .stat { text-align: center; }
+        .stat-num { font-size: 24px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #999; }
         .add-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-bottom: 15px; cursor: pointer; }
-        .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        .card-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; }
-        .favorite-btn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; z-index: 10; }
-        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+        .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .card-info { padding: 12px; }
-        .card-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
-        .card-meta { font-size: 12px; color: #999; margin-bottom: 8px; }
-        .card-price { font-size: 16px; font-weight: bold; color: #667eea; }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #999; font-size: 11px; text-decoration: none; }
+        .card-name { font-weight: bold; font-size: 14px; }
+        .card-meta { font-size: 12px; color: #999; }
+        .card-price { font-size: 16px; font-weight: bold; color: #667eea; margin-top: 5px; }
+        .empty { text-align: center; padding: 40px; color: #999; grid-column: 1/-1; }
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; }
         .nav-item.active { color: #667eea; }
         .nav-icon { font-size: 24px; }
-        .nav-add { background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: -20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); color: #333; text-decoration: none; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #666; font-size: 14px; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
-        .image-upload { width: 100%; height: 150px; border: 2px dashed #e0e0e0; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f9f9f9; }
+        .modal-box { background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px; }
+        .input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
+        .select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
+        .img-upload { width: 100%; height: 120px; border: 2px dashed #e0e0e0; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f9f9f9; margin-bottom: 15px; }
+        .btn-row { display: flex; gap: 10px; }
+        .btn-half { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .btn-cancel { background: #f0f0f0; }
+        .btn-save { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-title">我的收藏</div>
-        <div class="header-icon" onclick="logout()">🚪</div>
+        <div class="header-btn" onclick="logout()">🚪</div>
     </div>
     
     <div class="content">
-        <div class="stats-card">
-            <div class="stat-item">
-                <div class="stat-value" id="totalCards">0</div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-num" id="total">0</div>
                 <div class="stat-label">总卡牌</div>
             </div>
-            <div class="stat-item">
-                <div class="stat-value" id="totalValue">¥0</div>
+            <div class="stat">
+                <div class="stat-num" id="value">¥0</div>
                 <div class="stat-label">总价值</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="favCards">0</div>
-                <div class="stat-label">收藏</div>
             </div>
         </div>
         
-        <button class="add-btn" onclick="openModal()">+ 添加卡牌</button>
+        <button class="add-btn" onclick="showAdd()">+ 添加卡牌</button>
         
-        <div class="card-grid" id="cardList">
-            <div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载中...</div>
+        <div class="cards" id="cardList">
+            <div class="empty">加载中...</div>
         </div>
     </div>
     
-    <div class="bottom-nav">
+    <div class="nav">
         <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
-        <a href="#" class="nav-item"><span class="nav-icon">🔄</span><span>集换</span></a>
-        <a href="publish.html" class="nav-add">+</a>
-        <a href="message.html" class="nav-item"><span class="nav-icon">💬</span><span>消息</span></a>
+        <a href="publish.html" class="nav-item" style="background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: -20px;"><span style="font-size: 30px;">+</span></a>
         <a href="collection.html" class="nav-item active"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
     
     <div class="modal" id="addModal">
-        <div class="modal-content">
-            <h2 style="margin-bottom: 20px;">添加新卡牌</h2>
-            <form id="addForm">
-                <div class="form-group">
-                    <label>卡牌名称 *</label>
-                    <input type="text" id="cardName" required placeholder="例如：青眼白龙">
-                </div>
-                <div class="form-group">
-                    <label>系列</label>
-                    <select id="cardSeries">
-                        <option value="游戏王">游戏王</option>
-                        <option value="宝可梦">宝可梦</option>
-                        <option value="万智牌">万智牌</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>稀有度</label>
-                    <select id="cardRarity">
-                        <option value="N">普通 (N)</option>
-                        <option value="R">稀有 (R)</option>
-                        <option value="SR">超稀有 (SR)</option>
-                        <option value="UR">终极稀有 (UR)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>价格 (¥)</label>
-                    <input type="number" id="cardPrice" placeholder="0.00">
-                </div>
-                <div class="form-group">
-                    <label>卡牌图片</label>
-                    <input type="file" id="cardImage" accept="image/*" style="display: none;">
-                    <div class="image-upload" id="imagePreview" onclick="document.getElementById('cardImage').click()">
-                        <span style="color: #999;">📷 点击上传图片</span>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="button" onclick="closeModal()" style="flex: 1; padding: 12px; background: #f0f0f0; border: none; border-radius: 8px;">取消</button>
-                    <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: white; font-weight: bold;">保存</button>
-                </div>
-            </form>
+        <div class="modal-box">
+            <h2 style="margin-bottom: 20px;">添加卡牌</h2>
+            <input type="text" class="input" id="name" placeholder="卡牌名称">
+            <select class="select" id="series">
+                <option value="游戏王">游戏王</option>
+                <option value="宝可梦">宝可梦</option>
+                <option value="万智牌">万智牌</option>
+            </select>
+            <select class="select" id="rarity">
+                <option value="N">普通 (N)</option>
+                <option value="R">稀有 (R)</option>
+                <option value="SR">超稀有 (SR)</option>
+                <option value="UR">终极稀有 (UR)</option>
+            </select>
+            <input type="number" class="input" id="price" placeholder="价格">
+            <input type="file" id="img" accept="image/*" style="display: none;">
+            <div class="img-upload" id="preview" onclick="document.getElementById('img').click()">📷 点击上传图片</div>
+            <div class="btn-row">
+                <button class="btn-half btn-cancel" onclick="hideAdd()">取消</button>
+                <button class="btn-half btn-save" onclick="saveCard()">保存</button>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        let supabase = null;
-        let currentUser = null;
+        let uid = localStorage.getItem('uid');
         
-        function initSupabase() {
-            if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                return true;
-            }
-            return false;
+        // 检查登录
+        if (!uid && !localStorage.getItem('isGuest')) {
+            window.location.href = 'login.html';
         }
         
-        function waitForSupabase(callback) {
-            if (initSupabase()) {
-                callback();
-            } else {
-                setTimeout(() => waitForSupabase(callback), 100);
-            }
-        }
-
-        // 页面加载
-        waitForSupabase(async () => {
-            console.log('Supabase初始化完成');
-            
-            const { data: { user } } = await supabase.auth.getUser();
-            currentUser = user;
-            
-            console.log('当前用户:', user);
-            
-            if (!user && !localStorage.getItem('isGuest')) {
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            // 图片预览
-            document.getElementById('cardImage').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const preview = document.getElementById('imagePreview');
-                        preview.innerHTML = '';
-                        preview.style.backgroundImage = 'url(' + e.target.result + ')';
-                        preview.style.backgroundSize = 'cover';
-                        preview.style.backgroundPosition = 'center';
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-            
-            // 表单提交
-            document.getElementById('addForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                if (!currentUser) {
-                    alert('请先登录');
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                const btn = e.target.querySelector('button[type="submit"]');
-                btn.disabled = true;
-                btn.textContent = '保存中...';
-                
-                const name = document.getElementById('cardName').value;
-                const series = document.getElementById('cardSeries').value;
-                const rarity = document.getElementById('cardRarity').value;
-                const price = parseFloat(document.getElementById('cardPrice').value) || 0;
-                const imageInput = document.getElementById('cardImage');
-                
-                console.log('添加卡牌:', { name, series, rarity, price });
-                
-                // 上传图片
-                let imageUrl = null;
-                if (imageInput.files[0]) {
-                    const file = imageInput.files[0];
-                    const fileName = `${currentUser.id}/${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabase.storage.from('card-images').upload(fileName, file);
-                    if (!uploadError) {
-                        const { data } = supabase.storage.from('card-images').getPublicUrl(fileName);
-                        imageUrl = data.publicUrl;
-                    }
-                }
-                
-                // 保存卡牌
-                const { error } = await supabase.from('cards').insert([{
-                    user_id: currentUser.id,
-                    name, series, rarity, price, image_url: imageUrl
-                }]);
-                
-                btn.disabled = false;
-                btn.textContent = '保存';
-                
-                if (error) {
-                    console.error('保存失败:', error);
-                    alert('保存失败: ' + error.message);
-                } else {
-                    console.log('保存成功');
-                    alert('✅ 添加成功！');
-                    closeModal();
-                    loadCards();
-                }
-            });
-            
-            loadCards();
-        });
-
-        async function loadCards() {
+        // 加载卡牌
+        async function load() {
             const list = document.getElementById('cardList');
             
-            if (!currentUser) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">请先登录</div>';
+            if (!uid) {
+                list.innerHTML = '<div class="empty">请先登录</div>';
                 return;
             }
             
-            const { data, error } = await supabase
-                .from('cards')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false });
-            
-            console.log('加载卡牌:', data, error);
+            const { data, error } = await db.from('cards').select('*').eq('user_id', uid).order('created_at', { ascending: false });
             
             if (error) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">加载失败</div>';
+                list.innerHTML = '<div class="empty">加载失败</div>';
                 return;
             }
             
             const cards = data || [];
             
             if (cards.length === 0) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999; grid-column: 1/-1;">还没有卡牌，点击上方按钮添加</div>';
-                updateStats(0, 0, 0);
+                list.innerHTML = '<div class="empty">还没有卡牌，点击上方按钮添加</div>';
+                updateStats(0, 0);
                 return;
             }
             
-            const gradients = [
-                'linear-gradient(135deg, #ff6b9d 0%, #feca57 100%)',
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-            ];
-            
-            list.innerHTML = cards.map((card, i) => `
-                <div class="card-item">
-                    <div class="card-img" style="${card.image_url ? 'background-image: url(' + card.image_url + '); background-size: cover;' : 'background: ' + gradients[i % gradients.length]}">
-                        ${card.image_url ? '' : '<span>' + card.name.substring(0, 2) + '</span>'}
-                    </div>
+            list.innerHTML = cards.map(c => `
+                <div class="card">
+                    <div class="card-img" style="${c.image_url ? 'background-image: url(' + c.image_url + '); background-size: cover;' : ''}">${c.image_url ? '' : c.name.substring(0, 2)}</div>
                     <div class="card-info">
-                        <div class="card-name">${card.name}</div>
-                        <div class="card-meta">${card.series} · ${card.rarity}</div>
-                        <div class="card-price">¥${card.price}</div>
+                        <div class="card-name">${c.name}</div>
+                        <div class="card-meta">${c.series} · ${c.rarity}</div>
+                        <div class="card-price">¥${c.price}</div>
                     </div>
                 </div>
             `).join('');
             
-            const totalValue = cards.reduce((sum, c) => sum + c.price, 0);
-            updateStats(cards.length, totalValue, 0);
+            const total = cards.reduce((s, c) => s + c.price, 0);
+            updateStats(cards.length, total);
         }
-
-        function updateStats(total, value, favs) {
-            document.getElementById('totalCards').textContent = total;
-            document.getElementById('totalValue').textContent = '¥' + value;
-            document.getElementById('favCards').textContent = favs;
+        
+        function updateStats(count, total) {
+            document.getElementById('total').textContent = count;
+            document.getElementById('value').textContent = '¥' + total;
         }
-
-        function openModal() {
+        
+        // 显示添加
+        function showAdd() {
             document.getElementById('addModal').style.display = 'flex';
         }
-
-        function closeModal() {
+        
+        // 隐藏添加
+        function hideAdd() {
             document.getElementById('addModal').style.display = 'none';
-            document.getElementById('addForm').reset();
-            document.getElementById('imagePreview').innerHTML = '<span style="color: #999;">📷 点击上传图片</span>';
-            document.getElementById('imagePreview').style.backgroundImage = '';
+            document.getElementById('name').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('preview').innerHTML = '📷 点击上传图片';
+            document.getElementById('preview').style.backgroundImage = '';
         }
-
+        
+        // 图片预览
+        document.getElementById('img').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview').innerHTML = '';
+                    document.getElementById('preview').style.backgroundImage = 'url(' + e.target.result + ')';
+                    document.getElementById('preview').style.backgroundSize = 'cover';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // 保存卡牌
+        async function saveCard() {
+            if (!uid) { alert('请先登录'); return; }
+            
+            const name = document.getElementById('name').value;
+            const series = document.getElementById('series').value;
+            const rarity = document.getElementById('rarity').value;
+            const price = parseFloat(document.getElementById('price').value) || 0;
+            const imgInput = document.getElementById('img');
+            
+            if (!name) { alert('请输入卡牌名称'); return; }
+            
+            // 上传图片
+            let imgUrl = null;
+            if (imgInput.files[0]) {
+                const file = imgInput.files[0];
+                const fname = uid + '/' + Date.now() + '.' + file.name.split('.').pop();
+                const { error: upErr } = await db.storage.from('card-images').upload(fname, file);
+                if (!upErr) {
+                    const { data } = db.storage.from('card-images').getPublicUrl(fname);
+                    imgUrl = data.publicUrl;
+                }
+            }
+            
+            // 保存
+            const { error } = await db.from('cards').insert([{
+                user_id: uid,
+                name: name,
+                series: series,
+                rarity: rarity,
+                price: price,
+                image_url: imgUrl
+            }]);
+            
+            if (error) {
+                alert('保存失败: ' + error.message);
+            } else {
+                alert('✅ 添加成功！');
+                hideAdd();
+                load();
+            }
+        }
+        
+        // 退出
         async function logout() {
             if (confirm('确定退出？')) {
-                await supabase.auth.signOut();
+                await db.auth.signOut();
                 localStorage.clear();
                 window.location.href = 'login.html';
             }
         }
+        
+        // 页面加载时执行
+        load();
     </script>
 </body>
 </html>
