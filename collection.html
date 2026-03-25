@@ -145,7 +145,7 @@
             window.location.href = 'login.html';
         }
         
-        // 加载卡牌
+        // 加载收藏的卡牌
         async function load() {
             const list = document.getElementById('cardList');
             
@@ -154,23 +154,44 @@
                 return;
             }
             
-            const { data, error } = await db.from('cards').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+            // 获取收藏的卡牌ID
+            const { data: favData, error: favError } = await db
+                .from('favorites')
+                .select('card_id')
+                .eq('user_id', uid);
+            
+            if (favError) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
+                return;
+            }
+            
+            if (!favData || favData.length === 0) {
+                list.innerHTML = '<div class="empty">还没有收藏，去浏览市场添加吧</div>';
+                updateStats(0, 0);
+                return;
+            }
+            
+            // 获取卡牌详情
+            const cardIds = favData.map(f => f.card_id);
+            const { data: cards, error } = await db
+                .from('market_listings')
+                .select('*')
+                .in('id', cardIds)
+                .eq('status', 'active');
             
             if (error) {
                 list.innerHTML = '<div class="empty">加载失败</div>';
                 return;
             }
             
-            const cards = data || [];
-            
-            if (cards.length === 0) {
-                list.innerHTML = '<div class="empty">还没有卡牌，点击上方按钮添加</div>';
+            if (!cards || cards.length === 0) {
+                list.innerHTML = '<div class="empty">收藏的卡牌已下架</div>';
                 updateStats(0, 0);
                 return;
             }
             
             list.innerHTML = cards.map(c => `
-                <div class="card">
+                <div class="card" onclick="location.href='card-detail.html?id=${c.id}'">
                     <div class="card-img" style="${c.image_url ? 'background-image: url(' + c.image_url + '); background-size: cover;' : ''}">${c.image_url ? '' : c.name.substring(0, 2)}</div>
                     <div class="card-info">
                         <div class="card-name">${c.name}</div>

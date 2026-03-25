@@ -42,7 +42,7 @@
     </div>
     
     <div class="bottom-bar" id="bottomBar" style="display: none;">
-        <button class="btn-secondary" onclick="toggleFav()">🤍</button>
+        <button class="btn-secondary" id="favBtn" onclick="toggleFav()">🤍</button>
         <button class="btn-primary" onclick="contactSeller()">联系卖家</button>
     </div>
 
@@ -56,6 +56,7 @@
         
         let currentCard = null;
         let currentUser = null;
+        let isFav = false;
         
         // 加载详情
         async function loadDetail() {
@@ -81,6 +82,19 @@
             }
             
             currentCard = data;
+            
+            // 检查是否已收藏
+            if (currentUser) {
+                const { data: favData } = await db
+                    .from('favorites')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('card_id', cardId)
+                    .single();
+                isFav = !!favData;
+                updateFavButton();
+            }
+            
             renderDetail(data);
         }
         
@@ -159,9 +173,33 @@
             });
         }
         
-        // 收藏
-        function toggleFav() {
-            alert('收藏功能开发中...');
+        // 更新收藏按钮
+        function updateFavButton() {
+            const btn = document.getElementById('favBtn');
+            btn.textContent = isFav ? '❤️' : '🤍';
+        }
+        
+        // 切换收藏
+        async function toggleFav() {
+            if (!currentUser) {
+                alert('请先登录');
+                return;
+            }
+            
+            if (isFav) {
+                // 取消收藏
+                await db.from('favorites').delete().eq('user_id', currentUser.id).eq('card_id', cardId);
+                isFav = false;
+            } else {
+                // 添加收藏
+                await db.from('favorites').insert({
+                    user_id: currentUser.id,
+                    card_id: cardId
+                });
+                isFav = true;
+            }
+            
+            updateFavButton();
         }
         
         // 加载
