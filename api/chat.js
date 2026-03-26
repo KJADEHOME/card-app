@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     const response = await client.chat.completions.create({
       model: 'kimi-k2.5',
       messages,
-      temperature: 0.6,
+      temperature: 1,
     });
     res.status(200).json({ reply: response.choices[0].message.content });
   } catch (error) {
