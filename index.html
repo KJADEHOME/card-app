@@ -220,12 +220,90 @@
     </script>
     <div style="margin: 20px; border: 1px solid #ccc; padding: 10px; border-radius: 8px;">
   <h3>AI 助手（Kimi）</h3>
-  <input type="text" id="userInput" placeholder="问点什么..." style="width: 70%; padding: 8px;">
+  <input type="text" id="userInput" placeholder="问点什么，例如：帮我生成一个卡牌卡片 HTML 文件" style="width: 70%; padding: 8px;">
   <button onclick="sendMessage()">发送</button>
   <div id="replyArea" style="margin-top: 10px; background: #f5f5f5; padding: 10px; border-radius: 5px; white-space: pre-wrap;"></div>
 </div>
 
 <script>
+let history = [];
+
+// 检测代码块并添加下载按钮
+function addDownloadButtons(container) {
+  const codeBlocks = container.querySelectorAll('pre code');
+  codeBlocks.forEach((codeBlock, index) => {
+    // 避免重复添加
+    if (codeBlock.parentElement.querySelector('.download-btn')) return;
+
+    const code = codeBlock.innerText;
+    // 尝试推断文件类型
+    let fileExt = 'txt';
+    let fileName = `code_${index + 1}`;
+    if (code.includes('<html') || code.includes('<!DOCTYPE')) fileExt = 'html';
+    else if (code.includes('{') && (code.includes('margin') || code.includes('color'))) fileExt = 'css';
+    else if (code.includes('function') || code.includes('=>') || code.includes('let ') || code.includes('const ')) fileExt = 'js';
+    else if (code.includes('package.json')) fileExt = 'json';
+
+    const button = document.createElement('button');
+    button.textContent = `📥 下载为 ${fileExt.toUpperCase()} 文件`;
+    button.className = 'download-btn';
+    button.style.margin = '8px 0';
+    button.onclick = () => {
+      const blob = new Blob([code], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.${fileExt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+    codeBlock.parentElement.parentElement.appendChild(button);
+  });
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const replyDiv = document.getElementById('replyArea');
+  replyDiv.innerHTML = '思考中...';
+  history.push({ role: 'user', content: msg });
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, history: history })
+    });
+    const data = await response.json();
+    if (data.reply) {
+      // 将回复按 Markdown 格式显示（支持代码块）
+      const formattedReply = marked.parse ? marked.parse(data.reply) : data.reply.replace(/\n/g, '<br>');
+      replyDiv.innerHTML = formattedReply;
+      // 高亮代码块并添加下载按钮
+      if (typeof hljs !== 'undefined') {
+        replyDiv.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+      }
+      addDownloadButtons(replyDiv);
+      history.push({ role: 'assistant', content: data.reply });
+    } else {
+      replyDiv.innerHTML = '错误：' + (data.error || '未知错误');
+    }
+  } catch (err) {
+    replyDiv.innerHTML = '网络错误，请重试。';
+    console.error(err);
+  }
+}
+</script>
+
+<!-- 引入 marked 和 highlight.js 用于美化代码显示 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+ <script>
 let history = [];
 
 async function sendMessage() {
