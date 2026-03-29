@@ -84,8 +84,36 @@
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
+        // 管理员UID（只有这个用户能访问管理后台）
+        // 从本地存储获取，或使用预设值
+        const getAdminUid = () => localStorage.getItem('adminUid') || '';
+        
+        // 检查是否是管理员
+        async function checkAdmin() {
+            const { data: { user } } = await db.auth.getUser();
+            
+            if (!user) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            const adminUid = getAdminUid();
+            // 如果设置了管理员UID，则验证
+            if (adminUid && user.id !== adminUid) {
+                alert('您没有权限访问管理后台');
+                window.location.href = 'index.html';
+                return false;
+            }
+            
+            return true;
+        }
+        
         // 加载数据
         async function loadData() {
+            const isAdmin = await checkAdmin();
+            if (!isAdmin) return;
+            
             await Promise.all([
                 loadStats(),
                 loadListings(),
@@ -195,7 +223,28 @@
         }
         
         // 页面加载
-        loadData();
+        window.addEventListener('load', async () => {
+            // 检查是否设置了管理员
+            if (!ADMIN_UID) {
+                const { data: { user } } = await db.auth.getUser();
+                if (user) {
+                    const setAsAdmin = confirm('首次访问管理后台，是否将当前账号设为管理员？\n\n您的用户ID:\n' + user.id + '\n\n点击确定设为管理员，取消则返回首页。');
+                    if (setAsAdmin) {
+                        // 保存到localStorage
+                        localStorage.setItem('adminUid', user.id);
+                        alert('已设为管理员！请刷新页面。');
+                        location.reload();
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                } else {
+                    alert('请先登录');
+                    window.location.href = 'login.html';
+                }
+            }
+            
+            loadData();
+        });
     </script>
 </body>
 </html>
