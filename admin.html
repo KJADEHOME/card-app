@@ -93,13 +93,13 @@
             const { data: { user } } = await db.auth.getUser();
             
             if (!user) {
+                localStorage.setItem('redirectAfterLogin', window.location.href);
                 alert('请先登录');
                 window.location.href = 'login.html';
                 return false;
             }
             
             const adminUid = getAdminUid();
-            // 如果设置了管理员UID，则验证
             if (adminUid && user.id !== adminUid) {
                 alert('您没有权限访问管理后台');
                 window.location.href = 'index.html';
@@ -228,9 +228,10 @@
             if (!getAdminUid()) {
                 const { data: { user } } = await db.auth.getUser();
                 if (user) {
+                    // 保存当前页面URL，登录后返回
+                    localStorage.setItem('redirectAfterLogin', window.location.href);
                     const setAsAdmin = confirm('首次访问管理后台，是否将当前账号设为管理员？\n\n您的用户ID:\n' + user.id + '\n\n点击确定设为管理员，取消则返回首页。');
                     if (setAsAdmin) {
-                        // 保存到localStorage
                         localStorage.setItem('adminUid', user.id);
                         alert('已设为管理员！请刷新页面。');
                         location.reload();

@@ -128,7 +128,10 @@
                     msg.textContent = '✅ 登录成功！';
                     msg.classList.add('success');
                     setTimeout(() => {
-                        window.location.href = 'index.html';
+                        // 检查是否需要返回管理后台
+                        const redirectTo = localStorage.getItem('redirectAfterLogin');
+                        localStorage.removeItem('redirectAfterLogin');
+                        window.location.href = redirectTo || 'index.html';
                     }, 500);
                 }
             } catch (error) {
@@ -164,7 +167,9 @@
             } else {
                 localStorage.setItem('uid', data.user.id);
                 localStorage.removeItem('isGuest');
-                window.location.href = 'index.html';
+                const redirectTo = localStorage.getItem('redirectAfterLogin');
+                localStorage.removeItem('redirectAfterLogin');
+                window.location.href = redirectTo || 'index.html';
             }
         }
         
