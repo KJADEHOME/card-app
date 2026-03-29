@@ -11,11 +11,25 @@
         .logo { text-align: center; margin-bottom: 30px; }
         .logo-icon { font-size: 60px; }
         .logo-title { font-size: 28px; font-weight: bold; }
+        .tabs { display: flex; background: #f5f5f5; border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 10px; text-align: center; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        .tab.active { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .input-group { display: flex; align-items: center; border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 15px; overflow: hidden; }
+        .input-group:focus-within { border-color: #667eea; }
+        .input-prefix { padding: 14px 12px; background: #f9f9f9; color: #666; font-size: 14px; border-right: 1px solid #e0e0e0; }
+        .input-group input { flex: 1; padding: 14px; border: none; outline: none; font-size: 15px; }
         .input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 15px; margin-bottom: 15px; }
+        .input:focus { border-color: #667eea; outline: none; }
         .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .btn:disabled { opacity: 0.6; }
-        .link { text-align: center; color: #667eea; cursor: pointer; margin-top: 15px; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: white; color: #667eea; border: 2px solid #667eea; }
         .msg { color: #f44336; font-size: 12px; text-align: center; margin-bottom: 10px; min-height: 18px; }
+        .msg.success { color: #4caf50; }
+        .link { text-align: center; color: #667eea; cursor: pointer; margin-top: 15px; font-size: 14px; }
+        .or { text-align: center; color: #999; font-size: 12px; margin: 15px 0; }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .note { font-size: 11px; color: #999; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -25,28 +39,119 @@
             <div class="logo-title">卡域</div>
         </div>
         
-        <input type="email" class="input" id="email" placeholder="邮箱">
-        <input type="password" class="input" id="pwd" placeholder="密码">
+        <div class="tabs">
+            <div class="tab active" id="tabPhone" onclick="switchTab('phone')">📱 手机登录</div>
+            <div class="tab" id="tabEmail" onclick="switchTab('email')">✉️ 邮箱登录</div>
+        </div>
+        
+        <!-- 手机登录 -->
+        <div id="phoneLogin">
+            <div class="input-group">
+                <span class="input-prefix">+86</span>
+                <input type="tel" id="phone" placeholder="请输入手机号" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'')">
+            </div>
+            <button class="btn" onclick="phoneLogin()" id="phoneBtn">一键登录</button>
+            <div class="note">未注册用户将自动创建账号</div>
+        </div>
+        
+        <!-- 邮箱登录 -->
+        <div id="emailLogin" style="display:none;">
+            <input type="email" class="input" id="email" placeholder="邮箱地址">
+            <input type="password" class="input" id="pwd" placeholder="密码" onkeypress="if(event.key==='Enter')emailLogin()">
+            <button class="btn" onclick="emailLogin()" id="emailBtn">登录</button>
+            <button class="btn btn-secondary" onclick="emailRegister()" id="regBtn">注册新账号</button>
+        </div>
+        
         <div class="msg" id="msg"></div>
-        <button class="btn" onclick="login()" id="btn">登录</button>
-        <button class="btn" onclick="register()" id="regBtn" style="background: #4caf50;">注册新账号</button>
-        <div class="link" onclick="guest()">👤 游客模式</div>
+        
+        <div class="or">或者</div>
+        
+        <button class="btn btn-secondary" onclick="guest()">👤 游客模式</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        async function login() {
-            const email = document.getElementById('email').value;
-            const pwd = document.getElementById('pwd').value;
-            const btn = document.getElementById('btn');
+        let currentTab = 'phone';
+        
+        // 切换标签
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tabPhone').classList.toggle('active', tab === 'phone');
+            document.getElementById('tabEmail').classList.toggle('active', tab === 'email');
+            document.getElementById('phoneLogin').style.display = tab === 'phone' ? 'block' : 'none';
+            document.getElementById('emailLogin').style.display = tab === 'email' ? 'block' : 'none';
+            document.getElementById('msg').textContent = '';
+        }
+        
+        // 手机号登录（简化版：直接自动注册/登录）
+        async function phoneLogin() {
+            const phone = document.getElementById('phone').value.trim();
+            const btn = document.getElementById('phoneBtn');
             const msg = document.getElementById('msg');
             
-            if (!email || !pwd) { msg.textContent = '请填写邮箱和密码'; return; }
+            if (!phone || phone.length !== 11) {
+                msg.textContent = '请输入正确的11位手机号';
+                return;
+            }
             
             btn.disabled = true;
-            btn.textContent = '登录中...';
+            btn.innerHTML = '<span class="loading"></span>登录中...';
+            msg.textContent = '';
+            
+            try {
+                // 使用手机号 + 随机密码登录
+                const phoneWithPrefix = '+86' + phone;
+                
+                // 先尝试登录
+                let { data, error } = await db.auth.signInWithPassword({
+                    email: phoneWithPrefix + '@cardrealm.top',
+                    password: phone
+                });
+                
+                // 如果登录失败（新用户），则注册
+                if (error) {
+                    const { data: signUpData, error: signUpError } = await db.auth.signUp({
+                        email: phoneWithPrefix + '@cardrealm.top',
+                        password: phone
+                    });
+                    
+                    if (signUpError) throw signUpError;
+                    data = signUpData;
+                }
+                
+                if (data.user) {
+                    localStorage.setItem('uid', data.user.id);
+                    localStorage.setItem('phone', phone);
+                    localStorage.removeItem('isGuest');
+                    msg.textContent = '✅ 登录成功！';
+                    msg.classList.add('success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 500);
+                }
+            } catch (error) {
+                msg.textContent = '登录失败: ' + error.message;
+                btn.disabled = false;
+                btn.textContent = '一键登录';
+            }
+        }
+        
+        // 邮箱登录
+        async function emailLogin() {
+            const email = document.getElementById('email').value.trim();
+            const pwd = document.getElementById('pwd').value;
+            const btn = document.getElementById('emailBtn');
+            const msg = document.getElementById('msg');
+            
+            if (!email || !pwd) {
+                msg.textContent = '请填写邮箱和密码';
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>登录中...';
             msg.textContent = '';
             
             const { data, error } = await db.auth.signInWithPassword({ email, password: pwd });
@@ -58,21 +163,29 @@
                 msg.textContent = error.message;
             } else {
                 localStorage.setItem('uid', data.user.id);
-                window.location.href = 'collection.html';
+                localStorage.removeItem('isGuest');
+                window.location.href = 'index.html';
             }
         }
         
-        async function register() {
-            const email = document.getElementById('email').value;
+        // 邮箱注册
+        async function emailRegister() {
+            const email = document.getElementById('email').value.trim();
             const pwd = document.getElementById('pwd').value;
             const btn = document.getElementById('regBtn');
             const msg = document.getElementById('msg');
             
-            if (!email || !pwd) { msg.textContent = '请填写邮箱和密码'; return; }
-            if (pwd.length < 6) { msg.textContent = '密码至少6位'; return; }
+            if (!email || !pwd) {
+                msg.textContent = '请填写邮箱和密码';
+                return;
+            }
+            if (pwd.length < 6) {
+                msg.textContent = '密码至少6位';
+                return;
+            }
             
             btn.disabled = true;
-            btn.textContent = '注册中...';
+            btn.innerHTML = '<span class="loading"></span>注册中...';
             msg.textContent = '';
             
             const { data, error } = await db.auth.signUp({ email, password: pwd });
@@ -84,19 +197,15 @@
                 msg.textContent = error.message;
             } else {
                 msg.textContent = '✅ 注册成功！请登录';
-                msg.style.color = '#4caf50';
+                msg.classList.add('success');
             }
         }
         
+        // 游客模式
         function guest() {
             localStorage.setItem('isGuest', 'true');
-            window.location.href = 'collection.html';
+            window.location.href = 'index.html';
         }
-        
-        // 回车登录
-        document.getElementById('pwd').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
     </script>
 </body>
 </html>

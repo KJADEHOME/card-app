@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .header-back { color: white; text-decoration: none; font-size: 14px; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; background: white; margin: 20px; border-radius: 12px; }
+        .stat { text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px; }
+        .stat-num { font-size: 24px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #999; margin-top: 5px; }
+        .section { background: white; margin: 0 20px 20px; border-radius: 12px; overflow: hidden; }
+        .section-header { padding: 15px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .section-title { font-size: 16px; font-weight: bold; }
+        .tabs { display: flex; }
+        .tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 14px; }
+        .tab.active { border-color: #667eea; color: #667eea; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; }
+        tr:hover { background: #f8f9fa; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-sell { background: #e3f2fd; color: #1976d2; }
+        .badge-buy { background: #fff3e0; color: #f57c00; }
+        .badge-active { background: #e8f5e9; color: #4caf50; }
+        .badge-cancelled { background: #ffebee; color: #f44336; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .refresh-btn { background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .refresh-btn:hover { background: #5a6fd6; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html" class="header-back">← 返回首页</a>
+        <div class="header-title">📊 卡域管理后台</div>
+        <div></div>
+    </div>
+    
+    <div class="stats" id="stats">
+        <div class="stat">
+            <div class="stat-num" id="statUsers">-</div>
+            <div class="stat-label">注册用户</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" id="statListings">-</div>
+            <div class="stat-label">在售卡牌</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" id="statToday">-</div>
+            <div class="stat-label">今日新增</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" id="statMessages">-</div>
+            <div class="stat-label">消息数</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">📦 卡牌交易列表</div>
+            <button class="refresh-btn" onclick="loadData()">🔄 刷新</button>
+        </div>
+        <div id="listingsTable">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">👥 最新用户</div>
+        </div>
+        <div id="usersTable">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        
+        // 加载数据
+        async function loadData() {
+            await Promise.all([
+                loadStats(),
+                loadListings(),
+                loadUsers()
+            ]);
+        }
+        
+        // 加载统计
+        async function loadStats() {
+            // 用户数
+            const { count: userCount } = await db.from('profiles').select('*', { count: 'exact', head: true });
+            document.getElementById('statUsers').textContent = userCount || 0;
+            
+            // 在售卡牌数
+            const { count: listingCount } = await db.from('market_listings').select('*', { count: 'exact', head: true }).eq('status', 'active');
+            document.getElementById('statListings').textContent = listingCount || 0;
+            
+            // 今日新增
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const { count: todayCount } = await db.from('market_listings').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString());
+            document.getElementById('statToday').textContent = todayCount || 0;
+            
+            // 消息数
+            const { count: msgCount } = await db.from('messages').select('*', { count: 'exact', head: true });
+            document.getElementById('statMessages').textContent = msgCount || 0;
+        }
+        
+        // 加载交易列表
+        async function loadListings() {
+            const container = document.getElementById('listingsTable');
+            
+            const { data, error } = await db
+                .from('market_listings')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(50);
+            
+            if (error || !data || data.length === 0) {
+                container.innerHTML = '<div class="empty">暂无交易记录</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>卡牌名称</th>
+                            <th>类型</th>
+                            <th>价格</th>
+                            <th>状态</th>
+                            <th>发布时间</th>
+                            <th>卖家ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(item => `
+                            <tr>
+                                <td>${item.name}</td>
+                                <td><span class="badge ${item.type === 'sell' ? 'badge-sell' : 'badge-buy'}">${item.type === 'sell' ? '出售' : '求购'}</span></td>
+                                <td>¥${item.price}</td>
+                                <td><span class="badge ${item.status === 'active' ? 'badge-active' : 'badge-cancelled'}">${item.status === 'active' ? '在售' : item.status}</span></td>
+                                <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
+                                <td>${(item.seller_id || '').substring(0, 8)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        // 加载用户列表
+        async function loadUsers() {
+            const container = document.getElementById('usersTable');
+            
+            const { data, error } = await db
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(20);
+            
+            if (error || !data || data.length === 0) {
+                container.innerHTML = '<div class="empty">暂无用户数据</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>用户ID</th>
+                            <th>用户名</th>
+                            <th>注册时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(item => `
+                            <tr>
+                                <td>${(item.id || '').substring(0, 12)}...</td>
+                                <td>${item.username || '未设置'}</td>
+                                <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        // 页面加载
+        loadData();
+    </script>
+</body>
+</html>
