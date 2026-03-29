@@ -243,8 +243,9 @@
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        // Supabase Edge Function URL（更安全）
-        const AI_SCAN_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co/functions/v1/ai-scan';
+        // 直接调用 Moonshot API（暂时方案）
+        const MOONSHOT_API_KEY = 'sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk';
+        const MOONSHOT_API_URL = 'https://api.moonshot.cn/v1/chat/completions';
         
         let allListings = [];
         let currentFilter = 'all';
@@ -367,24 +368,34 @@
         
         async function callMoonshotVision(base64Image) {
             try {
-                const response = await fetch(AI_SCAN_URL, {
+                const response = await fetch(MOONSHOT_API_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + MOONSHOT_API_KEY
                     },
-                    body: JSON.stringify({ image: base64Image })
+                    body: JSON.stringify({
+                        model: 'moonshot-v1-8k-vision',
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + base64Image } },
+                                { type: 'text', text: '这是一张卡牌图片，请识别这是什么卡牌。只返回卡牌名称和系列，格式：卡牌名称|系列。例如：青眼白龙|游戏王' }
+                            ]
+                        }],
+                        temperature: 0.1
+                    })
                 });
                 
                 const data = await response.json();
                 console.log('AI返回:', data);
                 
-                // 检查是否有错误
                 if (data.error) {
                     throw new Error(data.error.message || data.error);
                 }
                 
                 if (data.choices && data.choices[0]) {
-                    const content = data.choices[0].message.content.trim();
+                    const content = data.choices[0].message.content.trim;
                     const parts = content.split('|');
                     const name = parts[0].trim();
                     const series = parts[1] ? parts[1].trim() : '未知';
