@@ -7,10 +7,19 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .header-left { flex: 1; }
         .header-title { color: white; font-size: 20px; font-weight: bold; margin-bottom: 15px; }
         .search-box { display: flex; align-items: center; background: white; border-radius: 25px; padding: 10px 15px; }
         .search-box input { flex: 1; border: none; outline: none; font-size: 14px; }
+        
+        /* 右上角日历 */
+        .header-right { margin-left: 15px; }
+        .calendar-widget { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 16px; padding: 12px 16px; color: white; text-align: center; min-width: 80px; }
+        .calendar-day { font-size: 28px; font-weight: bold; line-height: 1; }
+        .calendar-month { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+        .calendar-weekday { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+        
         .content { padding: 15px; }
         .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .section-title a { font-size: 14px; color: #667eea; text-decoration: none; }
@@ -40,7 +49,7 @@
         
         /* 功能卡片 */
         .feature-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 15px; }
-        .feature-card { background: white; border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px; }
+        .feature-card { background: white; border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
         .feature-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
         .feature-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .feature-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
@@ -55,13 +64,42 @@
         .stat-card { background: white; border-radius: 12px; padding: 15px; text-align: center; }
         .stat-num { font-size: 20px; font-weight: bold; color: #667eea; }
         .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+        
+        /* 发布日历卡片 */
+        .release-calendar { background: white; border-radius: 16px; padding: 15px; margin-bottom: 15px; }
+        .release-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .release-title { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .release-title span { font-size: 18px; }
+        .release-more { font-size: 12px; color: #667eea; text-decoration: none; }
+        .release-list { display: flex; flex-direction: column; gap: 10px; }
+        .release-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: #f8f9fa; border-radius: 10px; }
+        .release-date { text-align: center; min-width: 45px; }
+        .release-date-day { font-size: 18px; font-weight: bold; color: #667eea; }
+        .release-date-month { font-size: 10px; color: #999; }
+        .release-info { flex: 1; }
+        .release-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+        .release-series { font-size: 12px; color: #666; }
+        .release-tag { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+        .release-tag.ygo { background: #fff3e0; color: #f57c00; }
+        .release-tag.pokemon { background: #e8f5e9; color: #4caf50; }
+        .release-tag.magic { background: #e3f2fd; color: #1976d2; }
+        .release-tag.new { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="header-title">🔍 探索</div>
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="🔍 搜索卡牌名称..." onkeyup="searchCards()">
+        <div class="header-left">
+            <div class="header-title">🔍 探索</div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 搜索卡牌名称..." onkeyup="searchCards()">
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="calendar-widget" id="calendarWidget">
+                <div class="calendar-day" id="calendarDay">--</div>
+                <div class="calendar-month" id="calendarMonth">--</div>
+                <div class="calendar-weekday" id="calendarWeekday">--</div>
+            </div>
         </div>
     </div>
     
@@ -72,6 +110,17 @@
             <div class="filter-tab" onclick="filterSeries('宝可梦')">宝可梦</div>
             <div class="filter-tab" onclick="filterSeries('万智牌')">万智牌</div>
             <div class="filter-tab" onclick="filterSeries('数码宝贝')">数码宝贝</div>
+        </div>
+        
+        <!-- 发布日历 -->
+        <div class="release-calendar">
+            <div class="release-header">
+                <div class="release-title"><span>📅</span> 新品发布日历</div>
+                <a href="#" class="release-more" onclick="showAllReleases()">查看全部 →</a>
+            </div>
+            <div class="release-list" id="releaseList">
+                <!-- 动态加载 -->
+            </div>
         </div>
         
         <!-- 功能入口 -->
@@ -149,13 +198,102 @@
         let currentUser = null;
         let favorites = new Set();
         
+        // 发布日历数据（可手动更新）
+        const releaseCalendar = [
+            { date: '2026-04-05', name: '拳之极意', series: '游戏王', tag: 'ygo' },
+            { date: '2026-04-12', name: '闪耀宝藏ex', series: '宝可梦', tag: 'pokemon' },
+            { date: '2026-04-18', name: '奇迹之超次元', series: '游戏王', tag: 'ygo' },
+            { date: '2026-04-25', name: 'Tarkir: Dragonstorm', series: '万智牌', tag: 'magic' },
+            { date: '2026-05-10', name: '究极冲击', series: '游戏王', tag: 'ygo' },
+            { date: '2026-05-15', name: '喷火龙ex礼盒', series: '宝可梦', tag: 'pokemon' }
+        ];
+        
+        // 初始化日历
+        function initCalendar() {
+            const now = new Date();
+            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+            const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+            
+            document.getElementById('calendarDay').textContent = now.getDate();
+            document.getElementById('calendarMonth').textContent = months[now.getMonth()];
+            document.getElementById('calendarWeekday').textContent = weekdays[now.getDay()];
+            
+            // 渲染发布日历
+            renderReleaseCalendar();
+        }
+        
+        // 渲染发布日历
+        function renderReleaseCalendar() {
+            const list = document.getElementById('releaseList');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // 筛选即将发布的（包括今天和未来）
+            const upcoming = releaseCalendar.filter(item => {
+                const itemDate = new Date(item.date);
+                itemDate.setHours(0, 0, 0, 0);
+                return itemDate >= today;
+            }).slice(0, 3); // 只显示3条
+            
+            if (upcoming.length === 0) {
+                list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无近期发布信息</div>';
+                return;
+            }
+            
+            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+            
+            list.innerHTML = upcoming.map(item => {
+                const date = new Date(item.date);
+                const day = date.getDate();
+                const month = months[date.getMonth()];
+                
+                // 计算距离今天多少天
+                const diffTime = date - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const isNew = diffDays <= 7;
+                
+                return `
+                <div class="release-item">
+                    <div class="release-date">
+                        <div class="release-date-day">${day}</div>
+                        <div class="release-date-month">${month}</div>
+                    </div>
+                    <div class="release-info">
+                        <div class="release-name">${item.name}</div>
+                        <div class="release-series">${item.series}</div>
+                    </div>
+                    <span class="release-tag ${isNew ? 'new' : item.tag}">${isNew ? '即将发售' : item.series}</span>
+                </div>
+            `}).join('');
+        }
+        
+        // 查看全部发布
+        function showAllReleases() {
+            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let msg = '📅 近期新品发布日历\n\n';
+            releaseCalendar.forEach(item => {
+                const date = new Date(item.date);
+                const day = date.getDate();
+                const month = months[date.getMonth()];
+                const diffTime = date - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const status = diffDays < 0 ? '已发售' : diffDays === 0 ? '今日' : `${diffDays}天后`;
+                msg += `【${month}${day}日】${item.name}\n   ${item.series} · ${status}\n\n`;
+            });
+            alert(msg);
+        }
+        
         // 初始化
         (async function() {
+            initCalendar();
+            
             const { data: { user } } = await db.auth.getUser();
             currentUser = user;
             
             if (currentUser) {
-                // 加载收藏列表
                 const { data: favData } = await db.from('favorites').select('card_id').eq('user_id', currentUser.id);
                 if (favData) {
                     favData.forEach(f => favorites.add(f.card_id));
@@ -182,16 +320,13 @@
             
             allListings = data || [];
             
-            // 更新统计
             document.getElementById('totalCount').textContent = allListings.length;
             
-            // 今日新增
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayCount = allListings.filter(item => new Date(item.created_at) >= today).length;
             document.getElementById('todayCount').textContent = todayCount;
             
-            // 模拟用户数
             const uniqueUsers = new Set(allListings.map(item => item.seller_id)).size;
             document.getElementById('userCount').textContent = uniqueUsers || '-';
             
@@ -279,11 +414,9 @@
             }
             
             if (favorites.has(cardId)) {
-                // 取消收藏
                 await db.from('favorites').delete().eq('user_id', currentUser.id).eq('card_id', cardId);
                 favorites.delete(cardId);
             } else {
-                // 添加收藏
                 await db.from('favorites').insert({ user_id: currentUser.id, card_id: cardId });
                 favorites.add(cardId);
             }
