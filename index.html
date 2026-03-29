@@ -374,12 +374,16 @@
                         'Authorization': 'Bearer ' + MOONSHOT_API_KEY
                     },
                     body: JSON.stringify({
-                        model: 'moonshot-v1-8k-vision-preview',
+                        model: 'moonshot-v1-128k-vision-preview',
                         messages: [{
                             role: 'user',
                             content: [
                                 { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + base64Image } },
-                                { type: 'text', text: '这是一张卡牌图片，请识别这是什么卡牌。返回格式：卡牌名称|系列|稀有度。稀有度包括：N(普通)/R(稀有)/SR(超稀有)/UR(终极稀有)/SSR(超究极稀有)/SEC(秘密稀有)/GR(黄金稀有)/PR(珍贵)/限量版/ promo等。如果是很稀有的卡牌（SR以上或限量版），在最后加[稀有]。例如：青眼白龙|游戏王|UR[稀有] 或 皮卡丘|宝可梦|SR' }
+                                { type: 'text', text: '你是一个专业的卡牌识别助手。请仔细识别这张卡牌图片：1. 首先确认这是哪种卡牌游戏（游戏王/宝可梦/万智牌/数码宝贝等）2. 识别卡牌名称，注意卡牌名称通常印在卡牌中央或上方3. 识别卡牌右下角的稀有度标志（N/R/SR/UR/SSR/SEC等）4. 如果是罕见稀有度（SR及以上）或限量版，在最后加[稀有]返回格式：卡牌名称|系列|稀有度例如：青眼白龙|游戏王|UR[稀有]如果无法确定卡牌名称，返回：未知卡牌|无法识别|无' }
+                            ]
+                        }],
+                        temperature: 0.1
+                    })
                             ]
                         }],
                         temperature: 0.1
