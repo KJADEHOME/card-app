@@ -202,6 +202,13 @@
         <div class="cards" id="cardList">
             <div class="empty">加载中...</div>
         </div>
+        
+        <!-- 下载APP -->
+        <div style="text-align: center; padding: 20px; margin-top: 15px;">
+            <button onclick="installApp()" id="installBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 14px; cursor: pointer;">
+                📲 下载APP到手机
+            </button>
+        </div>
     </div>
     
     <div class="nav">
@@ -369,10 +376,15 @@
                 });
                 
                 const data = await response.json();
+                console.log('AI返回:', data);
+                
+                // 检查是否有错误
+                if (data.error) {
+                    throw new Error(data.error.message || data.error);
+                }
                 
                 if (data.choices && data.choices[0]) {
                     const content = data.choices[0].message.content.trim();
-                    // 解析结果
                     const parts = content.split('|');
                     const name = parts[0].trim();
                     const series = parts[1] ? parts[1].trim() : '未知';
@@ -384,11 +396,33 @@
                     document.getElementById('aiResult').style.display = 'block';
                     document.getElementById('aiConfirmBtn').disabled = false;
                 } else {
-                    throw new Error('识别失败');
+                    throw new Error('识别结果为空');
                 }
             } catch (error) {
-                alert('识别失败，请重试或手动输入搜索');
-                console.error(error);
+                console.error('AI识卡错误:', error);
+                alert('识别失败: ' + error.message + '\n请重试或手动输入搜索');
+            }
+        }
+        
+        // PWA安装
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+        
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('用户同意安装');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // 如果不支持PWA安装，提示用户
+                alert('📲 安装方法：\n\niOS Safari：点击分享按钮 → 添加到主屏幕\n\nAndroid Chrome：点击菜单 → 添加到主屏幕');
             }
         }
         
