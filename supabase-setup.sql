@@ -143,3 +143,25 @@ DROP TRIGGER IF EXISTS update_market_listings_updated_at ON public.market_listin
 CREATE TRIGGER update_market_listings_updated_at
     BEFORE UPDATE ON public.market_listings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 5. 收藏表
+CREATE TABLE IF NOT EXISTS public.favorites (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    card_id UUID REFERENCES public.market_listings(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, card_id)
+);
+
+-- 收藏表启用RLS
+ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+
+-- 收藏表策略
+CREATE POLICY "Favorites are viewable by owner" ON public.favorites
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own favorites" ON public.favorites
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own favorites" ON public.favorites
+    FOR DELETE USING (auth.uid() = user_id);
