@@ -10,8 +10,12 @@
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; }
         .header-left { flex: 1; }
         .header-title { color: white; font-size: 20px; font-weight: bold; margin-bottom: 15px; }
-        .search-box { display: flex; align-items: center; background: white; border-radius: 25px; padding: 10px 15px; }
-        .search-box input { flex: 1; border: none; outline: none; font-size: 14px; }
+        .search-box { display: flex; align-items: center; background: white; border-radius: 25px; padding: 8px 15px; gap: 8px; }
+        .search-box input { flex: 1; border: none; outline: none; font-size: 14px; min-width: 0; }
+        .ai-scan-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: transform 0.2s; }
+        .ai-scan-btn:hover { transform: scale(1.1); }
+        .ai-scan-btn.loading { animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
         /* 右上角日历 */
         .header-right { margin-left: 15px; }
@@ -33,7 +37,6 @@
         .card-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .card-meta { font-size: 12px; color: #999; margin-bottom: 5px; }
         .card-price { font-size: 16px; font-weight: bold; color: #667eea; }
-        .card-seller { font-size: 11px; color: #999; margin-top: 5px; }
         .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px; }
         .tag-sell { background: #e3f2fd; color: #1976d2; }
         .tag-buy { background: #fff3e0; color: #f57c00; }
@@ -69,7 +72,6 @@
         .release-calendar { background: white; border-radius: 16px; padding: 15px; margin-bottom: 15px; }
         .release-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .release-title { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .release-title span { font-size: 18px; }
         .release-more { font-size: 12px; color: #667eea; text-decoration: none; }
         .release-list { display: flex; flex-direction: column; gap: 10px; }
         .release-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: #f8f9fa; border-radius: 10px; }
@@ -84,6 +86,27 @@
         .release-tag.pokemon { background: #e8f5e9; color: #4caf50; }
         .release-tag.magic { background: #e3f2fd; color: #1976d2; }
         .release-tag.new { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        
+        /* AI扫描弹窗 */
+        .ai-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .ai-modal.show { display: flex; }
+        .ai-modal-box { background: white; border-radius: 20px; padding: 25px; width: 100%; max-width: 350px; text-align: center; }
+        .ai-modal-title { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+        .ai-upload-area { border: 2px dashed #ddd; border-radius: 16px; padding: 30px; margin-bottom: 15px; cursor: pointer; transition: all 0.3s; }
+        .ai-upload-area:hover { border-color: #667eea; background: #f8f9ff; }
+        .ai-upload-area.has-image { padding: 10px; }
+        .ai-upload-area img { max-width: 100%; max-height: 200px; border-radius: 8px; }
+        .ai-upload-icon { font-size: 48px; margin-bottom: 10px; }
+        .ai-upload-text { color: #666; font-size: 14px; }
+        .ai-result { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-top: 15px; text-align: left; }
+        .ai-result-title { font-size: 12px; color: #999; margin-bottom: 8px; }
+        .ai-result-name { font-size: 18px; font-weight: bold; color: #333; }
+        .ai-result-series { font-size: 13px; color: #666; margin-top: 4px; }
+        .ai-btn-row { display: flex; gap: 10px; margin-top: 20px; }
+        .ai-btn { flex: 1; padding: 12px; border-radius: 12px; font-size: 14px; cursor: pointer; border: none; }
+        .ai-btn-cancel { background: #f0f0f0; color: #666; }
+        .ai-btn-confirm { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -91,11 +114,12 @@
         <div class="header-left">
             <div class="header-title">🔍 探索</div>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 搜索卡牌名称..." onkeyup="searchCards()">
+                <input type="text" id="searchInput" placeholder="搜索卡牌名称..." onkeyup="searchCards()">
+                <button class="ai-scan-btn" id="aiScanBtn" onclick="openAiScan()" title="AI识卡">📷</button>
             </div>
         </div>
         <div class="header-right">
-            <div class="calendar-widget" id="calendarWidget">
+            <div class="calendar-widget">
                 <div class="calendar-day" id="calendarDay">--</div>
                 <div class="calendar-month" id="calendarMonth">--</div>
                 <div class="calendar-weekday" id="calendarWeekday">--</div>
@@ -118,9 +142,7 @@
                 <div class="release-title"><span>📅</span> 新品发布日历</div>
                 <a href="#" class="release-more" onclick="showAllReleases()">查看全部 →</a>
             </div>
-            <div class="release-list" id="releaseList">
-                <!-- 动态加载 -->
-            </div>
+            <div class="release-list" id="releaseList"></div>
         </div>
         
         <!-- 功能入口 -->
@@ -188,17 +210,43 @@
         <a href="publish.html" class="nav-add">+</a>
         <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
+    
+    <!-- AI识卡弹窗 -->
+    <div class="ai-modal" id="aiModal">
+        <div class="ai-modal-box">
+            <div class="ai-modal-title">🤖 AI 识卡</div>
+            <input type="file" id="aiImageInput" accept="image/*" style="display:none" onchange="handleAiImage(event)">
+            <div class="ai-upload-area" id="aiUploadArea" onclick="document.getElementById('aiImageInput').click()">
+                <div class="ai-upload-icon">📷</div>
+                <div class="ai-upload-text">点击上传卡牌图片</div>
+            </div>
+            <div class="ai-result" id="aiResult" style="display:none">
+                <div class="ai-result-title">识别结果</div>
+                <div class="ai-result-name" id="aiResultName">-</div>
+                <div class="ai-result-series" id="aiResultSeries">-</div>
+            </div>
+            <div class="ai-btn-row">
+                <button class="ai-btn ai-btn-cancel" onclick="closeAiScan()">取消</button>
+                <button class="ai-btn ai-btn-confirm" id="aiConfirmBtn" onclick="confirmAiResult()" disabled>搜索</button>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
+        // Moonshot API配置
+        const MOONSHOT_API_KEY = 'sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk';
+        const MOONSHOT_API_URL = 'https://api.moonshot.cn/v1/chat/completions';
+        
         let allListings = [];
         let currentFilter = 'all';
         let currentUser = null;
         let favorites = new Set();
+        let aiDetectedName = '';
         
-        // 发布日历数据（可手动更新）
+        // 发布日历数据
         const releaseCalendar = [
             { date: '2026-04-05', name: '拳之极意', series: '游戏王', tag: 'ygo' },
             { date: '2026-04-12', name: '闪耀宝藏ex', series: '宝可梦', tag: 'pokemon' },
@@ -218,7 +266,6 @@
             document.getElementById('calendarMonth').textContent = months[now.getMonth()];
             document.getElementById('calendarWeekday').textContent = weekdays[now.getDay()];
             
-            // 渲染发布日历
             renderReleaseCalendar();
         }
         
@@ -228,12 +275,11 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
-            // 筛选即将发布的（包括今天和未来）
             const upcoming = releaseCalendar.filter(item => {
                 const itemDate = new Date(item.date);
                 itemDate.setHours(0, 0, 0, 0);
                 return itemDate >= today;
-            }).slice(0, 3); // 只显示3条
+            }).slice(0, 3);
             
             if (upcoming.length === 0) {
                 list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无近期发布信息</div>';
@@ -246,8 +292,6 @@
                 const date = new Date(item.date);
                 const day = date.getDate();
                 const month = months[date.getMonth()];
-                
-                // 计算距离今天多少天
                 const diffTime = date - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 const isNew = diffDays <= 7;
@@ -265,6 +309,113 @@
                     <span class="release-tag ${isNew ? 'new' : item.tag}">${isNew ? '即将发售' : item.series}</span>
                 </div>
             `}).join('');
+        }
+        
+        // AI识卡功能
+        function openAiScan() {
+            document.getElementById('aiModal').classList.add('show');
+            document.getElementById('aiUploadArea').innerHTML = '<div class="ai-upload-icon">📷</div><div class="ai-upload-text">点击上传卡牌图片</div>';
+            document.getElementById('aiUploadArea').classList.remove('has-image');
+            document.getElementById('aiResult').style.display = 'none';
+            document.getElementById('aiConfirmBtn').disabled = true;
+            aiDetectedName = '';
+        }
+        
+        function closeAiScan() {
+            document.getElementById('aiModal').classList.remove('show');
+        }
+        
+        async function handleAiImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // 显示图片预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const uploadArea = document.getElementById('aiUploadArea');
+                uploadArea.innerHTML = '<img src="' + e.target.result + '" alt="预览">';
+                uploadArea.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+            
+            // 显示加载状态
+            document.getElementById('aiScanBtn').classList.add('loading');
+            
+            // 转为base64并调用AI
+            const base64 = await fileToBase64(file);
+            await callMoonshotVision(base64);
+            
+            document.getElementById('aiScanBtn').classList.remove('loading');
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64 = e.target.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        async function callMoonshotVision(base64Image) {
+            try {
+                const response = await fetch(MOONSHOT_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + MOONSHOT_API_KEY
+                    },
+                    body: JSON.stringify({
+                        model: 'moonshot-v1-8k-vision',
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'image_url',
+                                    image_url: { url: 'data:image/jpeg;base64,' + base64Image }
+                                },
+                                {
+                                    type: 'text',
+                                    text: '这是一张卡牌图片，请识别这是什么卡牌。如果是游戏王卡牌，请返回卡牌中文名；如果是宝可梦卡牌，请返回卡牌名；如果是万智牌，请返回卡牌名。只返回卡牌名称和系列（游戏王/宝可梦/万智牌），格式：卡牌名称|系列。例如：青眼白龙|游戏王'
+                                }
+                            ]
+                        }],
+                        temperature: 0.1
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.choices && data.choices[0]) {
+                    const content = data.choices[0].message.content.trim();
+                    // 解析结果
+                    const parts = content.split('|');
+                    const name = parts[0].trim();
+                    const series = parts[1] ? parts[1].trim() : '未知';
+                    
+                    aiDetectedName = name;
+                    
+                    document.getElementById('aiResultName').textContent = name;
+                    document.getElementById('aiResultSeries').textContent = series;
+                    document.getElementById('aiResult').style.display = 'block';
+                    document.getElementById('aiConfirmBtn').disabled = false;
+                } else {
+                    throw new Error('识别失败');
+                }
+            } catch (error) {
+                alert('识别失败，请重试或手动输入搜索');
+                console.error(error);
+            }
+        }
+        
+        function confirmAiResult() {
+            if (aiDetectedName) {
+                document.getElementById('searchInput').value = aiDetectedName;
+                searchCards();
+                closeAiScan();
+            }
         }
         
         // 查看全部发布
