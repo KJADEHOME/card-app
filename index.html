@@ -15,10 +15,13 @@
         .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .section-title a { font-size: 14px; color: #667eea; text-decoration: none; }
         .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; }
-        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; position: relative; }
+        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; }
+        .card-img img { width: 100%; height: 100%; object-fit: cover; }
+        .fav-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; z-index: 10; }
+        .fav-btn:hover { background: white; }
         .card-info { padding: 12px; }
-        .card-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+        .card-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .card-meta { font-size: 12px; color: #999; margin-bottom: 5px; }
         .card-price { font-size: 16px; font-weight: bold; color: #667eea; }
         .card-seller { font-size: 11px; color: #999; margin-top: 5px; }
@@ -31,9 +34,27 @@
         .nav-item.active { color: #667eea; }
         .nav-icon { font-size: 24px; }
         .nav-add { background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: -20px; color: #333; text-decoration: none; }
-        .filter-tabs { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; }
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
         .filter-tab { padding: 8px 16px; background: white; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; }
         .filter-tab.active { background: #667eea; color: white; }
+        
+        /* 功能卡片 */
+        .feature-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 15px; }
+        .feature-card { background: white; border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px; }
+        .feature-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .feature-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .feature-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .feature-icon.green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .feature-icon.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .feature-text { flex: 1; }
+        .feature-title { font-weight: bold; font-size: 14px; margin-bottom: 2px; }
+        .feature-desc { font-size: 12px; color: #999; }
+        
+        /* 统计卡片 */
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: white; border-radius: 12px; padding: 15px; text-align: center; }
+        .stat-num { font-size: 20px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -50,6 +71,55 @@
             <div class="filter-tab" onclick="filterSeries('游戏王')">游戏王</div>
             <div class="filter-tab" onclick="filterSeries('宝可梦')">宝可梦</div>
             <div class="filter-tab" onclick="filterSeries('万智牌')">万智牌</div>
+            <div class="filter-tab" onclick="filterSeries('数码宝贝')">数码宝贝</div>
+        </div>
+        
+        <!-- 功能入口 -->
+        <div class="feature-cards">
+            <div class="feature-card" onclick="location.href='publish.html'">
+                <div class="feature-icon purple">📤</div>
+                <div class="feature-text">
+                    <div class="feature-title">发布交易</div>
+                    <div class="feature-desc">出售或求购卡牌</div>
+                </div>
+            </div>
+            <div class="feature-card" onclick="location.href='collection.html'">
+                <div class="feature-icon orange">❤️</div>
+                <div class="feature-text">
+                    <div class="feature-title">我的收藏</div>
+                    <div class="feature-desc">查看收藏的卡牌</div>
+                </div>
+            </div>
+            <div class="feature-card" onclick="location.href='message.html'">
+                <div class="feature-icon green">💬</div>
+                <div class="feature-text">
+                    <div class="feature-title">消息中心</div>
+                    <div class="feature-desc">与卖家买家沟通</div>
+                </div>
+            </div>
+            <div class="feature-card" onclick="showTip()">
+                <div class="feature-icon blue">💡</div>
+                <div class="feature-text">
+                    <div class="feature-title">交易须知</div>
+                    <div class="feature-desc">安全交易指南</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 统计数据 -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-num" id="totalCount">-</div>
+                <div class="stat-label">在售卡牌</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num" id="todayCount">-</div>
+                <div class="stat-label">今日新增</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num" id="userCount">-</div>
+                <div class="stat-label">活跃用户</div>
+            </div>
         </div>
         
         <!-- 最新发布 -->
@@ -76,6 +146,24 @@
         
         let allListings = [];
         let currentFilter = 'all';
+        let currentUser = null;
+        let favorites = new Set();
+        
+        // 初始化
+        (async function() {
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            
+            if (currentUser) {
+                // 加载收藏列表
+                const { data: favData } = await db.from('favorites').select('card_id').eq('user_id', currentUser.id);
+                if (favData) {
+                    favData.forEach(f => favorites.add(f.card_id));
+                }
+            }
+            
+            loadListings();
+        })();
         
         // 加载市场列表
         async function loadListings() {
@@ -93,6 +181,20 @@
             }
             
             allListings = data || [];
+            
+            // 更新统计
+            document.getElementById('totalCount').textContent = allListings.length;
+            
+            // 今日新增
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayCount = allListings.filter(item => new Date(item.created_at) >= today).length;
+            document.getElementById('todayCount').textContent = todayCount;
+            
+            // 模拟用户数
+            const uniqueUsers = new Set(allListings.map(item => item.seller_id)).size;
+            document.getElementById('userCount').textContent = uniqueUsers || '-';
+            
             renderListings(allListings);
         }
         
@@ -114,10 +216,13 @@
                 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
             ];
             
-            list.innerHTML = listings.map((item, i) => `
+            list.innerHTML = listings.map((item, i) => {
+                const isFav = favorites.has(item.id);
+                return `
                 <div class="card" onclick="viewDetail('${item.id}')">
                     <div class="card-img" style="${item.image_url ? 'background-image: url(' + item.image_url + '); background-size: cover;' : 'background: ' + gradients[i % gradients.length]}">
                         ${item.image_url ? '' : item.name.substring(0, 2)}
+                        <button class="fav-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav('${item.id}')">${isFav ? '❤️' : '🤍'}</button>
                     </div>
                     <div class="card-info">
                         <div>
@@ -126,10 +231,9 @@
                         </div>
                         <div class="card-meta">${item.series} · ${item.rarity}</div>
                         <div class="card-price">¥${item.price}</div>
-                        <div class="card-seller">卖家ID: ${item.seller_id?.substring(0, 8) || '未知'}</div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
         
         // 筛选系列
@@ -166,8 +270,31 @@
             window.location.href = 'card-detail.html?id=' + id;
         }
         
-        // 页面加载
-        loadListings();
+        // 收藏/取消收藏
+        async function toggleFav(cardId) {
+            if (!currentUser) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            if (favorites.has(cardId)) {
+                // 取消收藏
+                await db.from('favorites').delete().eq('user_id', currentUser.id).eq('card_id', cardId);
+                favorites.delete(cardId);
+            } else {
+                // 添加收藏
+                await db.from('favorites').insert({ user_id: currentUser.id, card_id: cardId });
+                favorites.add(cardId);
+            }
+            
+            renderListings(currentFilter === 'all' ? allListings : allListings.filter(item => item.series === currentFilter));
+        }
+        
+        // 交易须知
+        function showTip() {
+            alert('💡 交易须知\n\n1. 建议使用平台消息沟通\n2. 确认卡牌状态后再付款\n3. 保留交易记录以便维权\n4. 警惕虚假信息和诈骗\n\n祝您交易愉快！');
+        }
     </script>
 </body>
 </html>
