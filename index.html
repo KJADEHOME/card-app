@@ -236,9 +236,8 @@
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        // Moonshot API配置
-        const MOONSHOT_API_KEY = 'sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk';
-        const MOONSHOT_API_URL = 'https://api.moonshot.cn/v1/chat/completions';
+        // Supabase Edge Function URL（更安全）
+        const AI_SCAN_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co/functions/v1/ai-scan';
         
         let allListings = [];
         let currentFilter = 'all';
@@ -361,29 +360,12 @@
         
         async function callMoonshotVision(base64Image) {
             try {
-                const response = await fetch(MOONSHOT_API_URL, {
+                const response = await fetch(AI_SCAN_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + MOONSHOT_API_KEY
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        model: 'moonshot-v1-8k-vision',
-                        messages: [{
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'image_url',
-                                    image_url: { url: 'data:image/jpeg;base64,' + base64Image }
-                                },
-                                {
-                                    type: 'text',
-                                    text: '这是一张卡牌图片，请识别这是什么卡牌。如果是游戏王卡牌，请返回卡牌中文名；如果是宝可梦卡牌，请返回卡牌名；如果是万智牌，请返回卡牌名。只返回卡牌名称和系列（游戏王/宝可梦/万智牌），格式：卡牌名称|系列。例如：青眼白龙|游戏王'
-                                }
-                            ]
-                        }],
-                        temperature: 0.1
-                    })
+                    body: JSON.stringify({ image: base64Image })
                 });
                 
                 const data = await response.json();
