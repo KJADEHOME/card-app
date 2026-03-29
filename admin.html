@@ -225,7 +225,7 @@
         // 页面加载
         window.addEventListener('load', async () => {
             // 检查是否设置了管理员
-            if (!ADMIN_UID) {
+            if (!getAdminUid()) {
                 const { data: { user } } = await db.auth.getUser();
                 if (user) {
                     const setAsAdmin = confirm('首次访问管理后台，是否将当前账号设为管理员？\n\n您的用户ID:\n' + user.id + '\n\n点击确定设为管理员，取消则返回首页。');
