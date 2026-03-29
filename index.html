@@ -229,8 +229,7 @@
             </div>
             <div class="ai-result" id="aiResult" style="display:none">
                 <div class="ai-result-title">识别结果</div>
-                <div class="ai-result-name" id="aiResultName">-</div>
-                <div class="ai-result-series" id="aiResultSeries">-</div>
+                <div id="aiResultContent"></div>
             </div>
             <div class="ai-btn-row">
                 <button class="ai-btn ai-btn-cancel" onclick="closeAiScan()">取消</button>
@@ -380,7 +379,7 @@
                             role: 'user',
                             content: [
                                 { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + base64Image } },
-                                { type: 'text', text: '这是一张卡牌图片，请识别这是什么卡牌。只返回卡牌名称和系列，格式：卡牌名称|系列。例如：青眼白龙|游戏王' }
+                                { type: 'text', text: '这是一张卡牌图片，请识别这是什么卡牌。返回格式：卡牌名称|系列|稀有度。稀有度包括：N(普通)/R(稀有)/SR(超稀有)/UR(终极稀有)/SSR(超究极稀有)/SEC(秘密稀有)/GR(黄金稀有)/PR(珍贵)/限量版/ promo等。如果是很稀有的卡牌（SR以上或限量版），在最后加[稀有]。例如：青眼白龙|游戏王|UR[稀有] 或 皮卡丘|宝可梦|SR' }
                             ]
                         }],
                         temperature: 0.1
@@ -397,13 +396,33 @@
                 if (data.choices && data.choices[0]) {
                     const content = data.choices[0].message.content;
                     const parts = content.split('|');
-                    const name = parts[0].trim();
-                    const series = parts[1] ? parts[1].trim() : '未知';
+                    const name = parts[0] ? parts[0].trim() : '未知卡牌';
+                    const series = parts[1] ? parts[1].trim() : '未知系列';
+                    let rarity = parts[2] ? parts[2].trim() : '';
+                    
+                    // 检查是否稀有卡牌
+                    const isRare = rarity.includes('[稀有]') || 
+                                   rarity.includes('SSR') || 
+                                   rarity.includes('UR') || 
+                                   rarity.includes('SEC') ||
+                                   rarity.includes('限量') ||
+                                   rarity.includes('PR');
+                    
+                    // 清理稀有度标记
+                    rarity = rarity.replace('[稀有]', '').trim();
                     
                     aiDetectedName = name;
                     
-                    document.getElementById('aiResultName').textContent = name;
-                    document.getElementById('aiResultSeries').textContent = series;
+                    // 显示结果
+                    const resultHtml = `
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:18px;font-weight:bold;">${name}</span>
+                            ${isRare ? '<span style="background:linear-gradient(135deg,#ff6b6b,#feca57);color:white;padding:2px 8px;border-radius:10px;font-size:11px;">🔥稀有</span>' : ''}
+                        </div>
+                        <div style="font-size:13px;color:#666;margin-top:4px;">${series} · ${rarity || '未知稀有度'}</div>
+                    `;
+                    
+                    document.getElementById('aiResultContent').innerHTML = resultHtml;
                     document.getElementById('aiResult').style.display = 'block';
                     document.getElementById('aiConfirmBtn').disabled = false;
                 } else {
