@@ -395,7 +395,7 @@
                 }
                 
                 if (data.choices && data.choices[0]) {
-                    const content = data.choices[0].message.content.trim;
+                    const content = data.choices[0].message.content;
                     const parts = content.split('|');
                     const name = parts[0].trim();
                     const series = parts[1] ? parts[1].trim() : '未知';
