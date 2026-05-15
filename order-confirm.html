@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 确认订单</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 100px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .section { background: white; margin: 12px 15px; border-radius: 12px; padding: 16px; }
+        .section-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .card-row { display: flex; gap: 12px; }
+        .card-thumb { width: 80px; height: 107px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; font-weight: bold; }
+        .card-detail { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .card-name { font-size: 15px; font-weight: bold; color: #333; }
+        .card-meta { font-size: 12px; color: #999; margin-top: 4px; }
+        .card-price { font-size: 18px; font-weight: bold; color: #667eea; text-align: right; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+        .form-group label .required { color: #f44336; }
+        .form-input { width: 100%; padding: 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus { border-color: #667eea; }
+        textarea.form-input { min-height: 60px; resize: vertical; font-family: inherit; }
+        .shipping-options { display: flex; flex-direction: column; gap: 10px; }
+        .shipping-option { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .shipping-option.active { border-color: #667eea; background: #f0f4ff; }
+        .shipping-option .radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ddd; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .shipping-option.active .radio { border-color: #667eea; }
+        .shipping-option.active .radio::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #667eea; }
+        .shipping-info { flex: 1; margin-left: 10px; }
+        .shipping-name { font-size: 14px; font-weight: 500; }
+        .shipping-desc { font-size: 12px; color: #999; margin-top: 2px; }
+        .shipping-price { font-size: 14px; font-weight: bold; color: #667eea; }
+        .fee-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #666; }
+        .fee-row.total { border-top: 1px solid #eee; padding-top: 12px; margin-top: 4px; font-size: 16px; font-weight: bold; color: #333; }
+        .fee-row.total .amount { color: #667eea; }
+        .fee-row .amount { color: #333; }
+        .fee-hint { font-size: 12px; color: #999; margin-top: -2px; }
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); }
+        .total-display { font-size: 13px; color: #666; }
+        .total-display .total-amount { font-size: 22px; font-weight: bold; color: #f44336; }
+        .submit-btn { padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .submit-btn:active:not(:disabled) { transform: scale(0.97); }
+        .loading { text-align: center; padding: 80px 20px; color: #999; }
+        .loading .spinner { width: 40px; height: 40px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { text-align: center; padding: 60px 20px; color: #f44336; font-size: 14px; }
+        .modal-mask { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
+        .modal-mask.show { display: flex; align-items: center; justify-content: center; }
+        .modal-box { background: white; border-radius: 16px; padding: 24px; width: 85%; max-width: 340px; text-align: center; }
+        .modal-icon { font-size: 50px; margin-bottom: 12px; }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+        .modal-desc { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.5; }
+        .modal-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .modal-btn-secondary { width: 100%; padding: 14px; background: #f0f0f0; color: #666; border: none; border-radius: 12px; font-size: 16px; margin-top: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="javascript:history.back()" class="back">←</a>
+        <div class="header-title">确认订单</div>
+    </div>
+    <div id="pageContent">
+        <div class="loading"><div class="spinner"></div>加载中...</div>
+    </div>
+    <div class="modal-mask" id="successModal">
+        <div class="modal-box">
+            <div class="modal-icon">🎉</div>
+            <div class="modal-title">下单成功！</div>
+            <div class="modal-desc">订单号：<span id="orderNoText"></span><br>请尽快完成付款</div>
+            <button class="modal-btn" onclick="viewOrder()">查看订单</button>
+            <button class="modal-btn-secondary" onclick="goHome()">回到首页</button>
+        </div>
+    </div>
+    <div class="bottom-bar" id="bottomBar" style="display: none;">
+        <div class="total-display">合计：<span class="total-amount" id="totalAmount">¥0</span></div>
+        <button class="submit-btn" id="submitBtn" onclick="submitOrder()">提交订单</button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const urlParams = new URLSearchParams(window.location.search);
+        const listingId = urlParams.get('id');
+        let currentListing = null;
+        let currentUser = null;
+        let selectedShipping = 'express';
+        const shippingFees = { express: 12, standard: 8, self: 0 };
+        const PLATFORM_FEE_RATE = 0.03;
+
+        async function init() {
+            if (!listingId) { showError('缺少商品信息'); return; }
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            if (!user) { showError('请先登录', true); return; }
+            const { data, error } = await db.from('market_listings').select('*').eq('id', listingId).eq('status', 'active').single();
+            if (error || !data) { showError('商品不存在或已下架'); return; }
+            if (data.seller_id === currentUser.id) { showError('不能购买自己发布的卡牌'); return; }
+            currentListing = data;
+            renderPage(data);
+        }
+
+        function showError(msg, showLogin) {
+            document.getElementById('pageContent').innerHTML = '<div class="error">' + msg + (showLogin ? '<br><br><a href="login.html" style="color:#667eea;">去登录</a>' : '') + '</div>';
+        }
+
+        function renderPage(listing) {
+            const bgStyle = listing.image_url ? 'background-image: url(' + listing.image_url + '); background-size: cover; background-position: center;' : '';
+            document.getElementById('pageContent').innerHTML = `
+                <div class="section">
+                    <div class="section-title">📦 商品信息</div>
+                    <div class="card-row">
+                        <div class="card-thumb" style="${bgStyle}">${listing.image_url ? '' : listing.name.substring(0, 2)}</div>
+                        <div class="card-detail">
+                            <div><div class="card-name">${listing.name}</div><div class="card-meta">${listing.series} · ${listing.rarity}</div></div>
+                            <div class="card-price">¥${listing.price}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">📍 收货地址</div>
+                    <div class="form-group"><label>收件人 <span class="required">*</span></label><input type="text" class="form-input" id="receiverName" placeholder="请输入收件人姓名"></div>
+                    <div class="form-group"><label>联系电话 <span class="required">*</span></label><input type="tel" class="form-input" id="receiverPhone" placeholder="请输入手机号码" maxlength="11"></div>
+                    <div class="form-group" style="margin-bottom:0;"><label>收货地址 <span class="required">*</span></label><textarea class="form-input" id="receiverAddress" placeholder="省/市/区/街道/门牌号"></textarea></div>
+                </div>
+                <div class="section">
+                    <div class="section-title">🚚 配送方式</div>
+                    <div class="shipping-options">
+                        <div class="shipping-option active" onclick="selectShipping('express', this)"><div class="radio"></div><div class="shipping-info"><div class="shipping-name">快递发货</div><div class="shipping-desc">预计2-3天送达</div></div><div class="shipping-price">¥12</div></div>
+                        <div class="shipping-option" onclick="selectShipping('standard', this)"><div class="radio"></div><div class="shipping-info"><div class="shipping-name">普通邮寄</div><div class="shipping-desc">预计5-7天送达</div></div><div class="shipping-price">¥8</div></div>
+                        <div class="shipping-option" onclick="selectShipping('self', this)"><div class="radio"></div><div class="shipping-info"><div class="shipping-name">面交自取</div><div class="shipping-desc">与卖家协商面交地点</div></div><div class="shipping-price">免运费</div></div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">💬 买家备注</div>
+                    <textarea class="form-input" id="buyerRemark" placeholder="有什么想跟卖家说的..."></textarea>
+                </div>
+                <div class="section">
+                    <div class="section-title">💰 费用明细</div>
+                    <div class="fee-row"><span>商品金额</span><span class="amount">¥${listing.price}</span></div>
+                    <div class="fee-row"><span>运费</span><span class="amount" id="feeShipping">¥12</span></div>
+                    <div class="fee-row"><span>平台服务费</span><span class="amount">¥${(listing.price * PLATFORM_FEE_RATE).toFixed(2)}</span></div>
+                    <div class="fee-hint">* 服务费由卖家承担</div>
+                    <div class="fee-row total"><span>应付金额</span><span class="amount" id="feeTotal">¥${(listing.price + 12).toFixed(2)}</span></div>
+                </div>`;
+            document.getElementById('bottomBar').style.display = 'flex';
+            updateTotal();
+        }
+
+        function selectShipping(type, el) {
+            selectedShipping = type;
+            document.querySelectorAll('.shipping-option').forEach(e => e.classList.remove('active'));
+            el.classList.add('active');
+            updateTotal();
+        }
+
+        function updateTotal() {
+            if (!currentListing) return;
+            const shipping = shippingFees[selectedShipping];
+            const total = currentListing.price + shipping;
+            document.getElementById('feeShipping').textContent = '¥' + shipping;
+            document.getElementById('feeTotal').textContent = '¥' + total.toFixed(2);
+            document.getElementById('totalAmount').textContent = '¥' + total.toFixed(2);
+        }
+
+        function generateOrderNo() {
+            const now = new Date();
+            const dateStr = now.getFullYear().toString() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0');
+            return 'ORD' + dateStr + Math.floor(Math.random()*10000).toString().padStart(4,'0');
+        }
+
+        async function submitOrder() {
+            if (!currentUser || !currentListing) return;
+            const name = document.getElementById('receiverName').value.trim();
+            const phone = document.getElementById('receiverPhone').value.trim();
+            const address = document.getElementById('receiverAddress').value.trim();
+            if (!name) { alert('请输入收件人姓名'); return; }
+            if (!phone || !/^1\d{10}$/.test(phone)) { alert('请输入正确的手机号码'); return; }
+            if (selectedShipping !== 'self' && !address) { alert('请输入收货地址'); return; }
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true; btn.textContent = '提交中...';
+            const cardPrice = currentListing.price;
+            const shipping = shippingFees[selectedShipping];
+            const total = cardPrice + shipping;
+            const platformFee = parseFloat((cardPrice * PLATFORM_FEE_RATE).toFixed(2));
+            const sellerAmount = parseFloat((cardPrice - platformFee).toFixed(2));
+            const orderNo = generateOrderNo();
+            try {
+                const { data, error } = await db.from('orders').insert([{
+                    order_no: orderNo, listing_id: listingId, buyer_id: currentUser.id, seller_id: currentListing.seller_id,
+                    card_name: currentListing.name, card_series: currentListing.series, card_rarity: currentListing.rarity,
+                    card_image_url: currentListing.image_url, card_price: cardPrice, total_amount: total, card_amount: cardPrice,
+                    shipping_fee: shipping, platform_fee: platformFee, seller_amount: sellerAmount,
+                    receiver_name: name, receiver_phone: phone, receiver_address: selectedShipping === 'self' ? '面交自取' : address,
+                    payment_method: 'balance', buyer_remark: document.getElementById('buyerRemark').value.trim(), status: 'pending_payment'
+                }]).select().single();
+                if (error) throw error;
+                await db.from('market_listings').update({ status: 'pending' }).eq('id', listingId);
+                await db.from('notifications').insert([{ user_id: currentListing.seller_id, title: '新订单通知', content: '有买家下单购买了「' + currentListing.name + '」，订单号：' + orderNo, type: 'order', related_id: data.id }]);
+                document.getElementById('orderNoText').textContent = orderNo;
+                document.getElementById('successModal').classList.add('show');
+                window._orderId = data.id;
+            } catch (err) {
+                alert('下单失败：' + (err.message || '请稍后重试'));
+                btn.disabled = false; btn.textContent = '提交订单';
+            }
+        }
+
+        function viewOrder() { if (window._orderId) window.location.href = 'order-detail.html?id=' + window._orderId; }
+        function goHome() { window.location.href = 'index.html'; }
+        init();
+    </script>
+</body>
+</html>

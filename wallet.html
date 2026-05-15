@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 我的钱包</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .wallet-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 15px; border-radius: 16px; padding: 25px; color: white; }
+        .wallet-label { font-size: 14px; opacity: 0.8; margin-bottom: 6px; }
+        .wallet-balance { font-size: 36px; font-weight: bold; margin-bottom: 15px; }
+        .wallet-balance .unit { font-size: 18px; }
+        .wallet-row { display: flex; justify-content: space-between; }
+        .wallet-stat { text-align: center; flex: 1; }
+        .wallet-stat-value { font-size: 18px; font-weight: bold; }
+        .wallet-stat-label { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+        .recharge-section { background: white; margin: 0 15px 15px; border-radius: 12px; padding: 20px; }
+        .section-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 15px; }
+        .amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .amount-btn { padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px; text-align: center; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.2s; }
+        .amount-btn.active { border-color: #667eea; background: #f0f4ff; color: #667eea; }
+        .amount-btn .amount-unit { font-size: 12px; color: #999; margin-top: 2px; }
+        .amount-btn.active .amount-unit { color: #667eea; }
+        .custom-amount { display: flex; align-items: center; border: 2px solid #e0e0e0; border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
+        .custom-amount .prefix { padding: 12px; background: #f8f8f8; color: #666; font-size: 16px; font-weight: bold; border-right: 1px solid #e0e0e0; }
+        .custom-amount input { flex: 1; padding: 12px; border: none; outline: none; font-size: 16px; }
+        .recharge-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .recharge-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .recharge-btn:active:not(:disabled) { transform: scale(0.98); }
+        .transaction-section { background: white; margin: 0 15px; border-radius: 12px; overflow: hidden; }
+        .transaction-header { padding: 15px 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .transaction-item { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #f8f8f8; }
+        .transaction-item:last-child { border-bottom: none; }
+        .transaction-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; flex-shrink: 0; }
+        .icon-income { background: #e8f5e9; }
+        .icon-expense { background: #ffebee; }
+        .icon-recharge { background: #e3f2fd; }
+        .icon-frozen { background: #fff3e0; }
+        .transaction-info { flex: 1; }
+        .transaction-desc { font-size: 14px; color: #333; }
+        .transaction-time { font-size: 12px; color: #999; margin-top: 3px; }
+        .transaction-amount { font-size: 16px; font-weight: bold; text-align: right; }
+        .amount-income { color: #4caf50; }
+        .amount-expense { color: #f44336; }
+        .empty { text-align: center; padding: 40px 20px; color: #999; }
+        .empty-icon { font-size: 48px; margin-bottom: 10px; }
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .loading .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.75); color: white; padding: 16px 28px; border-radius: 12px; font-size: 15px; z-index: 999; text-align: center; }
+        .toast.show { display: block; }
+        .badge-sim { display: inline-block; background: #ff9800; color: white; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
+        /* 充值弹窗 */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: flex-end; }
+        .modal-overlay.show { display: flex; }
+        .modal-sheet { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 24px 20px 40px; max-height: 90vh; overflow-y: auto; }
+        .modal-handle { width: 40px; height: 4px; background: #e0e0e0; border-radius: 2px; margin: 0 auto 20px; }
+        .modal-title { font-size: 18px; font-weight: bold; color: #333; text-align: center; margin-bottom: 6px; }
+        .modal-subtitle { font-size: 13px; color: #999; text-align: center; margin-bottom: 20px; }
+        .qrcode-wrap { text-align: center; margin-bottom: 20px; }
+        .qrcode-wrap img { width: 200px; height: 200px; border-radius: 12px; border: 1px solid #f0f0f0; }
+        .qrcode-amount { font-size: 28px; font-weight: bold; color: #667eea; text-align: center; margin-bottom: 6px; }
+        .qrcode-amount .unit { font-size: 16px; }
+        .qrcode-tip { font-size: 13px; color: #666; text-align: center; margin-bottom: 20px; line-height: 1.6; }
+        .qrcode-tip strong { color: #f44336; }
+        .paid-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .cancel-btn { width: 100%; padding: 12px; background: #f5f5f5; color: #666; border: none; border-radius: 12px; font-size: 15px; cursor: pointer; }
+        /* 确认充值金额弹窗 */
+        .confirm-step { display: none; }
+        .confirm-step.show { display: block; }
+        .qr-step { display: block; }
+        .qr-step.hide { display: none; }
+        .remark-tip { background: #fff8e1; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #795548; margin-bottom: 16px; line-height: 1.5; }
+        .remark-tip .remark-code { font-weight: bold; color: #e65100; font-size: 15px; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="collection.html" class="back">←</a>
+        <div class="header-title">我的钱包</div>
+    </div>
+
+    <div class="wallet-card" id="walletCard">
+        <div class="wallet-label">账户余额 (元)</div>
+        <div class="wallet-balance"><span class="unit">¥</span> <span id="balanceDisplay">0.00</span></div>
+        <div class="wallet-row">
+            <div class="wallet-stat">
+                <div class="wallet-stat-value" id="frozenDisplay">0.00</div>
+                <div class="wallet-stat-label">冻结金额</div>
+            </div>
+            <div class="wallet-stat">
+                <div class="wallet-stat-value" id="incomeDisplay">0.00</div>
+                <div class="wallet-stat-label">累计收入</div>
+            </div>
+            <div class="wallet-stat">
+                <div class="wallet-stat-value" id="expenseDisplay">0.00</div>
+                <div class="wallet-stat-label">累计支出</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="recharge-section">
+        <div class="section-title">💰 充值金额</div>
+        <div class="amount-grid" id="amountGrid">
+            <div class="amount-btn" onclick="selectAmount(10, this)">
+                <div>10</div>
+                <div class="amount-unit">元</div>
+            </div>
+            <div class="amount-btn active" onclick="selectAmount(50, this)">
+                <div>50</div>
+                <div class="amount-unit">元</div>
+            </div>
+            <div class="amount-btn" onclick="selectAmount(100, this)">
+                <div>100</div>
+                <div class="amount-unit">元</div>
+            </div>
+            <div class="amount-btn" onclick="selectAmount(200, this)">
+                <div>200</div>
+                <div class="amount-unit">元</div>
+            </div>
+            <div class="amount-btn" onclick="selectAmount(500, this)">
+                <div>500</div>
+                <div class="amount-unit">元</div>
+            </div>
+            <div class="amount-btn" onclick="selectAmount(1000, this)">
+                <div>1000</div>
+                <div class="amount-unit">元</div>
+            </div>
+        </div>
+        <div class="custom-amount">
+            <div class="prefix">¥</div>
+            <input type="number" id="customAmount" placeholder="自定义金额" oninput="onCustomInput(this)">
+        </div>
+        <button class="recharge-btn" id="rechargeBtn" onclick="showRechargeQR()">下一步：扫码付款</button>
+        <div style="text-align:center; font-size:12px; color:#999; margin-top:8px;">充值后资金托管于平台，用于购买卡牌</div>
+    </div>
+
+    <!-- 充值扫码弹窗 -->
+    <div class="modal-overlay" id="rechargeModal" onclick="closeRechargeModal(event)">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-title">扫码充值</div>
+            <div class="modal-subtitle">请使用微信扫描下方二维码付款</div>
+
+            <div class="qrcode-amount"><span class="unit">¥</span> <span id="qrAmountDisplay">0.00</span></div>
+
+            <div class="remark-tip">
+                ⚠️ 付款时请务必在<strong>备注/留言</strong>中填写：<br>
+                <span class="remark-code" id="rechargeRemarkCode">---</span><br>
+                否则无法自动到账，需人工处理
+            </div>
+
+            <div class="qrcode-wrap">
+                <img src="platform-qrcode.jpg" alt="平台收款码">
+            </div>
+
+            <div class="qrcode-tip">
+                付款完成后，点击下方"<strong>我已付款</strong>"按钮<br>
+                客服将在 <strong style="color:#667eea">1小时内</strong> 人工核实到账
+            </div>
+
+            <button class="paid-btn" onclick="submitRechargeRequest()">✅ 我已付款，等待到账</button>
+            <button class="cancel-btn" onclick="closeModal()">取消</button>
+        </div>
+    </div>
+
+    <div class="transaction-section">
+        <div class="transaction-header">
+            <div class="section-title" style="margin:0;">明细记录</div>
+        </div>
+        <div id="transactionList">
+            <div class="loading"><div class="spinner"></div></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        let currentUser = null;
+        let wallet = null;
+        let selectedRechargeAmount = 50;
+
+        function showToast(msg, duration) {
+            duration = duration || 1500;
+            var t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(function() { t.classList.remove('show'); }, duration);
+        }
+
+        async function init() {
+            var result = await db.auth.getUser();
+            currentUser = result.data.user;
+            if (!currentUser) { window.location.href = 'login.html'; return; }
+            await loadOrCreateWallet();
+            loadTransactions();
+        }
+
+        async function loadOrCreateWallet() {
+            var result = await db.from('wallets').select('*').eq('user_id', currentUser.id).single();
+            if (result.data) {
+                wallet = result.data;
+            } else {
+                // 自动创建钱包
+                var insertResult = await db.from('wallets').insert([{
+                    user_id: currentUser.id,
+                    balance: 0,
+                    frozen_balance: 0,
+                    total_income: 0,
+                    total_expense: 0
+                }]).select().single();
+                if (insertResult.data) {
+                    wallet = insertResult.data;
+                } else {
+                    showToast('钱包初始化失败');
+                    return;
+                }
+            }
+            renderWallet();
+        }
+
+        function renderWallet() {
+            if (!wallet) return;
+            document.getElementById('balanceDisplay').textContent = parseFloat(wallet.balance).toFixed(2);
+            document.getElementById('frozenDisplay').textContent = parseFloat(wallet.frozen_balance).toFixed(2);
+            document.getElementById('incomeDisplay').textContent = parseFloat(wallet.total_income).toFixed(2);
+            document.getElementById('expenseDisplay').textContent = parseFloat(wallet.total_expense).toFixed(2);
+        }
+
+        function selectAmount(amount, el) {
+            selectedRechargeAmount = amount;
+            document.querySelectorAll('.amount-btn').forEach(function(b) { b.classList.remove('active'); });
+            el.classList.add('active');
+            document.getElementById('customAmount').value = '';
+        }
+
+        function onCustomInput(input) {
+            var val = parseFloat(input.value);
+            if (val > 0) {
+                selectedRechargeAmount = val;
+                document.querySelectorAll('.amount-btn').forEach(function(b) { b.classList.remove('active'); });
+            }
+        }
+
+        function showRechargeQR() {
+            var amount = selectedRechargeAmount;
+            if (!amount || amount <= 0) { showToast('请选择充值金额'); return; }
+            // 生成备注码：用户ID后6位 + 金额
+            var uid = currentUser.id.replace(/-/g, '').slice(-6).toUpperCase();
+            var remarkCode = 'CY-' + uid + '-' + amount;
+            document.getElementById('qrAmountDisplay').textContent = parseFloat(amount).toFixed(2);
+            document.getElementById('rechargeRemarkCode').textContent = remarkCode;
+            document.getElementById('rechargeModal').classList.add('show');
+        }
+
+        function closeRechargeModal(event) {
+            // 点击遮罩层才关闭
+            if (event.target === document.getElementById('rechargeModal')) closeModal();
+        }
+
+        function closeModal() {
+            document.getElementById('rechargeModal').classList.remove('show');
+        }
+
+        async function submitRechargeRequest() {
+            var amount = selectedRechargeAmount;
+            var uid = currentUser.id.replace(/-/g, '').slice(-6).toUpperCase();
+            var remarkCode = 'CY-' + uid + '-' + amount;
+
+            // 写入一条"待审核"充值记录
+            try {
+                await db.from('wallet_transactions').insert([{
+                    wallet_id: wallet.id,
+                    type: 'recharge',
+                    amount: amount,
+                    balance_after: parseFloat(wallet.balance), // 余额还没变，等管理员审核后才加
+                    description: '充值申请 ' + remarkCode + '（待审核）'
+                }]);
+            } catch(e) {
+                console.error('记录充值申请失败', e);
+            }
+
+            closeModal();
+            showToast('已提交充值申请，客服核实到账后余额将自动更新', 3000);
+        }
+
+        async function loadTransactions() {
+            if (!wallet) return;
+            var list = document.getElementById('transactionList');
+            list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            var result = await db.from('wallet_transactions')
+                .select('*')
+                .eq('wallet_id', wallet.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (result.error || !result.data || result.data.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>暂无交易记录</div>';
+                return;
+            }
+
+            var TYPE_CONFIG = {
+                recharge: { icon: '💳', cls: 'icon-recharge', text: '充值' },
+                payment: { icon: '💰', cls: 'icon-expense', text: '付款' },
+                income: { icon: '💵', cls: 'icon-income', text: '收入' },
+                refund: { icon: '↩️', cls: 'icon-income', text: '退款' },
+                freeze: { icon: '❄️', cls: 'icon-frozen', text: '冻结' },
+                unfreeze: { icon: '🔥', cls: 'icon-recharge', text: '解冻' }
+            };
+
+            list.innerHTML = result.data.map(function(tx) {
+                var config = TYPE_CONFIG[tx.type] || { icon: '📝', cls: 'icon-recharge', text: tx.type };
+                var isIncome = ['income', 'refund', 'recharge', 'unfreeze'].indexOf(tx.type) >= 0;
+                var time = new Date(tx.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                var sign = isIncome ? '+' : '-';
+                var colorCls = isIncome ? 'amount-income' : 'amount-expense';
+                return '<div class="transaction-item">' +
+                    '<div class="transaction-icon ' + config.cls + '">' + config.icon + '</div>' +
+                    '<div class="transaction-info">' +
+                        '<div class="transaction-desc">' + (tx.description || config.text) + '</div>' +
+                        '<div class="transaction-time">' + time + '</div>' +
+                    '</div>' +
+                    '<div class="transaction-amount ' + colorCls + '">' + sign + '¥' + parseFloat(tx.amount).toFixed(2) + '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        init();
+    </script>
+</body>
+</html>

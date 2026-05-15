@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 我的收藏</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .header-btn { color: white; font-size: 20px; cursor: pointer; }
+        .content { padding: 15px; }
+        .stats { background: white; border-radius: 12px; padding: 20px; display: flex; justify-content: space-around; margin-bottom: 15px; }
+        .stat { text-align: center; }
+        .stat-num { font-size: 24px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #999; }
+        .add-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-bottom: 15px; cursor: pointer; }
+        .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-info { padding: 12px; }
+        .card-name { font-weight: bold; font-size: 14px; }
+        .card-meta { font-size: 12px; color: #999; }
+        .card-price { font-size: 16px; font-weight: bold; color: #667eea; margin-top: 5px; }
+        .empty { text-align: center; padding: 40px; color: #999; grid-column: 1/-1; }
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; }
+        .nav-item.active { color: #667eea; }
+        .nav-icon { font-size: 24px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-box { background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px; }
+        .input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
+        .select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
+        .img-upload { width: 100%; height: 120px; border: 2px dashed #e0e0e0; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f9f9f9; margin-bottom: 15px; }
+        .btn-row { display: flex; gap: 10px; }
+        .btn-half { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .btn-cancel { background: #f0f0f0; }
+        .btn-save { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .tabs { display: flex; background: white; border-radius: 12px; margin-bottom: 15px; overflow: hidden; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; }
+        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .card-actions { display: flex; gap: 5px; margin-top: 8px; }
+        .card-actions button { flex: 1; padding: 6px; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
+        .btn-edit { background: #e3f2fd; color: #1976d2; }
+        .btn-delete { background: #ffebee; color: #f44336; }
+        .status-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-bottom: 5px; }
+        .status-active { background: #e8f5e9; color: #4caf50; }
+        .status-sold { background: #ffebee; color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">我的收藏</div>
+        <div class="header-btn" onclick="logout()">🚪</div>
+    </div>
+    
+    <div class="content">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('collection')" id="tab-collection">我的收藏</div>
+            <div class="tab" onclick="switchTab('listings')" id="tab-listings">我的发布</div>
+            <div class="tab" onclick="switchTab('orders')" id="tab-orders">我的订单</div>
+        </div>
+        
+        <!-- 我的收藏 -->
+        <div id="collectionView">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-num" id="total">0</div>
+                    <div class="stat-label">总卡牌</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-num" id="value">¥0</div>
+                    <div class="stat-label">总价值</div>
+                </div>
+            </div>
+            
+            <button class="add-btn" onclick="showAdd()">+ 发布卡牌</button>
+            
+            <div class="cards" id="cardList">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 我的订单 -->
+        <div id="ordersView" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div onclick="goOrders('pending_payment')" style="background: white; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer;">
+                    <div style="font-size: 24px; margin-bottom: 4px;">💳</div>
+                    <div style="font-size: 13px; color: #666;">待付款</div>
+                </div>
+                <div onclick="goOrders('paid')" style="background: white; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer;">
+                    <div style="font-size: 24px; margin-bottom: 4px;">📦</div>
+                    <div style="font-size: 13px; color: #666;">待发货</div>
+                </div>
+                <div onclick="goOrders('shipped')" style="background: white; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer;">
+                    <div style="font-size: 24px; margin-bottom: 4px;">🚚</div>
+                    <div style="font-size: 13px; color: #666;">待收货</div>
+                </div>
+                <div onclick="goOrders('completed')" style="background: white; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer;">
+                    <div style="font-size: 24px; margin-bottom: 4px;">✅</div>
+                    <div style="font-size: 13px; color: #666;">已完成</div>
+                </div>
+            </div>
+            <a href="my-orders.html" style="display: block; width: 100%; padding: 14px; background: white; border-radius: 12px; text-align: center; color: #667eea; font-weight: bold; text-decoration: none; font-size: 15px;">查看全部订单</a>
+            <a href="wallet.html" style="display: block; width: 100%; padding: 14px; background: white; border-radius: 12px; text-align: center; color: #ff9800; font-weight: bold; text-decoration: none; font-size: 15px; margin-top: 10px;">💰 我的钱包</a>
+        </div>
+
+        <!-- 我的发布 -->
+        <div id="listingsView" style="display: none;">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-num" id="listingTotal">0</div>
+                    <div class="stat-label">发布中</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-num" id="listingSold">0</div>
+                    <div class="stat-label">已售出</div>
+                </div>
+            </div>
+            
+            <a href="publish.html" class="add-btn" style="display: block; text-align: center; text-decoration: none;">+ 发布新卡牌</a>
+            
+            <div class="cards" id="listingList">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
+        <a href="message.html" class="nav-item"><span class="nav-icon">💬</span><span>消息</span></a>
+        <a href="publish.html" class="nav-item" style="background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-top: -20px;"><span style="font-size: 30px;">+</span></a>
+        <a href="collection.html" class="nav-item active"><span class="nav-icon">👤</span><span>个人</span></a>
+    </div>
+    
+    <div class="modal" id="addModal">
+        <div class="modal-box">
+            <h2 style="margin-bottom: 20px;">发布卡牌</h2>
+            <div class="tabs" style="margin-bottom: 15px;">
+                <div class="tab active" id="tab-sell" onclick="setAddType('sell')">我要卖</div>
+                <div class="tab" id="tab-buy" onclick="setAddType('buy')">我要买</div>
+            </div>
+            <input type="text" class="input" id="name" placeholder="卡牌名称 *">
+            <select class="select" id="series">
+                <option value="游戏王">游戏王</option>
+                <option value="宝可梦">宝可梦</option>
+                <option value="万智牌">万智牌</option>
+                <option value="数码宝贝">数码宝贝</option>
+                <option value="其他">其他</option>
+            </select>
+            <select class="select" id="rarity">
+                <option value="N">普通 (N)</option>
+                <option value="R">稀有 (R)</option>
+                <option value="SR">超稀有 (SR)</option>
+                <option value="UR">终极稀有 (UR)</option>
+                <option value="SEC">Secret (SEC)</option>
+            </select>
+            <input type="number" class="input" id="price" placeholder="价格 (¥) *">
+            <input type="file" id="img" accept="image/*" style="display: none;">
+            <div class="img-upload" id="preview" onclick="document.getElementById('img').click()">📷 点击上传卡牌图片</div>
+            <textarea class="input" id="desc" placeholder="卡牌状态、交易方式等..." style="min-height: 60px; resize: vertical;"></textarea>
+            <div class="btn-row">
+                <button class="btn-half btn-cancel" onclick="hideAdd()">取消</button>
+                <button class="btn-half btn-save" id="saveBtn" onclick="saveCard()">发布</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        
+        let uid = localStorage.getItem('uid');
+        
+        // 检查登录
+        if (!uid && !localStorage.getItem('isGuest')) {
+            window.location.href = 'login.html';
+        }
+        
+        // 加载收藏的卡牌
+        async function load() {
+            const list = document.getElementById('cardList');
+            
+            if (!uid) {
+                list.innerHTML = '<div class="empty">请先登录</div>';
+                return;
+            }
+            
+            // 获取收藏的卡牌ID
+            const { data: favData, error: favError } = await db
+                .from('favorites')
+                .select('card_id')
+                .eq('user_id', uid);
+            
+            if (favError) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
+                return;
+            }
+            
+            if (!favData || favData.length === 0) {
+                list.innerHTML = '<div class="empty">还没有收藏，去浏览市场添加吧</div>';
+                updateStats(0, 0);
+                return;
+            }
+            
+            // 获取卡牌详情
+            const cardIds = favData.map(f => f.card_id);
+            const { data: cards, error } = await db
+                .from('market_listings')
+                .select('*')
+                .in('id', cardIds)
+                .eq('status', 'active');
+            
+            if (error) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
+                return;
+            }
+            
+            if (!cards || cards.length === 0) {
+                list.innerHTML = '<div class="empty">收藏的卡牌已下架</div>';
+                updateStats(0, 0);
+                return;
+            }
+            
+            list.innerHTML = cards.map(c => `
+                <div class="card" onclick="location.href='card-detail.html?id=${c.id}'">
+                    <div class="card-img" style="${c.image_url ? 'background-image: url(' + c.image_url + '); background-size: cover;' : ''}">${c.image_url ? '' : c.name.substring(0, 2)}</div>
+                    <div class="card-info">
+                        <div class="card-name">${c.name}</div>
+                        <div class="card-meta">${c.series} · ${c.rarity}</div>
+                        <div class="card-price">¥${c.price}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            const total = cards.reduce((s, c) => s + c.price, 0);
+            updateStats(cards.length, total);
+        }
+        
+        function updateStats(count, total) {
+            document.getElementById('total').textContent = count;
+            document.getElementById('value').textContent = '¥' + total;
+        }
+        
+        let addType = 'sell';
+        
+        function setAddType(type) {
+            addType = type;
+            document.getElementById('tab-sell').classList.toggle('active', type === 'sell');
+            document.getElementById('tab-buy').classList.toggle('active', type === 'buy');
+        }
+        
+        // 显示添加
+        function showAdd() {
+            document.getElementById('addModal').style.display = 'flex';
+        }
+        
+        // 隐藏添加
+        function hideAdd() {
+            document.getElementById('addModal').style.display = 'none';
+            document.getElementById('name').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('desc').value = '';
+            document.getElementById('preview').innerHTML = '📷 点击上传卡牌图片';
+            document.getElementById('preview').style.backgroundImage = '';
+        }
+        
+        // 图片预览
+        document.getElementById('img').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview').innerHTML = '';
+                    document.getElementById('preview').style.backgroundImage = 'url(' + e.target.result + ')';
+                    document.getElementById('preview').style.backgroundSize = 'cover';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // 发布卡牌（保存到 market_listings）
+        async function saveCard() {
+            if (!uid) { alert('请先登录'); return; }
+            
+            const name = document.getElementById('name').value.trim();
+            const price = parseFloat(document.getElementById('price').value);
+            const imgInput = document.getElementById('img');
+            const btn = document.getElementById('saveBtn');
+            
+            if (!name) { alert('请输入卡牌名称'); return; }
+            if (!price || price <= 0) { alert('请输入有效价格'); return; }
+            
+            btn.disabled = true;
+            btn.textContent = '发布中...';
+            
+            // 上传图片
+            let imageUrl = null;
+            if (imgInput.files[0]) {
+                const file = imgInput.files[0];
+                const fileName = uid + '/' + Date.now() + '.' + file.name.split('.').pop();
+                const { error: upErr } = await db.storage.from('card-images').upload(fileName, file);
+                if (!upErr) {
+                    const { data } = db.storage.from('card-images').getPublicUrl(fileName);
+                    imageUrl = data.publicUrl;
+                }
+            }
+            
+            // 保存到 market_listings（与发布页一致）
+            const { error } = await db.from('market_listings').insert([{
+                seller_id: uid,
+                name: name,
+                series: document.getElementById('series').value,
+                rarity: document.getElementById('rarity').value,
+                price: price,
+                description: document.getElementById('desc').value,
+                image_url: imageUrl,
+                type: addType,
+                status: 'active'
+            }]);
+            
+            btn.disabled = false;
+            btn.textContent = '发布';
+            
+            if (error) {
+                alert('发布失败: ' + error.message);
+            } else {
+                alert('✅ 发布成功！');
+                hideAdd();
+                switchTab('listings');
+            }
+        }
+        
+        // 跳转到订单
+        function goOrders(status) {
+            window.location.href = 'my-orders.html?status=' + (status || 'all');
+        }
+
+        // Tab切换
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            document.getElementById('collectionView').style.display = tab === 'collection' ? 'block' : 'none';
+            document.getElementById('ordersView').style.display = tab === 'orders' ? 'block' : 'none';
+            document.getElementById('listingsView').style.display = tab === 'listings' ? 'block' : 'none';
+            
+            if (tab === 'collection') load();
+            else if (tab === 'listings') loadListings();
+        }
+        
+        // 加载我的发布
+        async function loadListings() {
+            const list = document.getElementById('listingList');
+            
+            if (!uid) {
+                list.innerHTML = '<div class="empty">请先登录</div>';
+                return;
+            }
+            
+            const { data, error } = await db.from('market_listings').select('*').eq('seller_id', uid).order('created_at', { ascending: false });
+            
+            if (error) {
+                list.innerHTML = '<div class="empty">加载失败</div>';
+                return;
+            }
+            
+            const listings = data || [];
+            
+            // 统计
+            const activeCount = listings.filter(l => l.status === 'active').length;
+            const soldCount = listings.filter(l => l.status === 'sold').length;
+            document.getElementById('listingTotal').textContent = activeCount;
+            document.getElementById('listingSold').textContent = soldCount;
+            
+            if (listings.length === 0) {
+                list.innerHTML = '<div class="empty">还没有发布，点击上方按钮发布</div>';
+                return;
+            }
+            
+            list.innerHTML = listings.map(l => `
+                <div class="card">
+                    <div class="card-img" style="${l.image_url ? 'background-image: url(' + l.image_url + '); background-size: cover;' : ''}">${l.image_url ? '' : l.name.substring(0, 2)}</div>
+                    <div class="card-info">
+                        <span class="status-tag ${l.status === 'active' ? 'status-active' : 'status-sold'}">${l.status === 'active' ? '出售中' : '已售出'}</span>
+                        <div class="card-name">${l.name}</div>
+                        <div class="card-meta">${l.series} · ${l.rarity}</div>
+                        <div class="card-price">¥${l.price}</div>
+                        <div class="card-actions">
+                            ${l.status === 'active' ? `<button class="btn-delete" onclick="deleteListing('${l.id}')">下架</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 下架发布
+        async function deleteListing(id) {
+            if (!confirm('确定下架这张卡牌？')) return;
+            
+            const { error } = await db.from('market_listings').update({ status: 'cancelled' }).eq('id', id);
+            
+            if (error) {
+                alert('下架失败: ' + error.message);
+            } else {
+                alert('✅ 已下架');
+                loadListings();
+            }
+        }
+        
+        // 退出
+        async function logout() {
+            if (confirm('确定退出？')) {
+                await db.auth.signOut();
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        }
+        
+        // 页面加载时执行
+        load();
+    </script>
+</body>
+</html>

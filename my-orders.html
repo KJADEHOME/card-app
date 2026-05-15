@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 我的订单</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .tabs { display: flex; background: white; margin: 12px 15px; border-radius: 12px; overflow: hidden; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 13px; color: #666; transition: all 0.2s; }
+        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; }
+        .order-list { padding: 0 15px; }
+        .order-card { background: white; border-radius: 12px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .order-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 0; }
+        .order-no { font-size: 12px; color: #999; }
+        .order-status { font-size: 13px; font-weight: bold; }
+        .status-pending_payment { color: #f57c00; }
+        .status-paid { color: #1976d2; }
+        .status-shipped { color: #43a047; }
+        .status-completed { color: #9e9e9e; }
+        .status-cancelled { color: #9e9e9e; }
+        .order-body { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; }
+        .order-thumb { width: 65px; height: 87px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold; }
+        .order-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .order-name { font-size: 14px; font-weight: bold; color: #333; }
+        .order-meta { font-size: 12px; color: #999; }
+        .order-price { font-size: 15px; font-weight: bold; color: #667eea; text-align: right; }
+        .order-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 0 16px 14px; }
+        .order-btn { padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; }
+        .order-btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .order-btn-outline { background: white; color: #666; border: 1px solid #ddd; }
+        .order-btn-danger { background: white; color: #f44336; border: 1px solid #f44336; }
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .loading { text-align: center; padding: 60px 20px; color: #999; }
+        .loading .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="collection.html" class="back">←</a>
+        <div class="header-title">我的订单</div>
+    </div>
+    <div class="tabs" id="roleTabs">
+        <div class="tab active" onclick="switchRole('buyer')">我购买的</div>
+        <div class="tab" onclick="switchRole('seller')">我卖出的</div>
+    </div>
+    <div class="tabs" id="statusTabs" style="margin-top:0;">
+        <div class="tab active" onclick="switchStatus('all')">全部</div>
+        <div class="tab" onclick="switchStatus('pending_payment')">待付款</div>
+        <div class="tab" onclick="switchStatus('paid')">待发货</div>
+        <div class="tab" onclick="switchStatus('shipped')">待收货</div>
+        <div class="tab" onclick="switchStatus('completed')">已完成</div>
+    </div>
+    <div class="order-list" id="orderList">
+        <div class="loading"><div class="spinner"></div></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        let currentRole = 'buyer';
+        let currentStatus = 'all';
+        let currentUser = null;
+
+        const STATUS_TEXT = {
+            pending_payment: '待付款', paid: '待发货', shipped: '运输中',
+            completed: '已完成', cancelled: '已取消', refunded: '已退款'
+        };
+
+        async function init() {
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            if (!user) { window.location.href = 'login.html'; return; }
+            loadOrders();
+        }
+
+        function switchRole(role) {
+            currentRole = role;
+            document.querySelectorAll('#roleTabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadOrders();
+        }
+
+        function switchStatus(status) {
+            currentStatus = status;
+            document.querySelectorAll('#statusTabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadOrders();
+        }
+
+        async function loadOrders() {
+            const list = document.getElementById('orderList');
+            list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            var field = currentRole === 'buyer' ? 'buyer_id' : 'seller_id';
+            var query = db.from('orders').select('*').eq(field, currentUser.id).order('created_at', { ascending: false }).limit(50);
+            if (currentStatus !== 'all') query = query.eq('status', currentStatus);
+
+            const { data, error } = await query;
+            if (error) { list.innerHTML = '<div class="empty">加载失败</div>'; return; }
+            if (!data || data.length === 0) { list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>暂无订单</div>'; return; }
+
+            list.innerHTML = data.map(function(o) {
+                var bgStyle = o.card_image_url ? 'background-image: url(' + o.card_image_url + '); background-size: cover; background-position: center;' : '';
+                var btns = '';
+                if (currentRole === 'buyer') {
+                    if (o.status === 'pending_payment') btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();payOrder(\'' + o.id + '\')">去付款</button><button class="order-btn order-btn-danger" onclick="event.stopPropagation();cancelOrder(\'' + o.id + '\')">取消</button>';
+                    else if (o.status === 'shipped') btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();confirmReceive(\'' + o.id + '\')">确认收货</button>';
+                } else {
+                    if (o.status === 'paid') btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();window.location.href=\'order-detail.html?id=' + o.id + '\'">去发货</button>';
+                }
+                return '<div class="order-card" onclick="window.location.href=\'order-detail.html?id=' + o.id + '\'">' +
+                    '<div class="order-header"><span class="order-no">' + o.order_no + '</span><span class="order-status status-' + o.status + '">' + STATUS_TEXT[o.status] + '</span></div>' +
+                    '<div class="order-body"><div class="order-thumb" style="' + bgStyle + '">' + (o.card_image_url ? '' : o.card_name.substring(0,2)) + '</div>' +
+                    '<div class="order-info"><div><div class="order-name">' + o.card_name + '</div><div class="order-meta">' + o.card_series + ' · ' + o.card_rarity + '</div></div><div class="order-price">¥' + o.total_amount + '</div></div></div>' +
+                    (btns ? '<div class="order-footer">' + btns + '</div>' : '') +
+                    '</div>';
+            }).join('');
+        }
+
+        async function payOrder(id) {
+            var o = await db.from('orders').select('*').eq('id', id).single();
+            if (!o.data) return;
+
+            // 1. 检查钱包余额
+            var walletResult = await db.from('wallets').select('*').eq('user_id', currentUser.id).single();
+            if (!walletResult.data) {
+                alert('请先开通钱包');
+                window.location.href = 'wallet.html';
+                return;
+            }
+            var walletData = walletResult.data;
+            var balance = parseFloat(walletData.balance);
+            var total = parseFloat(o.data.total_amount);
+
+            if (balance < total) {
+                var needRecharge = (total - balance).toFixed(2);
+                if (!confirm('余额不足！当前 ¥' + balance.toFixed(2) + '，还需 ¥' + needRecharge + '。\n\n前往充值？')) return;
+                window.location.href = 'wallet.html';
+                return;
+            }
+
+            if (!confirm('确认支付 ¥' + total.toFixed(2) + '？')) return;
+
+            try {
+                // 2. 扣减余额
+                var newBalance = balance - total;
+                var newExpense = parseFloat(walletData.total_expense) + total;
+                var updateWallet = await db.from('wallets').update({
+                    balance: newBalance,
+                    total_expense: newExpense
+                }).eq('id', walletData.id);
+                if (updateWallet.error) throw updateWallet.error;
+
+                // 3. 写入交易记录
+                await db.from('wallet_transactions').insert([{
+                    wallet_id: walletData.id,
+                    order_id: id,
+                    type: 'payment',
+                    amount: total,
+                    balance_after: newBalance,
+                    description: '购买「' + o.data.card_name + '」'
+                }]);
+
+                // 4. 更新订单状态
+                var { error } = await db.from('orders').update({
+                    status: 'paid',
+                    payment_at: new Date().toISOString(),
+                    payment_no: 'PAY' + Date.now(),
+                    payment_method: 'balance'
+                }).eq('id', id);
+                if (error) throw error;
+
+                // 5. 通知卖家
+                await db.from('notifications').insert([{
+                    user_id: o.data.seller_id,
+                    title: '买家已付款',
+                    content: '订单 ' + o.data.order_no + ' 已付款',
+                    type: 'order',
+                    related_id: id
+                }]);
+                loadOrders();
+            } catch (err) {
+                alert('支付失败: ' + (err.message || '请重试'));
+            }
+        }
+
+        async function cancelOrder(id) {
+            if (!confirm('确定取消？')) return;
+            var o = await db.from('orders').select('listing_id, order_no, seller_id').eq('id', id).single();
+            var { error } = await db.from('orders').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', id);
+            if (!error) {
+                if (o.data && o.data.listing_id) await db.from('market_listings').update({ status: 'active' }).eq('id', o.data.listing_id);
+                if (o.data) await db.from('notifications').insert([{ user_id: o.data.seller_id, title: '订单已取消', content: '订单 ' + o.data.order_no + ' 已取消', type: 'order', related_id: id }]);
+                loadOrders();
+            } else { alert('操作失败'); }
+        }
+
+        async function confirmReceive(id) {
+            if (!confirm('确认已收货？')) return;
+            var o = await db.from('orders').select('*').eq('id', id).single();
+            if (!o.data) return;
+            var { error } = await db.from('orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
+            if (!error) {
+                if (o.data.listing_id) await db.from('market_listings').update({ status: 'sold' }).eq('id', o.data.listing_id);
+
+                // 款项转入卖家钱包
+                try {
+                    var sellerWalletResult = await db.from('wallets').select('*').eq('user_id', o.data.seller_id).single();
+                    if (sellerWalletResult.data) {
+                        var sw = sellerWalletResult.data;
+                        var newBalance = parseFloat(sw.balance) + parseFloat(o.data.seller_amount);
+                        await db.from('wallets').update({
+                            balance: newBalance,
+                            total_income: parseFloat(sw.total_income) + parseFloat(o.data.seller_amount)
+                        }).eq('id', sw.id);
+                        await db.from('wallet_transactions').insert([{
+                            wallet_id: sw.id,
+                            order_id: id,
+                            type: 'income',
+                            amount: parseFloat(o.data.seller_amount),
+                            balance_after: newBalance,
+                            description: '出售「' + o.data.card_name + '」收入'
+                        }]);
+                    }
+                } catch (walletErr) {
+                    console.error('卖家钱包入账失败:', walletErr);
+                }
+
+                await db.from('notifications').insert([
+                    { user_id: o.data.seller_id, title: '交易完成', content: '订单 ' + o.data.order_no + ' 已完成，¥' + o.data.seller_amount + ' 已到账', type: 'order', related_id: id },
+                    { user_id: o.data.buyer_id, title: '交易完成', content: '订单 ' + o.data.order_no + ' 已完成', type: 'order', related_id: id }
+                ]);
+                loadOrders();
+            } else { alert('操作失败'); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
