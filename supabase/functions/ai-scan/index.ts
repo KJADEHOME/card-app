@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const MOONSHOT_API_KEY = Deno.env.get("MOONSHOT_API_KEY")!;
+const MOONSHOT_API_KEY = "sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,9 +15,8 @@ Deno.serve(async (req) => {
 
   try {
     const { image } = await req.json();
-
     if (!image) {
-      return new Response(JSON.stringify({ error: "缺少图片数据" }), {
+      return new Response(JSON.stringify({ error: "missing image" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -35,17 +34,7 @@ Deno.serve(async (req) => {
           role: "user",
           content: [
             { type: "image_url", image_url: { url: "data:image/jpeg;base64," + image } },
-            { type: "text", text: `你是一个专业的卡牌识别助手。请仔细识别这张卡牌图片：
-1. 首先确认这是哪种卡牌游戏（游戏王/宝可梦/万智牌/数码宝贝等）
-2. 识别卡牌名称，注意卡牌名称通常印在卡牌中央或上方
-3. 识别卡牌右下角的稀有度标志（N/R/SR/UR/SSR/SEC/PR等）
-4. 如果是罕见稀有度（SR及以上）或限量版，在最后加[稀有]
-
-返回格式（只返回这一行，不要其他文字）：
-卡牌名称|系列|稀有度
-
-例如：青眼白龙|游戏王|UR[稀有]
-如果无法确定卡牌名称，返回：未知卡牌|无法识别|无` }
+            { type: "text", text: "You are a professional card recognition expert. Identify: 1) Card game type (Yu-Gi-Oh/Pokemon/Magic/etc) 2) Card name 3) Rarity (N/R/SR/UR/SSR/SEC/PR). Return ONLY JSON: {\"name\":\"...\",\"series\":\"...\",\"rarity\":\"...\"}. Example: {\"name\":\"Blue-Eyes White Dragon\",\"series\":\"Yu-Gi-Oh\",\"rarity\":\"UR\"}" }
           ]
         }],
         temperature: 0.1
@@ -53,36 +42,18 @@ Deno.serve(async (req) => {
     });
 
     const data = await response.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
-    if (data.error) {
-      throw new Error(data.error.message || JSON.stringify(data.error));
-    }
+    const content = data.choices?.[0]?.message?.content?.trim() || "{}";
+    let result = { name: "unknown", series: "unknown", rarity: "N" };
+    try { result = JSON.parse(content.match(/\{[\s\S]*?\}/)?.[0] || "{}"); } catch(e) {}
 
-    // 解析AI返回内容
-    const content = data.choices?.[0]?.message?.content?.trim() || "";
-    const parts = content.split("|");
-    const name = parts[0]?.trim() || "未知卡牌";
-    const series = parts[1]?.trim() || "未知系列";
-    let rarity = parts[2]?.trim() || "";
-
-    const isRare = rarity.includes("[稀有]") ||
-                   /SSR|UR|SEC|PR[SR]?/i.test(rarity) ||
-                   rarity.includes("限量");
-
-    rarity = rarity.replace("[稀有]", "").trim();
-
-    return new Response(JSON.stringify({
-      success: true,
-      data: { name, series, rarity, isRare }
-    }), {
+    return new Response(JSON.stringify({ success: true, data: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message || "识别失败，请重试"
-    }), {
+    return new Response(JSON.stringify({ success: false, error: error.message || "scan failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
