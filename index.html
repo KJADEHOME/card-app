@@ -246,8 +246,8 @@
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-        // AI 识卡走 Supabase Edge Function，API Key 不再暴露在前端
-        const AI_SCAN_URL = SUPABASE_URL + '/functions/v1/ai-scan';
+        // AI 识卡 — 直连 Moonshot API（API Key 在前端，P1-1 安全问题待后续通过 Supabase Edge Function 解决）
+        const MOONSHOT_API_KEY = 'sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk';
         
         let allListings = [];
         let currentFilter = 'all';
@@ -370,21 +370,46 @@
         
         async function callMoonshotVision(base64Image) {
             try {
-                // 调用 Supabase Edge Function，不暴露 Moonshot API Key
-                const response = await fetch(AI_SCAN_URL, {
+                const imageUrl = base64Image.startsWith('data:') ? base64Image : 'data:image/jpeg;base64,' + base64Image;
+
+                const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: base64Image })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + MOONSHOT_API_KEY
+                    },
+                    body: JSON.stringify({
+                        model: 'moonshot-v1-128k-vision-preview',
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'image_url', image_url: { url: imageUrl } },
+                                { type: 'text', text: 'You are a trading card expert. Identify this card. Return ONLY valid JSON with keys: name, series (Yu-Gi-Oh/Pokemon/Magic/Other), rarity (N/R/SR/UR/SSR/SEC/PR). Example: {"name":"Dark Magician","series":"Yu-Gi-Oh","rarity":"UR"}' }
+                            ]
+                        }],
+                        temperature: 0.1,
+                        max_tokens: 500
+                    })
                 });
 
                 const result = await response.json();
                 console.log('AI返回:', result);
 
-                if (!response.ok || !result.success) {
-                    throw new Error(result.error || '识别服务异常');
+                if (!response.ok || result.error) {
+                    throw new Error(result.error?.message || '识别服务异常');
                 }
 
-                const { name, series, rarity, isRare } = result.data;
+                const rawContent = result.choices?.[0]?.message?.content?.trim() || '{}';
+                let parsed = { name: '未知卡牌', series: '未知系列', rarity: 'N' };
+                try {
+                    const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
+                    parsed = JSON.parse(jsonMatch?.[0] || '{}');
+                } catch(e) {}
+
+                const name = parsed.name || '未知卡牌';
+                const series = parsed.series || '未知系列';
+                const rarity = parsed.rarity || 'N';
+                const isRare = /SSR|UR|SEC|PR|SR/.test(rarity);
                 aiDetectedName = name;
 
                 const resultHtml = `
@@ -392,7 +417,7 @@
                         <span style="font-size:18px;font-weight:bold;">${name}</span>
                         ${isRare ? '<span style="background:linear-gradient(135deg,#ff6b6b,#feca57);color:white;padding:2px 8px;border-radius:10px;font-size:11px;">🔥稀有</span>' : ''}
                     </div>
-                    <div style="font-size:13px;color:#666;margin-top:4px;">${series} · ${rarity || '未知稀有度'}</div>
+                    <div style="font-size:13px;color:#666;margin-top:4px;">${series} · ${rarity}</div>
                 `;
 
                 document.getElementById('aiResultContent').innerHTML = resultHtml;
