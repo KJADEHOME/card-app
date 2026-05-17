@@ -243,13 +243,54 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
-
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-        // AI 识卡 — 直连 Moonshot API（API Key 在前端，P1-1 安全问题待后续通过 Supabase Edge Function 解决）
-        const MOONSHOT_API_KEY = 'sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk';
-        
-        let allListings = [];
+        const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        // AI 识卡 — 通过 Supabase Edge Function（API Key 不在前端，P1-1 安全问题已修复）
+        // Edge Function 调用 Moonshot API，API Key 仅在服务端存在
+        async function callMoonshotVision(base64Image) {
+            try {
+                const response = await fetch(SUPABASE_URL + '/functions/v1/ai-scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7',
+                        'apikey': 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+                    },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                const result = await response.json();
+                console.log('AI返回:', result);
+
+                if (!response.ok || result.error) {
+                    throw new Error(result.error || '识别服务异常');
+                }
+
+                const data = result.data || {};
+                const name = data.name || '未知卡牌';
+                const series = data.series || '未知系列';
+                const rarity = data.rarity || 'N';
+                const isRare = data.isRare === true;
+                aiDetectedName = name;
+
+                const resultHtml = `
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:18px;font-weight:bold;">${name}</span>
+                        ${isRare ? '<span style="background:linear-gradient(135deg,#ff6b6b,#feca57);color:white;padding:2px 8px;border-radius:10px;font-size:11px;">🔥稀有</span>' : ''}
+                    </div>
+                    <div style="font-size:13px;color:#666;margin-top:4px;">${series} · ${rarity}</div>
+                `;
+
+                document.getElementById('aiResultContent').innerHTML = resultHtml;
+                document.getElementById('aiResult').style.display = 'block';
+                document.getElementById('aiConfirmBtn').disabled = false;
+            } catch (error) {
+                console.error('AI识卡错误:', error);
+                alert('识别失败：' + error.message);
+            }
+        }
+
         let currentFilter = 'all';
         let currentUser = null;
         let favorites = new Set();
