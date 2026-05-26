@@ -13,7 +13,7 @@ const corsHeaders = {
 function jsonResponse(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
   });
 }
 
@@ -59,7 +59,15 @@ Deno.serve(async (req) => {
             { type: "image_url", image_url: { url: imageUrl } },
             {
               type: "text",
-              text: 'Identify this trading card. Return ONLY valid JSON with keys: name (card name), series (card game: Yu-Gi-Oh/Pokemon/Magic/Other), rarity (N/R/SR/UR/SSR/SEC/PR). Example: {"name":"Dark Magician","series":"Yu-Gi-Oh","rarity":"UR"}'
+              text: `Look at this trading card image carefully. Identify the card and return EXACTLY this JSON format (no markdown, no extra text):
+{"name":"Card Name Here","series":"Game Name","rarity":"RarityCode"}
+
+Rules:
+- name: The card's English name. If the card has Japanese/Chinese text, translate to English.
+- series: Must be one of: "Pokemon", "Yu-Gi-Oh", "Magic", "Other"
+- rarity: Must be one of: "N", "R", "SR", "UR", "SSR", "SEC", "PR"
+
+CRITICAL: Output ONLY the JSON object. No explanations. No markdown code blocks. Just the raw JSON.`
             }
           ]
         }],
@@ -79,24 +87,49 @@ Deno.serve(async (req) => {
     }
 
     const rawContent = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
-    const trimmed = rawContent.trim();
+    
+    // Clean up: remove markdown code fences, extra whitespace, BOM
+    let cleaned = rawContent
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/g, "")
+      .replace(/^\uFEFF/, "")
+      .trim();
+    
+    // Remove any non-printable/garbled characters (keep common Unicode ranges)
+    cleaned = cleaned.replace(/[^\x20-\x7E\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af\u0600-\u06ff\u0400-\u04ff\u00c0-\u024f\u00a0-\u00ff]/g, "");
 
     let result = { name: "unknown", series: "Yu-Gi-Oh", rarity: "N", isRare: false };
-    if (trimmed) {
+    
+    if (cleaned) {
+      // Try strict JSON parse first
+      let parsed = null;
       try {
-        const jsonMatch = trimmed.match(/\{[\s\S]*?\}/);
+        parsed = JSON.parse(cleaned);
+      } catch (_) {
+        // Try extracting JSON with regex
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          result = {
-            name: parsed.name || "unknown",
-            series: parsed.series || "Yu-Gi-Oh",
-            rarity: parsed.rarity || "N",
-            isRare: ["SSR", "UR", "SEC", "PR", "SR"].indexOf(parsed.rarity) !== -1,
-          };
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch (__) {
+            // JSON extraction failed
+          }
         }
-      } catch (_e) {
-        // JSON parse failed — use fallback
-        result.name = trimmed.substring(0, 60);
+      }
+
+      if (parsed && parsed.name && typeof parsed.name === "string") {
+        // Sanitize the name: remove garbled characters, limit length
+        let name = String(parsed.name).trim();
+        // If name contains too many non-ASCII garbled-looking chars, it might be corrupted
+        if (name.length > 100) name = name.substring(0, 80);
+        result.name = name || "unknown";
+        result.series = String(parsed.series || "Yu-Gi-Oh").trim();
+        result.rarity = String(parsed.rarity || "N").trim();
+        result.isRare = ["SSR", "UR", "SEC", "PR", "SR"].indexOf(result.rarity) !== -1;
+      } else {
+        // No valid JSON found — use cleaned text as fallback, capped
+        const fallback = cleaned.substring(0, 50).replace(/[{}\[\]"':,\n\r\t]/g, "").trim();
+        result.name = fallback || "unknown";
       }
     }
 

@@ -1,242 +1,322 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡域 - 探索</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Card Realm - AI Card Scanner</title>
+    <meta name="description" content="Scan trading cards with AI. Get real-time market prices. Pokemon, Yu-Gi-Oh!, Magic: The Gathering.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Card Realm">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%235B4AE0' width='192' height='192' rx='42'/%3E%3Ctext x='96' y='122' font-size='72' text-anchor='middle'%3E🃏%3C/text%3E%3C/svg%3E">
     <style>
+        :root {
+            --primary: #5B4AE0;
+            --primary-light: #F0EDFF;
+            --primary-dark: #4438B0;
+            --bg: #f5f5f5;
+            --white: #fff;
+            --text: #1a1a1a;
+            --text-secondary: #888;
+            --border: #eee;
+            --danger: #e74c3c;
+            --sell-bg: #e3f2fd;
+            --sell-color: #1976d2;
+            --buy-bg: #fff3e0;
+            --buy-color: #f57c00;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --radius: 12px;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .header-left { flex: 1; }
-        .header-title { color: white; font-size: 20px; font-weight: bold; margin-bottom: 15px; }
-        .search-box { display: flex; align-items: center; background: white; border-radius: 25px; padding: 8px 15px; gap: 8px; }
-        .search-box input { flex: 1; border: none; outline: none; font-size: 14px; min-width: 0; }
-        .ai-scan-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: transform 0.2s; }
-        .ai-scan-btn:hover { transform: scale(1.1); }
-        .ai-scan-btn.loading { animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        
-        /* 右上角日历 */
-        .header-right { margin-left: 15px; }
-        .calendar-widget { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border-radius: 16px; padding: 12px 16px; color: white; text-align: center; min-width: 80px; cursor: pointer; }
-        .calendar-day { font-size: 28px; font-weight: bold; line-height: 1; }
-        .calendar-month { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-        .calendar-weekday { font-size: 11px; opacity: 0.7; margin-top: 4px; }
-        .user-status { font-size: 10px; opacity: 0.8; margin-top: 4px; }
-        
-        .content { padding: 15px; }
-        .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .section-title a { font-size: 14px; color: #667eea; text-decoration: none; }
-        .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; position: relative; }
-        .card-img { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; }
-        .card-img img { width: 100%; height: 100%; object-fit: cover; }
-        .fav-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; z-index: 10; }
-        .fav-btn:hover { background: white; }
-        .card-info { padding: 12px; }
-        .card-name { font-weight: bold; font-size: 14px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .card-meta { font-size: 12px; color: #999; margin-bottom: 5px; }
-        .card-price { font-size: 16px; font-weight: bold; color: #667eea; }
-        .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px; }
-        .tag-sell { background: #e3f2fd; color: #1976d2; }
-        .tag-buy { background: #fff3e0; color: #f57c00; }
-        .empty { text-align: center; padding: 60px 20px; color: #999; }
-        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; }
-        .nav-item.active { color: #667eea; }
-        .nav-icon { font-size: 24px; }
-        .nav-add { background: #ffeb3b; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-top: -20px; color: #333; text-decoration: none; }
-        .filter-tabs { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
-        .filter-tab { padding: 8px 16px; background: white; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; }
-        .filter-tab.active { background: #667eea; color: white; }
-        
-        /* 功能卡片 */
-        .feature-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 15px; }
-        .feature-card { background: white; border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
-        .feature-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
-        .feature-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .feature-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .feature-icon.green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-        .feature-icon.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .feature-icon.yellow { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); }
-        .feature-text { flex: 1; }
-        .feature-title { font-weight: bold; font-size: 14px; margin-bottom: 2px; }
-        .feature-desc { font-size: 12px; color: #999; }
-        
-        /* 统计卡片 */
-        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: white; border-radius: 12px; padding: 15px; text-align: center; }
-        .stat-num { font-size: 20px; font-weight: bold; color: #667eea; }
-        .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
-        
-        /* 发布日历卡片 */
-        .release-calendar { background: white; border-radius: 16px; padding: 15px; margin-bottom: 15px; }
-        .release-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .release-title { font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .release-more { font-size: 12px; color: #667eea; text-decoration: none; }
-        .release-list { display: flex; flex-direction: column; gap: 10px; }
-        .release-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: #f8f9fa; border-radius: 10px; }
-        .release-date { text-align: center; min-width: 45px; }
-        .release-date-day { font-size: 18px; font-weight: bold; color: #667eea; }
-        .release-date-month { font-size: 10px; color: #999; }
-        .release-info { flex: 1; }
-        .release-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-        .release-series { font-size: 12px; color: #666; }
-        .release-tag { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-        .release-tag.ygo { background: #fff3e0; color: #f57c00; }
-        .release-tag.pokemon { background: #e8f5e9; color: #4caf50; }
-        .release-tag.magic { background: #e3f2fd; color: #1976d2; }
-        .release-tag.new { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        
-        /* AI扫描弹窗 */
-        .ai-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-        .ai-modal.show { display: flex; }
-        .ai-modal-box { background: white; border-radius: 20px; padding: 25px; width: 100%; max-width: 350px; text-align: center; }
-        .ai-modal-title { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
-        .ai-upload-area { border: 2px dashed #ddd; border-radius: 16px; padding: 30px; margin-bottom: 15px; cursor: pointer; transition: all 0.3s; }
-        .ai-upload-area:hover { border-color: #667eea; background: #f8f9ff; }
-        .ai-upload-area.has-image { padding: 10px; }
-        .ai-upload-area img { max-width: 100%; max-height: 200px; border-radius: 8px; }
-        .ai-upload-icon { font-size: 48px; margin-bottom: 10px; }
-        .ai-upload-text { color: #666; font-size: 14px; }
-        .ai-result { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-top: 15px; text-align: left; }
-        .ai-result-title { font-size: 12px; color: #999; margin-bottom: 8px; }
-        .ai-result-name { font-size: 18px; font-weight: bold; color: #333; }
-        .ai-result-series { font-size: 13px; color: #666; margin-top: 4px; }
-        .ai-btn-row { display: flex; gap: 10px; margin-top: 20px; }
-        .ai-btn { flex: 1; padding: 12px; border-radius: 12px; font-size: 14px; cursor: pointer; border: none; }
-        .ai-btn-cancel { background: #f0f0f0; color: #666; }
-        .ai-btn-confirm { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); padding-bottom: 80px; -webkit-tap-highlight-color: transparent; color: var(--text); }
+
+        /* ===== PWA Install Banner ===== */
+        .pwa-banner { display: none; background: var(--primary); color: white; padding: 10px 15px; display: none; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+        .pwa-banner.show { display: flex; }
+        .pwa-banner-text { flex: 1; display: flex; align-items: center; gap: 8px; font-weight: 500; }
+        .pwa-banner-close { background: none; border: none; color: white; font-size: 18px; cursor: pointer; padding: 4px; opacity: 0.7; }
+        .pwa-banner-btn { background: white; color: var(--primary); border: none; padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+        /* ===== Header ===== */
+        .header { background: var(--white); padding: 10px 15px; box-shadow: 0 1px 0 rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 50; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .header-logo { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .header-logo .icon { font-size: 24px; }
+        .header-logo .brand { background: linear-gradient(135deg, #5B4AE0 0%, #8B7CF0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .lang-switch { display: flex; background: #f3f3f3; border-radius: 8px; padding: 2px; }
+        .lang-btn { border: none; background: transparent; color: #999; font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+        .lang-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        /* ===== Hero Scan Section ===== */
+        .hero-scan { background: linear-gradient(135deg, #5B4AE0 0%, #7B6EF0 50%, #4ECDC4 100%); padding: 20px 15px; text-align: center; color: white; position: relative; overflow: hidden; }
+        .hero-scan::before { content: ''; position: absolute; top: -50%; right: -20%; width: 200px; height: 200px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+        .hero-scan::after { content: ''; position: absolute; bottom: -30%; left: -10%; width: 140px; height: 140px; background: rgba(255,255,255,0.04); border-radius: 50%; }
+        .hero-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; letter-spacing: -0.3px; }
+        .hero-sub { font-size: 13px; opacity: 0.85; margin-bottom: 16px; position: relative; z-index: 1; font-weight: 400; }
+        .hero-actions { display: flex; gap: 10px; justify-content: center; position: relative; z-index: 1; flex-wrap: wrap; }
+        .hero-btn { padding: 12px 24px; border-radius: 28px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; transition: transform 0.15s, box-shadow 0.15s; display: flex; align-items: center; gap: 8px; }
+        .hero-btn:active { transform: scale(0.96); }
+        .hero-btn-primary { background: white; color: var(--primary); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .hero-btn-outline { background: rgba(255,255,255,0.15); color: white; backdrop-filter: blur(8px); border: 1.5px solid rgba(255,255,255,0.3); }
+        .hero-stats { display: flex; gap: 20px; justify-content: center; margin-top: 14px; position: relative; z-index: 1; }
+        .hero-stat { text-align: center; }
+        .hero-stat-val { font-size: 18px; font-weight: 800; }
+        .hero-stat-label { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+        .hero-market-badges { display: flex; gap: 8px; justify-content: center; margin-top: 10px; position: relative; z-index: 1; }
+        .market-badge { background: rgba(255,255,255,0.2); backdrop-filter: blur(4px); padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .market-badge.active { background: rgba(255,255,255,0.35); }
+
+        /* ===== Game Tabs ===== */
+        .game-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; padding: 10px 15px; background: var(--white); border-bottom: 1px solid var(--border); }
+        .game-tabs::-webkit-scrollbar { display: none; }
+        .game-tab { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: #666; transition: all 0.15s; flex-shrink: 0; }
+        .game-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* ===== Search Bar ===== */
+        .search-row { padding: 8px 15px; display: flex; gap: 8px; align-items: center; background: var(--white); }
+        .search-box { flex: 1; display: flex; align-items: center; background: #f5f5f5; border-radius: 10px; padding: 9px 12px; gap: 8px; transition: all 0.2s; }
+        .search-box:focus-within { background: #fff; box-shadow: 0 0 0 2px var(--primary-light); }
+        .search-box input { flex: 1; border: none; background: transparent; font-size: 14px; outline: none; color: var(--text); }
+        .search-box input::placeholder { color: #bbb; }
+
+        /* ===== Filter Bar ===== */
+        .filter-bar { padding: 8px 15px; display: flex; align-items: center; gap: 8px; background: var(--white); border-bottom: 1px solid var(--border); }
+        .sort-btn { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--white); font-size: 13px; color: #555; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+        .sort-btn .arrow { font-size: 10px; transition: transform 0.2s; }
+        .sort-btn .arrow.up { transform: rotate(180deg); }
+        .rarity-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+        .rarity-chips::-webkit-scrollbar { display: none; }
+        .rarity-chip { padding: 5px 10px; border-radius: 14px; font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: #888; transition: all 0.15s; flex-shrink: 0; }
+        .rarity-chip.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+        .result-count { font-size: 12px; color: var(--text-secondary); white-space: nowrap; margin-left: auto; }
+
+        /* ===== Card Grid ===== */
+        .content { padding: 12px; }
+        .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card { background: var(--white); border-radius: 10px; overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+        .card:active { transform: scale(0.97); }
+        .card-img { width: 100%; aspect-ratio: 3/4; position: relative; background: #f0f0f3; display: flex; align-items: center; justify-content: center; }
+        .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .card-img .placeholder { font-size: 36px; opacity: 0.4; color: #bbb; }
+        .card-type-badge { position: absolute; top: 6px; left: 6px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; z-index: 2; }
+        .card-type-badge.sell { background: var(--sell-bg); color: var(--sell-color); }
+        .card-type-badge.buy { background: var(--buy-bg); color: var(--buy-color); }
+        .fav-btn { position: absolute; top: 6px; right: 6px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; z-index: 2; backdrop-filter: blur(4px); }
+        .card-info { padding: 8px 10px; }
+        .card-name { font-weight: 600; font-size: 13px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 3px; }
+        .card-series { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+        .card-price { font-size: 15px; font-weight: 700; }
+        .card-price.sell { color: var(--danger); }
+        .card-price.buy { color: var(--buy-color); }
+        .card-rarity { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; margin-left: 4px; vertical-align: middle; }
+
+        /* ===== Empty State ===== */
+        .empty-state { text-align: center; padding: 60px 30px; }
+        .empty-state .empty-icon { font-size: 64px; margin-bottom: 16px; }
+        .empty-state .empty-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+        .empty-state .empty-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+        .empty-state .empty-btn { display: inline-block; background: var(--primary); color: white; padding: 12px 28px; border-radius: 25px; font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; }
+
+        /* ===== Bottom Nav ===== */
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); display: flex; justify-content: space-around; padding: 8px 0 12px; box-shadow: 0 -2px 12px rgba(0,0,0,0.06); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; transition: color 0.15s; }
+        .nav-item.active { color: var(--primary); }
+        .nav-icon { font-size: 22px; }
+        .nav-add { background: var(--primary); width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-top: -18px; color: white; text-decoration: none; box-shadow: 0 4px 12px rgba(91,74,224,0.35); transition: transform 0.15s; }
+        .nav-add:active { transform: scale(0.92); }
+
+        /* ===== Camera / AI Scan Modal ===== */
+        .scan-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; flex-direction: column; }
+        .scan-modal.show { display: flex; }
+        .scan-header { padding: 12px 15px; display: flex; align-items: center; gap: 10px; color: white; }
+        .scan-back { background: rgba(255,255,255,0.15); border: none; color: white; font-size: 22px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .scan-title { font-size: 16px; font-weight: 600; flex: 1; }
+        .scan-flip { background: rgba(255,255,255,0.15); border: none; color: white; font-size: 18px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
+        .scan-viewfinder { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; background: #000; }
+        .scan-viewfinder video { width: 100%; height: 100%; object-fit: cover; }
+        .scan-frame { position: absolute; width: 75%; aspect-ratio: 3/4; border: 2px solid rgba(255,255,255,0.4); border-radius: 16px; pointer-events: none; }
+        .scan-frame::before, .scan-frame::after, .scan-frame-inner::before, .scan-frame-inner::after { content: ''; position: absolute; width: 20px; height: 20px; border-color: white; border-style: solid; }
+        .scan-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+        .scan-frame::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 6px 0 0; }
+        .scan-frame-inner::before { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 6px; }
+        .scan-frame-inner::after { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+        .scan-hint { position: absolute; bottom: 80px; color: rgba(255,255,255,0.8); font-size: 14px; text-align: center; padding: 0 30px; }
+        .scan-footer { padding: 16px 15px 24px; display: flex; gap: 10px; justify-content: center; }
+        .scan-capture { width: 64px; height: 64px; border-radius: 50%; background: white; border: 4px solid rgba(255,255,255,0.4); cursor: pointer; transition: transform 0.1s; }
+        .scan-capture:active { transform: scale(0.9); }
+        .scan-upload-btn { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .scan-switch-btn { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        /* ===== AI Result Overlay ===== */
+        .ai-result-panel { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 24px 20px; z-index: 1100; box-shadow: 0 -10px 40px rgba(0,0,0,0.2); max-height: 70vh; overflow-y: auto; }
+        .ai-result-panel.show { display: block; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .ai-result-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+        .ai-result-header { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+        .ai-result-thumb { width: 80px; height: 106px; border-radius: 8px; background: #f0f0f3; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .ai-result-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .ai-result-info { flex: 1; min-width: 0; }
+        .ai-result-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .ai-result-series { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+        .ai-result-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .ai-result-tag { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .ai-result-tag.rare { background: linear-gradient(135deg,#ff6b6b,#feca57); color: white; }
+        .ai-result-tag.rarity { background: var(--primary-light); color: var(--primary); }
+        .ai-price-card { background: #f8f9fa; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+        .ai-price-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .ai-price-label { font-size: 12px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ai-price-source { font-size: 10px; color: #bbb; }
+        .ai-price-value { font-size: 28px; font-weight: 800; color: var(--danger); }
+        .ai-price-range { font-size: 12px; color: #999; margin-top: 4px; }
+        .ai-price-note { font-size: 11px; color: #aaa; margin-top: 6px; font-style: italic; }
+        .ai-result-actions { display: flex; gap: 8px; margin-top: 16px; }
+        .ai-action-btn { flex: 1; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; text-align: center; text-decoration: none; }
+        .ai-action-btn.primary { background: var(--primary); color: white; }
+        .ai-action-btn.secondary { background: #f3f3f3; color: #555; }
+        .ai-action-btn.danger { background: var(--sell-bg); color: var(--sell-color); }
+        .ai-scanning { display: flex; align-items: center; gap: 10px; padding: 20px; justify-content: center; }
+        .ai-spinner { width: 24px; height: 24px; border: 3px solid #eee; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== Rarity Colors ===== */
+        .rarity-N { color: #999; }
+        .rarity-R { color: #1976d2; }
+        .rarity-SR { color: #f57c00; }
+        .rarity-UR { color: #e65100; font-weight: bold; }
+        .rarity-SEC { background: linear-gradient(135deg,#ff6b6b,#feca57); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
+        .rarity-PR { background: linear-gradient(135deg,#c084fc,#e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
+        .rarity-SSR { background: linear-gradient(135deg,#f97316,#fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <!-- PWA Install Banner -->
+    <div class="pwa-banner" id="pwaBanner">
+        <span class="pwa-banner-text">📲 <span data-i18n="pwa_banner">Install app for faster scanning</span></span>
+        <button class="pwa-banner-btn" id="pwaInstallBtn" data-i18n="pwa_install">Install</button>
+        <button class="pwa-banner-close" onclick="dismissPwaBanner()">✕</button>
+    </div>
+
+    <!-- Header -->
     <div class="header">
-        <div class="header-left">
-            <div class="header-title">🔍 探索</div>
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="搜索卡牌名称..." onkeyup="searchCards()">
-                <button class="ai-scan-btn" id="aiScanBtn" onclick="openAiScan()" title="AI识卡">📷</button>
+        <div class="header-top">
+            <div class="header-logo">
+                <span class="icon">🃏</span>
+                <span class="brand">Card Realm</span>
             </div>
-        </div>
-        <div class="header-right">
-            <div class="calendar-widget" onclick="location.href='login.html'">
-                <div class="calendar-day" id="calendarDay">--</div>
-                <div class="calendar-month" id="calendarMonth">--</div>
-                <div class="calendar-weekday" id="calendarWeekday">--</div>
-                <div class="user-status" id="userStatus">点击登录</div>
+            <div class="header-actions">
+                <div class="lang-switch">
+                    <button class="lang-btn active" data-lang="zh" onclick="switchLang('zh')">中</button>
+                    <button class="lang-btn" data-lang="en" onclick="switchLang('en')">EN</button>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="content">
-        <div class="filter-tabs">
-            <div class="filter-tab active" onclick="filterSeries('all')">全部</div>
-            <div class="filter-tab" onclick="filterSeries('游戏王')">游戏王</div>
-            <div class="filter-tab" onclick="filterSeries('宝可梦')">宝可梦</div>
-            <div class="filter-tab" onclick="filterSeries('万智牌')">万智牌</div>
-            <div class="filter-tab" onclick="filterSeries('数码宝贝')">数码宝贝</div>
-        </div>
-        
-        <!-- 发布日历 -->
-        <div class="release-calendar">
-            <div class="release-header">
-                <div class="release-title"><span>📅</span> 新品发布日历</div>
-                <a href="#" class="release-more" onclick="showAllReleases()">查看全部 →</a>
-            </div>
-            <div class="release-list" id="releaseList"></div>
-        </div>
-        
-        <!-- 功能入口 -->
-        <div class="feature-cards">
-            <div class="feature-card" onclick="location.href='publish.html'">
-                <div class="feature-icon purple">📤</div>
-                <div class="feature-text">
-                    <div class="feature-title">发布交易</div>
-                    <div class="feature-desc">出售或求购卡牌</div>
-                </div>
-            </div>
-            <div class="feature-card" onclick="location.href='collection.html'">
-                <div class="feature-icon orange">❤️</div>
-                <div class="feature-text">
-                    <div class="feature-title">我的收藏</div>
-                    <div class="feature-desc">查看收藏的卡牌</div>
-                </div>
-            </div>
-            <div class="feature-card" onclick="showTip()">
-                <div class="feature-icon green">💬</div>
-                <div class="feature-text">
-                    <div class="feature-title">消息中心</div>
-                    <div class="feature-desc">与卖家买家沟通</div>
-                </div>
-            </div>
-            <div class="feature-card" onclick="showTip()">
-                <div class="feature-icon yellow">🛡️</div>
-                <div class="feature-text">
-                    <div class="feature-title">交易安全</div>
-                    <div class="feature-desc">安全交易指南</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 统计数据 -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-num" id="totalCount">-</div>
-                <div class="stat-label">在售卡牌</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-num" id="todayCount">-</div>
-                <div class="stat-label">今日新增</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-num" id="userCount">-</div>
-                <div class="stat-label">活跃用户</div>
-            </div>
-        </div>
-        
-        <!-- 最新发布 -->
-        <div class="section-title">
-            <span>🔥 最新发布</span>
-            <a href="publish.html">+ 发布</a>
-        </div>
-        
-        <div class="cards" id="cardList">
-            <div class="empty">加载中...</div>
-        </div>
-        
-        <!-- 下载APP -->
-        <div style="text-align: center; padding: 20px; margin-top: 15px;">
-            <button onclick="installApp()" id="installBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 14px; cursor: pointer;">
-                📲 下载APP到手机
+
+    <!-- Hero Scan Section -->
+    <div class="hero-scan">
+        <div class="hero-title" data-i18n="hero_title">Scan a card. Know its price.</div>
+        <div class="hero-sub" data-i18n="hero_sub">AI-powered recognition with multi-market pricing</div>
+        <div class="hero-actions">
+            <button class="hero-btn hero-btn-primary" onclick="openCameraScan()">
+                <span style="font-size:20px;">📷</span> <span data-i18n="hero_scan">Scan Card</span>
+            </button>
+            <button class="hero-btn hero-btn-outline" onclick="document.getElementById('aiFileInput').click()">
+                <span style="font-size:16px;">🖼️</span> <span data-i18n="hero_upload">Upload</span>
             </button>
         </div>
+        <div class="hero-market-badges">
+            <span class="market-badge active" data-i18n="hero_market_us">🇺🇸 TCGPlayer USD</span>
+            <span class="market-badge" data-i18n="hero_market_cn">🇨🇳 CNY Reference</span>
+            <span class="market-badge" data-i18n="hero_market_eu">🇪🇺 Cardmarket EUR</span>
+        </div>
     </div>
-    
+
+    <!-- Game Type Tabs -->
+    <div class="game-tabs" id="gameTabs">
+        <button class="game-tab active" data-game="all" onclick="switchGame('all')" data-i18n="game_all">All</button>
+        <button class="game-tab" data-game="pokemon" onclick="switchGame('pokemon')">Pokémon</button>
+        <button class="game-tab" data-game="yugioh" onclick="switchGame('yugioh')">Yu-Gi-Oh!</button>
+        <button class="game-tab" data-game="magic" onclick="switchGame('magic')">Magic</button>
+    </div>
+
+    <!-- Search -->
+    <div class="search-row">
+        <div class="search-box">
+            <span style="color:#bbb;">🔍</span>
+            <input type="text" id="searchInput" data-i18n-placeholder="search_placeholder" oninput="onSearchInput()">
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+        <button class="sort-btn" id="sortBtn" onclick="toggleSort()">
+            <span id="sortLabel" data-i18n="sort_default">Default</span>
+            <span class="arrow" id="sortArrow">▼</span>
+        </button>
+        <div class="rarity-chips" id="rarityChips">
+            <button class="rarity-chip active" data-rarity="all" onclick="switchRarity('all')">All</button>
+            <button class="rarity-chip" data-rarity="N" onclick="switchRarity('N')">N</button>
+            <button class="rarity-chip" data-rarity="R" onclick="switchRarity('R')">R</button>
+            <button class="rarity-chip" data-rarity="SR" onclick="switchRarity('SR')">SR</button>
+            <button class="rarity-chip" data-rarity="UR" onclick="switchRarity('UR')">UR</button>
+            <button class="rarity-chip" data-rarity="SEC" onclick="switchRarity('SEC')">SEC</button>
+        </div>
+        <span class="result-count" id="resultCount"></span>
+    </div>
+
+    <!-- Card Grid -->
+    <div class="content">
+        <div class="cards" id="cardList">
+            <div class="empty-state">
+                <div class="empty-icon">🃏</div>
+                <div class="empty-title" data-i18n="empty_title">Ready for your first card</div>
+                <div class="empty-desc" data-i18n="empty_desc">Tap Scan Card above to take a photo. AI will recognize it and fetch the market price instantly.</div>
+                <a href="publish.html" class="empty-btn" data-i18n="empty_btn">+ Publish Card</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
     <div class="nav">
-        <a href="index.html" class="nav-item active"><span class="nav-icon">🔍</span><span>探索</span></a>
-        <a href="message.html" class="nav-item"><span class="nav-icon">💬</span><span>消息</span></a>
+        <a href="index.html" class="nav-item active"><span class="nav-icon">🔍</span><span data-i18n="nav_explore">Explore</span></a>
+        <a href="message.html" class="nav-item"><span class="nav-icon">💬</span><span data-i18n="nav_messages">Chat</span></a>
         <a href="publish.html" class="nav-add">+</a>
-        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>个人</span></a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Me</span></a>
     </div>
-    
-    <!-- AI识卡弹窗 -->
-    <div class="ai-modal" id="aiModal">
-        <div class="ai-modal-box">
-            <div class="ai-modal-title">🤖 AI 识卡</div>
-            <input type="file" id="aiImageInput" accept="image/*" style="display:none" onchange="handleAiImage(event)">
-            <div class="ai-upload-area" id="aiUploadArea" onclick="document.getElementById('aiImageInput').click()">
-                <div class="ai-upload-icon">📷</div>
-                <div class="ai-upload-text">点击上传卡牌图片</div>
-            </div>
-            <div class="ai-result" id="aiResult" style="display:none">
-                <div class="ai-result-title">识别结果</div>
-                <div id="aiResultContent"></div>
-            </div>
-            <div class="ai-btn-row">
-                <button class="ai-btn ai-btn-cancel" onclick="closeAiScan()">取消</button>
-                <button class="ai-btn ai-btn-confirm" id="aiConfirmBtn" onclick="confirmAiResult()" disabled>搜索</button>
+
+    <!-- Hidden File Input for Upload -->
+    <input type="file" id="aiFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFileUpload(event)">
+
+    <!-- Camera Scan Modal -->
+    <div class="scan-modal" id="cameraModal">
+        <div class="scan-header">
+            <button class="scan-back" onclick="closeCamera()">✕</button>
+            <span class="scan-title" data-i18n="scan_title">Scan Card</span>
+            <button class="scan-flip" onclick="flipCamera()" id="flipBtn" style="display:none;">🔄</button>
+        </div>
+        <div class="scan-viewfinder">
+            <video id="cameraVideo" autoplay playsinline></video>
+            <div class="scan-frame"><div class="scan-frame-inner"></div></div>
+            <div class="scan-hint" data-i18n="scan_hint">Position card within the frame</div>
+        </div>
+        <div class="scan-footer">
+            <button class="scan-upload-btn" onclick="document.getElementById('aiFileInput').click()" data-i18n-title="scan_upload">🖼️</button>
+            <button class="scan-capture" onclick="capturePhoto()"></button>
+            <button class="scan-switch-btn" onclick="flipCamera()" data-i18n-title="scan_flip">🔄</button>
+        </div>
+    </div>
+
+    <!-- AI Result Panel -->
+    <div class="ai-result-panel" id="aiResultPanel">
+        <div class="ai-result-handle"></div>
+        <div id="aiPanelContent">
+            <div class="ai-scanning">
+                <div class="ai-spinner"></div>
+                <span data-i18n="ai_scanning">AI analyzing card...</span>
             </div>
         </div>
     </div>
@@ -246,9 +326,343 @@
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
-        // AI 识卡 — 通过 Supabase Edge Function（API Key 不在前端，P1-1 安全问题已修复）
-        // Edge Function 调用 Moonshot API，API Key 仅在服务端存在
-        async function callMoonshotVision(base64Image) {
+        // ===== i18n =====
+        const I18N = {
+            zh: {
+                title: '卡域',
+                hero_title: '拍照识卡，秒查价格',
+                hero_sub: 'AI 智能识别 + 全球多市场价格参考',
+                hero_scan: '📷 拍照识卡',
+                hero_upload: '🖼️ 上传图片',
+                hero_market_us: '🇺🇸 TCGPlayer 美元价',
+                hero_market_cn: '🇨🇳 人民币参考价',
+                hero_market_eu: '🇪🇺 Cardmarket 欧元价',
+                search_placeholder: '搜索卡牌名称或系列...',
+                sort_default: '默认',
+                sort_price_asc: '价格 低→高',
+                sort_price_desc: '价格 高→低',
+                sort_newest: '最新',
+                game_all: '全部',
+                nav_explore: '探索',
+                nav_messages: '消息',
+                nav_profile: '我的',
+                result_count: '共 {n} 个',
+                scan_title: '拍照识卡',
+                scan_hint: '将卡片对准框内',
+                scan_upload: '从相册选择',
+                scan_flip: '切换摄像头',
+                ai_scanning: 'AI 正在识别卡牌...',
+                ai_cancel: '取消',
+                ai_search: '查看',
+                ai_rare: '🔥稀有',
+                ai_fail: '识别失败：',
+                ai_error: '识别服务异常，请重试',
+                fav_login: '请先登录',
+                list_tag_sell: '卖',
+                list_tag_buy: '买',
+                empty_title: '还没有卡牌',
+                empty_desc: '点击上方「拍照识卡」拍照，AI 会自动识别并查询市场价格',
+                empty_btn: '+ 发布卡牌',
+                logged_in: '已登录',
+                unknown_card: '未知卡牌',
+                unknown_series: '未知系列',
+                ai_price_title: '市场估价',
+                ai_price_market: '市场价',
+                ai_price_range: '价格区间',
+                ai_price_none: '暂无价格数据',
+                ai_price_est: '预估',
+                ai_publish_btn: '发布到市场',
+                ai_search_btn: '搜索同名卡牌',
+                ai_retry_btn: '重新拍摄',
+                loading: '加载中...',
+                load_failed: '加载失败',
+                card_rarity: '稀有度',
+                login_hint: '登录',
+                pwa_banner: '安装到桌面，识卡更快捷',
+                pwa_install: '安装',
+                pwa_dismissed: '已忽略',
+                months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+            },
+            en: {
+                title: 'Card Realm',
+                hero_title: 'Scan a card. Know its price.',
+                hero_sub: 'AI-powered recognition with multi-market pricing',
+                hero_scan: '📷 Scan Card',
+                hero_upload: '🖼️ Upload',
+                hero_market_us: '🇺🇸 TCGPlayer USD',
+                hero_market_cn: '🇨🇳 CNY Reference',
+                hero_market_eu: '🇪🇺 Cardmarket EUR',
+                search_placeholder: 'Search card name or series...',
+                sort_default: 'Default',
+                sort_price_asc: 'Price Low→High',
+                sort_price_desc: 'Price High→Low',
+                sort_newest: 'Newest',
+                game_all: 'All',
+                nav_explore: 'Explore',
+                nav_messages: 'Chat',
+                nav_profile: 'Me',
+                result_count: '{n} results',
+                scan_title: 'Scan Card',
+                scan_hint: 'Position card within the frame',
+                scan_upload: 'Pick from gallery',
+                scan_flip: 'Flip camera',
+                ai_scanning: 'AI analyzing card...',
+                ai_cancel: 'Cancel',
+                ai_search: 'View',
+                ai_rare: '🔥Rare',
+                ai_fail: 'Scan failed: ',
+                ai_error: 'Scan service error, please retry',
+                fav_login: 'Please log in',
+                list_tag_sell: 'Sell',
+                list_tag_buy: 'Buy',
+                empty_title: 'No cards yet',
+                empty_desc: 'Tap Scan Card above to take a photo. AI will recognize it and fetch the market price instantly.',
+                empty_btn: '+ Publish Card',
+                logged_in: 'Logged In',
+                unknown_card: 'Unknown Card',
+                unknown_series: 'Unknown Series',
+                ai_price_title: 'Market Price',
+                ai_price_market: 'Market',
+                ai_price_range: 'Range',
+                ai_price_none: 'No price data',
+                ai_price_est: 'Est.',
+                ai_publish_btn: 'Publish to Market',
+                ai_search_btn: 'Search Same Card',
+                ai_retry_btn: 'Retake Photo',
+                loading: 'Loading...',
+                load_failed: 'Failed to load',
+                card_rarity: 'Rarity',
+                login_hint: 'Login',
+                pwa_banner: 'Install app for faster scanning',
+                pwa_install: 'Install',
+                pwa_dismissed: 'Dismissed',
+                months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            }
+        };
+
+        let currentLang = localStorage.getItem('cardrealm_lang') || 'zh';
+        let currentGame = 'all';
+        let currentRarity = 'all';
+        let currentSort = 'default';
+        let searchKeyword = '';
+        let allListings = [];
+        let currentUser = null;
+        let favorites = new Set();
+        let aiDetectedName = '';
+        let aiDetectedSeries = '';
+        let cameraStream = null;
+        let facingMode = 'environment';
+
+        // ===== i18n Functions =====
+        function switchLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('cardrealm_lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+            applyLanguage();
+            applyAllFilters();
+        }
+        function t(key, params) {
+            let text = (I18N[currentLang] && I18N[currentLang][key]) || key;
+            if (params) Object.keys(params).forEach(k => { text = text.replace('{' + k + '}', params[k]); });
+            return text;
+        }
+        function escHTML(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function applyLanguage() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (I18N[currentLang] && I18N[currentLang][key]) el.textContent = I18N[currentLang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.dataset.i18nPlaceholder;
+                if (I18N[currentLang] && I18N[currentLang][key]) el.placeholder = I18N[currentLang][key];
+            });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.dataset.i18nTitle;
+                if (I18N[currentLang] && I18N[currentLang][key]) el.title = I18N[currentLang][key];
+            });
+            document.documentElement.lang = currentLang;
+            updateSortLabel();
+        }
+
+        // ===== Filters =====
+        function toggleSort() {
+            const cycles = ['default', 'price_asc', 'price_desc', 'newest'];
+            currentSort = cycles[(cycles.indexOf(currentSort) + 1) % cycles.length];
+            updateSortLabel();
+            applyAllFilters();
+        }
+        function updateSortLabel() {
+            document.getElementById('sortLabel').textContent = I18N[currentLang]['sort_' + currentSort] || I18N[currentLang].sort_default;
+        }
+        function switchGame(game) {
+            currentGame = game;
+            document.querySelectorAll('.game-tab').forEach(b => b.classList.toggle('active', b.dataset.game === game));
+            applyAllFilters();
+        }
+        function switchRarity(rarity) {
+            currentRarity = rarity;
+            document.querySelectorAll('.rarity-chip').forEach(b => b.classList.toggle('active', b.dataset.rarity === rarity));
+            applyAllFilters();
+        }
+        let searchTimer;
+        function onSearchInput() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                searchKeyword = document.getElementById('searchInput').value.toLowerCase().trim();
+                applyAllFilters();
+            }, 300);
+        }
+
+        function matchGame(series) {
+            if (!series) return 'other';
+            const s = series.toLowerCase();
+            if (s.includes('pokémon') || s.includes('pokemon') || s.includes('宝可梦')) return 'pokemon';
+            if (s.includes('yu-gi-oh') || s.includes('ygo') || s.includes('游戏王')) return 'yugioh';
+            if (s.includes('magic') || s.includes('mtg') || s.includes('万智牌')) return 'magic';
+            return 'other';
+        }
+
+        function applyAllFilters() {
+            let filtered = [...allListings];
+            if (currentGame !== 'all') filtered = filtered.filter(item => matchGame(item.series) === currentGame);
+            if (currentRarity !== 'all') filtered = filtered.filter(item => item.rarity === currentRarity);
+            if (searchKeyword) {
+                filtered = filtered.filter(item =>
+                    (item.name && item.name.toLowerCase().includes(searchKeyword)) ||
+                    (item.series && item.series.toLowerCase().includes(searchKeyword))
+                );
+            }
+            if (currentSort === 'price_asc') filtered.sort((a, b) => parseFloat(a.price||0) - parseFloat(b.price||0));
+            else if (currentSort === 'price_desc') filtered.sort((a, b) => parseFloat(b.price||0) - parseFloat(a.price||0));
+            else if (currentSort === 'newest') filtered.sort((a, b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+            document.getElementById('resultCount').textContent = t('result_count', { n: filtered.length });
+            renderListings(filtered);
+        }
+
+        function renderListings(listings) {
+            const list = document.getElementById('cardList');
+            if (!allListings.length) return; // show empty state from HTML
+            if (listings.length === 0) {
+                list.innerHTML = `<div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <div class="empty-title">${currentLang==='zh'?'没有匹配的卡牌':'No matching cards'}</div>
+                    <div class="empty-desc">${currentLang==='zh'?'换个游戏类型或搜索词试试':'Try a different game type or search term'}</div>
+                </div>`;
+                return;
+            }
+            const gradients = [
+                'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)',
+                'linear-gradient(135deg, #f472b6 0%, #db2777 100%)',
+                'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+                'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
+                'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
+                'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)'
+            ];
+            const tagSell = t('list_tag_sell');
+            const tagBuy = t('list_tag_buy');
+            list.innerHTML = listings.map((item, i) => {
+                const isFav = favorites.has(item.id);
+                const bg = item.image_url
+                    ? `background-image:url(${escHTML(item.image_url)});background-size:cover;background-position:center;`
+                    : `background:${gradients[i % gradients.length]}`;
+                const placeholder = item.image_url ? '' : `<span class="placeholder">${escHTML((item.name||'??').substring(0,2))}</span>`;
+                return `<div class="card" onclick="viewDetail('${item.id}')">
+                    <div class="card-img" style="${bg}">
+                        ${placeholder}
+                        <span class="card-type-badge ${item.type==='sell'?'sell':'buy'}">${item.type==='sell'?tagSell:tagBuy}</span>
+                        <button class="fav-btn" onclick="event.stopPropagation();toggleFav('${item.id}')">${isFav ? '❤️' : '🤍'}</button>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-name">${escHTML(item.name)}</div>
+                        <div class="card-series">${escHTML(item.series||'')} · <span class="card-rarity rarity-${item.rarity||'N'}">${item.rarity||'N'}</span></div>
+                        <div class="card-price ${item.type==='sell'?'sell':'buy'}">${item.currency==='USD'?'$':'¥'}${item.price}</div>
+                    </div></div>`;
+            }).join('');
+        }
+
+        // ===== Camera =====
+        async function openCameraScan() {
+            const modal = document.getElementById('cameraModal');
+            modal.classList.add('show');
+            document.getElementById('aiResultPanel').classList.remove('show');
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = cameraStream;
+                video.play();
+                // Show flip button if multiple cameras
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const cams = devices.filter(d => d.kind === 'videoinput');
+                    document.getElementById('flipBtn').style.display = cams.length > 1 ? 'block' : 'none';
+                } catch(e) {}
+            } catch(err) {
+                console.error('Camera error:', err);
+                // Fallback: open file picker if camera not available
+                document.getElementById('cameraModal').classList.remove('show');
+                document.getElementById('aiFileInput').click();
+            }
+        }
+
+        function closeCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            document.getElementById('cameraModal').classList.remove('show');
+        }
+
+        function flipCamera() {
+            facingMode = facingMode === 'environment' ? 'user' : 'environment';
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            }).then(stream => {
+                cameraStream = stream;
+                document.getElementById('cameraVideo').srcObject = stream;
+            }).catch(err => console.error('Flip error:', err));
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            if (!video.srcObject) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const base64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+            closeCamera();
+            processScanResult(base64, canvas.toDataURL('image/jpeg'));
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            document.getElementById('cameraModal').classList.remove('show');
+            if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1];
+                processScanResult(base64, e.target.result);
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        async function processScanResult(base64Image, previewUrl) {
+            // Show result panel
+            const panel = document.getElementById('aiResultPanel');
+            const content = document.getElementById('aiPanelContent');
+            content.innerHTML = `<div class="ai-scanning"><div class="ai-spinner"></div><span>${t('ai_scanning')}</span></div>`;
+            panel.classList.add('show');
+
             try {
                 const response = await fetch(SUPABASE_URL + '/functions/v1/ai-scan', {
                     method: 'POST',
@@ -259,339 +673,138 @@
                     },
                     body: JSON.stringify({ image: base64Image })
                 });
-
                 const result = await response.json();
-                console.log('AI返回:', result);
-
-                if (!response.ok || result.error) {
-                    throw new Error(result.error || '识别服务异常');
-                }
+                if (!response.ok || result.error) throw new Error(result.error || t('ai_error'));
 
                 const data = result.data || {};
-                const name = data.name || '未知卡牌';
-                const series = data.series || '未知系列';
+                aiDetectedName = data.name || t('unknown_card');
+                aiDetectedSeries = data.series || t('unknown_series');
                 const rarity = data.rarity || 'N';
                 const isRare = data.isRare === true;
-                aiDetectedName = name;
 
-                const resultHtml = `
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="font-size:18px;font-weight:bold;">${name}</span>
-                        ${isRare ? '<span style="background:linear-gradient(135deg,#ff6b6b,#feca57);color:white;padding:2px 8px;border-radius:10px;font-size:11px;">🔥稀有</span>' : ''}
+                // Render result with preview
+                const rareLabel = t('ai_rare');
+                content.innerHTML = `
+                    <div class="ai-result-handle"></div>
+                    <div class="ai-result-header">
+                        <div class="ai-result-thumb">${previewUrl ? `<img src="${previewUrl}" alt="card">` : '🃏'}</div>
+                        <div class="ai-result-info">
+                            <div class="ai-result-name">${escHTML(aiDetectedName)}</div>
+                            <div class="ai-result-series">${escHTML(aiDetectedSeries)} · ${escHTML(rarity)}</div>
+                            <div class="ai-result-tags">
+                                ${isRare ? `<span class="ai-result-tag rare">⭐ ${rareLabel}</span>` : ''}
+                                <span class="ai-result-tag rarity">${escHTML(rarity)}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style="font-size:13px;color:#666;margin-top:4px;">${series} · ${rarity}</div>
-                `;
+                    <div id="aiPriceCard" class="ai-price-card">
+                        <div class="ai-scanning"><div class="ai-spinner"></div><span>${t('ai_price_loading') || 'Fetching price...'}</span></div>
+                    </div>
+                    <div class="ai-result-actions">
+                        <button class="ai-action-btn secondary" onclick="retakePhoto()">${t('ai_retry_btn')}</button>
+                        <button class="ai-action-btn primary" onclick="confirmAndSearch()">${t('ai_search_btn')}</button>
+                        <a href="publish.html?name=${encodeURIComponent(aiDetectedName)}&series=${encodeURIComponent(aiDetectedSeries)}&rarity=${encodeURIComponent(rarity)}" class="ai-action-btn danger" style="display:flex;align-items:center;justify-content:center;">${t('ai_publish_btn')}</a>
+                    </div>`;
 
-                document.getElementById('aiResultContent').innerHTML = resultHtml;
-                document.getElementById('aiResult').style.display = 'block';
-                document.getElementById('aiConfirmBtn').disabled = false;
+                fetchCardPrice(aiDetectedName, aiDetectedSeries);
             } catch (error) {
-                console.error('AI识卡错误:', error);
-                alert('识别失败：' + error.message);
+                console.error('AI scan error:', error);
+                content.innerHTML = `
+                    <div class="ai-result-handle"></div>
+                    <div style="text-align:center;padding:20px;">
+                        <div style="font-size:48px;margin-bottom:12px;">😕</div>
+                        <div style="font-weight:600;margin-bottom:8px;">${t('ai_fail')}${escHTML(error.message)}</div>
+                        <button class="ai-action-btn primary" onclick="retakePhoto()" style="margin-top:12px;">${t('ai_retry_btn')}</button>
+                    </div>`;
             }
         }
 
-        let currentFilter = 'all';
-        let currentUser = null;
-        let favorites = new Set();
-        let aiDetectedName = '';
-        
-        // 发布日历数据
-        const releaseCalendar = [
-            { date: '2026-04-05', name: '拳之极意', series: '游戏王', tag: 'ygo' },
-            { date: '2026-04-12', name: '闪耀宝藏ex', series: '宝可梦', tag: 'pokemon' },
-            { date: '2026-04-18', name: '奇迹之超次元', series: '游戏王', tag: 'ygo' },
-            { date: '2026-04-25', name: 'Tarkir: Dragonstorm', series: '万智牌', tag: 'magic' },
-            { date: '2026-05-10', name: '究极冲击', series: '游戏王', tag: 'ygo' },
-            { date: '2026-05-15', name: '喷火龙ex礼盒', series: '宝可梦', tag: 'pokemon' }
-        ];
-        
-        // 初始化日历
-        function initCalendar() {
-            const now = new Date();
-            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-            const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
-            
-            document.getElementById('calendarDay').textContent = now.getDate();
-            document.getElementById('calendarMonth').textContent = months[now.getMonth()];
-            document.getElementById('calendarWeekday').textContent = weekdays[now.getDay()];
-            
-            renderReleaseCalendar();
-        }
-        
-        // 渲染发布日历
-        function renderReleaseCalendar() {
-            const list = document.getElementById('releaseList');
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const upcoming = releaseCalendar.filter(item => {
-                const itemDate = new Date(item.date);
-                itemDate.setHours(0, 0, 0, 0);
-                return itemDate >= today;
-            }).slice(0, 3);
-            
-            if (upcoming.length === 0) {
-                list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无近期发布信息</div>';
-                return;
+        async function fetchCardPrice(name, series) {
+            const card = document.getElementById('aiPriceCard');
+            if (!card) return;
+            try {
+                const market = currentLang === 'zh' ? 'CN' : 'US';
+                const resp = await fetch(SUPABASE_URL + '/functions/v1/card-price', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7',
+                        'apikey': 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+                    },
+                    body: JSON.stringify({ name, series, market })
+                });
+                const result = await resp.json();
+                if (!result.success || !result.data || (result.data.message && !result.data.pricing)) {
+                    card.innerHTML = `<div class="ai-price-label">${t('ai_price_title')}</div><div style="color:#999;font-size:14px;">${t('ai_price_none')}</div>`;
+                    return;
+                }
+                const d = result.data;
+                const mp = d.market_price;
+                const cur = d.currency === 'CNY' ? '¥' : d.currency === 'EUR' ? '€' : '$';
+                let html = `<div class="ai-price-header">
+                    <span class="ai-price-label">${t('ai_price_title')}</span>
+                    <span class="ai-price-source">${escHTML(d.source || '')} ${d.variant ? '· ' + d.variant : ''}</span>
+                </div>`;
+                if (mp != null) {
+                    html += `<div class="ai-price-value">${cur}${mp.toFixed(2)}</div>`;
+                    if (d.low != null && d.high != null) {
+                        html += `<div class="ai-price-range">${t('ai_price_range')}: ${cur}${d.low.toFixed(2)} ~ ${cur}${d.high.toFixed(2)}</div>`;
+                    }
+                } else {
+                    html += `<div style="color:#999;font-size:14px;">${t('ai_price_none')}</div>`;
+                }
+                if (d.note) html += `<div class="ai-price-note">${escHTML(d.note)}</div>`;
+                card.innerHTML = html;
+            } catch (e) {
+                card.innerHTML = `<div style="color:#999;">${t('ai_price_none')}</div>`;
             }
-            
-            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-            
-            list.innerHTML = upcoming.map(item => {
-                const date = new Date(item.date);
-                const day = date.getDate();
-                const month = months[date.getMonth()];
-                const diffTime = date - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                const isNew = diffDays <= 7;
-                
-                return `
-                <div class="release-item">
-                    <div class="release-date">
-                        <div class="release-date-day">${day}</div>
-                        <div class="release-date-month">${month}</div>
-                    </div>
-                    <div class="release-info">
-                        <div class="release-name">${item.name}</div>
-                        <div class="release-series">${item.series}</div>
-                    </div>
-                    <span class="release-tag ${isNew ? 'new' : item.tag}">${isNew ? '即将发售' : item.series}</span>
-                </div>
-            `}).join('');
-        }
-        
-        // AI识卡功能
-        function openAiScan() {
-            document.getElementById('aiModal').classList.add('show');
-            document.getElementById('aiUploadArea').innerHTML = '<div class="ai-upload-icon">📷</div><div class="ai-upload-text">点击上传卡牌图片</div>';
-            document.getElementById('aiUploadArea').classList.remove('has-image');
-            document.getElementById('aiResult').style.display = 'none';
-            document.getElementById('aiConfirmBtn').disabled = true;
-            aiDetectedName = '';
-        }
-        
-        function closeAiScan() {
-            document.getElementById('aiModal').classList.remove('show');
-        }
-        
-        async function handleAiImage(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            // 显示图片预览
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const uploadArea = document.getElementById('aiUploadArea');
-                uploadArea.innerHTML = '<img src="' + e.target.result + '" alt="预览">';
-                uploadArea.classList.add('has-image');
-            };
-            reader.readAsDataURL(file);
-            
-            // 显示加载状态
-            document.getElementById('aiScanBtn').classList.add('loading');
-            
-            // 转为base64并调用AI
-            const base64 = await fileToBase64(file);
-            await callMoonshotVision(base64);
-            
-            document.getElementById('aiScanBtn').classList.remove('loading');
-        }
-        
-        function fileToBase64(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const base64 = e.target.result.split(',')[1];
-                    resolve(base64);
-                };
-                reader.readAsDataURL(file);
-            });
         }
 
-        // PWA安装
-        let deferredPrompt;
+        function retakePhoto() {
+            document.getElementById('aiResultPanel').classList.remove('show');
+            openCameraScan();
+        }
+
+        function confirmAndSearch() {
+            if (aiDetectedName) {
+                document.getElementById('searchInput').value = aiDetectedName;
+                searchKeyword = aiDetectedName.toLowerCase();
+                applyAllFilters();
+            }
+            document.getElementById('aiResultPanel').classList.remove('show');
+        }
+
+        function dismissResult() {
+            document.getElementById('aiResultPanel').classList.remove('show');
+        }
+
+        // ===== PWA Install =====
+        let deferredPrompt = null;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
+            const dismissed = localStorage.getItem('pwa_banner_dismissed');
+            if (!dismissed) {
+                document.getElementById('pwaBanner').classList.add('show');
+            }
         });
-        
-        function installApp() {
+        document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('用户同意安装');
-                    }
-                    deferredPrompt = null;
-                });
-            } else {
-                // 如果不支持PWA安装，提示用户
-                alert('📲 安装方法：\n\niOS Safari：点击分享按钮 → 添加到主屏幕\n\nAndroid Chrome：点击菜单 → 添加到主屏幕');
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                document.getElementById('pwaBanner').classList.remove('show');
             }
+        });
+        function dismissPwaBanner() {
+            document.getElementById('pwaBanner').classList.remove('show');
+            localStorage.setItem('pwa_banner_dismissed', '1');
         }
-        
-        function confirmAiResult() {
-            if (aiDetectedName) {
-                document.getElementById('searchInput').value = aiDetectedName;
-                searchCards();
-                closeAiScan();
-            }
-        }
-        
-        // 查看全部发布
-        function showAllReleases() {
-            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            let msg = '📅 近期新品发布日历\n\n';
-            releaseCalendar.forEach(item => {
-                const date = new Date(item.date);
-                const day = date.getDate();
-                const month = months[date.getMonth()];
-                const diffTime = date - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                const status = diffDays < 0 ? '已发售' : diffDays === 0 ? '今日' : `${diffDays}天后`;
-                msg += `【${month}${day}日】${item.name}\n   ${item.series} · ${status}\n\n`;
-            });
-            alert(msg);
-        }
-        
-        // 初始化
-        (async function() {
-            initCalendar();
-            
-            const { data: { user } } = await db.auth.getUser();
-            currentUser = user;
-            
-            // 更新登录状态显示
-            if (user) {
-                const phone = localStorage.getItem('phone');
-                const display = phone ? phone.substring(0,3) + '****' + phone.substring(7) : '已登录';
-                document.getElementById('userStatus').textContent = display;
-            }
-            
-            if (currentUser) {
-                const { data: favData } = await db.from('favorites').select('card_id').eq('user_id', currentUser.id);
-                if (favData) {
-                    favData.forEach(f => favorites.add(f.card_id));
-                }
-            }
-            
-            loadListings();
-        })();
-        
-        // 加载市场列表
-        async function loadListings() {
-            const list = document.getElementById('cardList');
-            
-            const { data, error } = await db
-                .from('market_listings')
-                .select('*')
-                .eq('status', 'active')
-                .order('created_at', { ascending: false });
-            
-            if (error) {
-                list.innerHTML = '<div class="empty">加载失败</div>';
-                return;
-            }
-            
-            allListings = data || [];
-            
-            document.getElementById('totalCount').textContent = allListings.length;
-            
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayCount = allListings.filter(item => new Date(item.created_at) >= today).length;
-            document.getElementById('todayCount').textContent = todayCount;
-            
-            const uniqueUsers = new Set(allListings.map(item => item.seller_id)).size;
-            document.getElementById('userCount').textContent = uniqueUsers || '-';
-            
-            renderListings(allListings);
-        }
-        
-        // 渲染列表
-        function renderListings(listings) {
-            const list = document.getElementById('cardList');
-            
-            if (listings.length === 0) {
-                list.innerHTML = '<div class="empty">暂无卡牌，点击右下角 + 发布</div>';
-                return;
-            }
-            
-            const gradients = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #ff6b9d 0%, #feca57 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-            ];
-            
-            list.innerHTML = listings.map((item, i) => {
-                const isFav = favorites.has(item.id);
-                return `
-                <div class="card" onclick="viewDetail('${item.id}')">
-                    <div class="card-img" style="${item.image_url ? 'background-image: url(' + item.image_url + '); background-size: cover;' : 'background: ' + gradients[i % gradients.length]}">
-                        ${item.image_url ? '' : item.name.substring(0, 2)}
-                        <button class="fav-btn ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav('${item.id}')">${isFav ? '❤️' : '🤍'}</button>
-                    </div>
-                    <div class="card-info">
-                        <div>
-                            <span class="tag ${item.type === 'sell' ? 'tag-sell' : 'tag-buy'}">${item.type === 'sell' ? '卖' : '买'}</span>
-                            <span class="card-name">${item.name}</span>
-                        </div>
-                        <div class="card-meta">${item.series} · ${item.rarity}</div>
-                        <div class="card-price">¥${item.price}</div>
-                    </div>
-                </div>
-            `}).join('');
-        }
-        
-        // 筛选系列
-        function filterSeries(series) {
-            currentFilter = series;
-            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            if (series === 'all') {
-                renderListings(allListings);
-            } else {
-                const filtered = allListings.filter(item => item.series === series);
-                renderListings(filtered);
-            }
-        }
-        
-        // 搜索
-        function searchCards() {
-            const keyword = document.getElementById('searchInput').value.toLowerCase();
-            if (!keyword) {
-                renderListings(allListings);
-                return;
-            }
-            
-            const filtered = allListings.filter(item => 
-                item.name.toLowerCase().includes(keyword) ||
-                item.series.toLowerCase().includes(keyword)
-            );
-            renderListings(filtered);
-        }
-        
-        // 查看详情
-        function viewDetail(id) {
-            window.location.href = 'card-detail.html?id=' + id;
-        }
-        
-        // 收藏/取消收藏
+
+        // ===== Card Actions =====
+        function viewDetail(id) { window.location.href = 'card-detail.html?id=' + id; }
         async function toggleFav(cardId) {
-            if (!currentUser) {
-                alert('请先登录');
-                window.location.href = 'login.html';
-                return;
-            }
-            
+            if (!currentUser) { alert(t('fav_login')); window.location.href = 'login.html'; return; }
             if (favorites.has(cardId)) {
                 await db.from('favorites').delete().eq('user_id', currentUser.id).eq('card_id', cardId);
                 favorites.delete(cardId);
@@ -599,13 +812,41 @@
                 await db.from('favorites').insert({ user_id: currentUser.id, card_id: cardId });
                 favorites.add(cardId);
             }
-            
-            renderListings(currentFilter === 'all' ? allListings : allListings.filter(item => item.series === currentFilter));
+            applyAllFilters();
         }
-        
-        // 交易须知
-        function showTip() {
-            alert('💡 交易须知\n\n1. 建议使用平台消息沟通\n2. 确认卡牌状态后再付款\n3. 保留交易记录以便维权\n4. 警惕虚假信息和诈骗\n\n祝您交易愉快！');
+
+        // ===== Init =====
+        (async function() {
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
+            applyLanguage();
+
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            if (currentUser) {
+                const { data: favData } = await db.from('favorites').select('card_id').eq('user_id', currentUser.id);
+                if (favData) favData.forEach(f => favorites.add(f.card_id));
+            }
+            loadListings();
+        })();
+
+        async function loadListings() {
+            const list = document.getElementById('cardList');
+            const { data, error } = await db
+                .from('market_listings')
+                .select('*')
+                .eq('status', 'active')
+                .order('created_at', { ascending: false });
+            if (error) {
+                list.innerHTML = '<div class="empty-state"><div class="empty-title">' + t('load_failed') + '</div></div>';
+                return;
+            }
+            allListings = data || [];
+            applyAllFilters();
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
         }
     </script>
 </body>
