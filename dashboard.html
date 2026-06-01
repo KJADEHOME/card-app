@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>数据看板 - 卡域 Card Realm</title>
+    <meta name="description" content="卡牌市场数据看板 - 涨跌排行、热门搜索、价格趋势">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #5B4AE0;
+            --primary-light: #F0EDFF;
+            --primary-dark: #4438B0;
+            --bg: #f5f5f5;
+            --white: #fff;
+            --text: #1a1a1a;
+            --text-secondary: #888;
+            --border: #eee;
+            --rise: #e74c3c;
+            --fall: #27ae60;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --radius: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            padding-bottom: 80px;
+            -webkit-tap-highlight-color: transparent;
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--white);
+            padding: 12px 16px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-back {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg);
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .header-title { font-size: 17px; font-weight: 700; }
+        .header-category {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Content */
+        .content { max-width: 560px; margin: 0 auto; padding: 12px 16px; }
+
+        /* Market Overview Cards */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .overview-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px 10px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        .overview-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .overview-num {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .overview-num.rise { color: var(--rise); }
+        .overview-num.fall { color: var(--fall); }
+        .overview-num.vol { color: var(--primary); }
+        .overview-change {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .overview-change.rise { color: var(--rise); }
+        .overview-change.fall { color: var(--fall); }
+        .overview-change.vol { color: var(--primary); }
+
+        /* Section Title */
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 20px 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .section-title span { display: flex; align-items: center; gap: 6px; }
+        .section-more {
+            font-size: 12px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Rankings */
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .ranking-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+        }
+        .ranking-header {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .ranking-header.rise { color: var(--rise); border-bottom-color: rgba(231,76,60,0.15); }
+        .ranking-header.fall { color: var(--fall); border-bottom-color: rgba(39,174,96,0.15); }
+
+        .rank-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f8f8;
+        }
+        .rank-item:last-child { border-bottom: none; }
+        .rank-num {
+            width: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .rank-num.top { color: #F5A623; }
+        .rank-info {
+            flex: 1;
+            margin-left: 8px;
+            min-width: 0;
+        }
+        .rank-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .rank-tag {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        .rank-pct {
+            font-size: 13px;
+            font-weight: 700;
+            text-align: right;
+            min-width: 56px;
+        }
+        .rank-pct.rise { color: var(--rise); }
+        .rank-pct.fall { color: var(--fall); }
+
+        /* Hot Keywords */
+        .keywords-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+        }
+        .keyword-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f8f8f8;
+        }
+        .keyword-item:last-child { border-bottom: none; }
+        .keyword-rank {
+            width: 24px; height: 24px;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700;
+            color: var(--text-secondary);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+        .keyword-rank.top { background: linear-gradient(135deg, #F5A623 0%, #FF8C00 100%); color: white; }
+        .keyword-text {
+            flex: 1;
+            margin-left: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .keyword-trend {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--rise);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        /* Price Chart Section (placeholder for card detail page) */
+        .chart-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+            margin-top: 12px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .chart-title { font-size: 14px; font-weight: 700; }
+        .chart-tabs {
+            display: flex;
+            gap: 4px;
+        }
+        .chart-tab {
+            padding: 4px 10px;
+            border: none;
+            background: var(--bg);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        .chart-tab.active { background: var(--primary); color: white; }
+        .chart-area {
+            height: 160px;
+            background: linear-gradient(180deg, var(--primary-light) 0%, transparent 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 10px 6px;
+            position: relative;
+        }
+        .chart-bar {
+            width: 8px;
+            background: var(--primary);
+            border-radius: 4px 4px 0 0;
+            opacity: 0.7;
+            transition: all 0.3s;
+        }
+        .chart-bar:hover { opacity: 1; }
+
+        /* Bottom Nav */
+        .nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--white); display: flex;
+            justify-content: space-around; align-items: center;
+            padding: 8px 0 env(safe-area-inset-bottom, 8px) 0;
+            box-shadow: 0 -1px 0 rgba(0,0,0,0.06); z-index: 50;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            text-decoration: none; color: var(--text-secondary); font-size: 11px;
+            padding: 4px 12px; border-radius: 12px; transition: all 0.2s;
+        }
+        .nav-icon { font-size: 22px; }
+        .nav-item.active { color: var(--primary); font-weight: 600; }
+
+        /* Skeleton Loading */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Notice */
+        .notice {
+            background: #FFF8E1;
+            border: 1px solid #FFE082;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #F57F17;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <a href="index.html" class="header-back">←</a>
+        <div class="header-title">📊 数据看板</div>
+        <div class="header-category">
+            <span>⚡</span> 宝可梦 PTCG
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Notice -->
+        <div class="notice">
+            <span>📢</span> 价格数据每日 12:00 更新，目前为演示数据，仅供参考
+        </div>
+
+        <!-- Market Overview -->
+        <div class="overview-grid" id="overviewGrid">
+            <div class="overview-card">
+                <div class="overview-label">📈 涨幅卡牌</div>
+                <div class="overview-num rise" id="risingCount">--</div>
+                <div class="overview-change rise" id="risingChange">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">📉 跌幅卡牌</div>
+                <div class="overview-num fall" id="fallingCount">--</div>
+                <div class="overview-change fall" id="fallingChange">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">💰 成交量</div>
+                <div class="overview-num vol" id="volumeCount">--</div>
+                <div class="overview-change vol" id="volumeChange">--</div>
+            </div>
+        </div>
+
+        <!-- Daily Rankings -->
+        <div class="section-title">
+            <span>🔥 今日涨跌 TOP5</span>
+            <a href="#" class="section-more">查看完整排行 →</a>
+        </div>
+        <div class="ranking-row">
+            <div class="ranking-card">
+                <div class="ranking-header rise">📈 涨幅榜</div>
+                <div id="riseList"></div>
+            </div>
+            <div class="ranking-card">
+                <div class="ranking-header fall">📉 跌幅榜</div>
+                <div id="fallList"></div>
+            </div>
+        </div>
+
+        <!-- Hot Keywords -->
+        <div class="section-title">
+            <span>🔍 热门搜索关键词</span>
+            <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">更新于今日 12:00</span>
+        </div>
+        <div class="keywords-card" id="keywordsCard"></div>
+
+        <!-- Price Trend Chart (Demo) -->
+        <div class="section-title">
+            <span>📊 市场趋势</span>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">PTCG 市场平均价格走势</div>
+                <div class="chart-tabs">
+                    <button class="chart-tab" data-days="7">7天</button>
+                    <button class="chart-tab active" data-days="30">30天</button>
+                    <button class="chart-tab" data-days="90">90天</button>
+                </div>
+            </div>
+            <div class="chart-area" id="chartArea"></div>
+        </div>
+
+        <div style="height:40px;"></div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
+        <a href="dashboard.html" class="nav-item active"><span class="nav-icon">📊</span>看板</a>
+        <a href="publish.html" class="nav-item"><span class="nav-icon">+</span>发布</a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        // Demo data - will be replaced with real data from Supabase
+        const demoData = {
+            overview: {
+                rising: 128,
+                falling: 86,
+                volume: 2458,
+                risingChange: '+12.5%',
+                fallingChange: '-8.3%',
+                volumeChange: '+15.7%'
+            },
+            riseList: [
+                { name: '皮卡丘 ex SAR', tag: '超电突围', pct: '+23.6%' },
+                { name: '喷火龙 ex SAR', tag: '超电突围', pct: '+18.7%' },
+                { name: '伊布 大师球镜面', tag: '151', pct: '+15.2%' },
+                { name: '超梦 ex UR', tag: '超电突围', pct: '+12.1%' },
+                { name: '烈空坐 VMAX HR', tag: '古代咆哮', pct: '+10.3%' },
+            ],
+            fallList: [
+                { name: '水箭龟 ex SAR', tag: '超电突围', pct: '-12.4%' },
+                { name: '妙蛙花 ex SAR', tag: '超电突围', pct: '-9.8%' },
+                { name: '耿鬼 VMAX SA', tag: '黑夜漫步者', pct: '-8.7%' },
+                { name: '路卡利欧 VSTAR', tag: '时空激斗', pct: '-7.5%' },
+                { name: '坚盾剑怪 VMAX', tag: '极巨争锋', pct: '-6.1%' },
+            ],
+            keywords: [
+                { name: '皮卡丘', trend: '+35.2%' },
+                { name: '喷火龙', trend: '+28.7%' },
+                { name: '伊布', trend: '+18.9%' },
+                { name: '超梦', trend: '+12.4%' },
+                { name: '烈空坐', trend: '+11.3%' },
+                { name: '水箭龟', trend: '+9.6%' },
+                { name: '妙蛙花', trend: '+8.1%' },
+            ],
+            chart30: [45, 52, 48, 61, 55, 68, 72, 65, 78, 82, 75, 88, 92, 85, 98, 105, 95, 110, 115, 108, 120, 125, 118, 132, 128, 135, 142, 138, 145, 150]
+        };
+
+        function renderOverview() {
+            document.getElementById('risingCount').textContent = demoData.overview.rising;
+            document.getElementById('fallingCount').textContent = demoData.overview.falling;
+            document.getElementById('volumeCount').textContent = demoData.overview.volume.toLocaleString();
+            document.getElementById('risingChange').textContent = '较昨日 ' + demoData.overview.risingChange;
+            document.getElementById('fallingChange').textContent = '较昨日 ' + demoData.overview.fallingChange;
+            document.getElementById('volumeChange').textContent = '较昨日 ' + demoData.overview.volumeChange;
+        }
+
+        function renderRankList(list, containerId, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = list.map((item, i) => `
+                <div class="rank-item">
+                    <div class="rank-num ${i < 3 ? 'top' : ''}">${i + 1}</div>
+                    <div class="rank-info">
+                        <div class="rank-name">${item.name}</div>
+                        <div class="rank-tag">${item.tag}</div>
+                    </div>
+                    <div class="rank-pct ${type}">${item.pct}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderKeywords() {
+            const container = document.getElementById('keywordsCard');
+            container.innerHTML = demoData.keywords.map((kw, i) => `
+                <div class="keyword-item">
+                    <div class="keyword-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+                    <div class="keyword-text">${kw.name}</div>
+                    <div class="keyword-trend">↑ ${kw.trend}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderChart(data) {
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const range = max - min || 1;
+            const container = document.getElementById('chartArea');
+            container.innerHTML = data.map((v, i) => {
+                const height = ((v - min) / range * 120 + 20) + 'px';
+                return `<div class="chart-bar" style="height:${height}" title="${v}"></div>`;
+            }).join('');
+        }
+
+        // Chart tab switching
+        document.querySelectorAll('.chart-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                const days = parseInt(this.dataset.days);
+                // Demo: generate different data for different periods
+                if (days === 7) {
+                    renderChart([120, 125, 118, 132, 128, 135, 142]);
+                } else if (days === 90) {
+                    renderChart([30, 35, 42, 38, 45, 52, 48, 55, 62, 58, 65, 72, 68, 75, 82, 78, 85, 92, 88, 95, 102, 98, 105, 112, 108, 115, 122, 118, 125, 132, 128, 135, 142, 138, 145, 150, 148, 155, 160, 158, 165, 170, 168, 175, 180]);
+                } else {
+                    renderChart(demoData.chart30);
+                }
+            });
+        });
+
+        // Try to load real data from Supabase
+        async function loadRealData() {
+            try {
+                // Try to get daily stats
+                const { data: stats } = await db
+                    .from('daily_market_stats')
+                    .select('*')
+                    .eq('category', 'pokemon')
+                    .order('date', { ascending: false })
+                    .limit(2);
+
+                if (stats && stats.length > 0) {
+                    const today = stats[0];
+                    document.getElementById('risingCount').textContent = today.rising_count;
+                    document.getElementById('fallingCount').textContent = today.falling_count;
+                    document.getElementById('volumeCount').textContent = today.total_volume?.toLocaleString() || '--';
+                }
+
+                // Try to get price history for chart
+                const { data: prices } = await db
+                    .from('price_history')
+                    .select('*')
+                    .eq('card_category', 'pokemon')
+                    .order('date', { ascending: true })
+                    .limit(30);
+
+                if (prices && prices.length >= 7) {
+                    const chartData = prices.map(p => parseFloat(p.price_mid) || 0).filter(v => v > 0);
+                    if (chartData.length >= 7) renderChart(chartData);
+                }
+            } catch (e) {
+                console.log('Real data not available yet, using demo data');
+            }
+        }
+
+        // Init
+        renderOverview();
+        renderRankList(demoData.riseList, 'riseList', 'rise');
+        renderRankList(demoData.fallList, 'fallList', 'fall');
+        renderKeywords();
+        renderChart(demoData.chart30);
+        loadRealData();
+    </script>
+</body>
+</html>
