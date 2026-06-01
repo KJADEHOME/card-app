@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#5B4AE0">
+    <title>发布寄售 - 卡域</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #F7F8FC; min-height: 100vh; padding-bottom: 80px; }
+        
+        .header { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); color: white; padding: 16px 20px; position: sticky; top: 0; z-index: 100; }
+        .header-title { font-size: 18px; font-weight: 700; }
+        .header-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+        
+        .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+        
+        .section { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .section-title { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section-title .icon { font-size: 18px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block; }
+        .form-label .required { color: #E74C3C; margin-left: 2px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 12px 14px; border: 1.5px solid #E8E8F0; border-radius: 12px;
+            font-size: 15px; background: #FAFAFF; transition: all 0.2s; outline: none;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: #5B4AE0; background: white; }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23999' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+        
+        .photo-upload { 
+            border: 2px dashed #C8C8E0; border-radius: 16px; padding: 32px 20px; text-align: center; 
+            cursor: pointer; transition: all 0.2s; background: #FAFAFF;
+        }
+        .photo-upload:hover { border-color: #5B4AE0; background: #F5F3FF; }
+        .photo-upload.has-photo { border-style: solid; border-color: #5B4AE0; padding: 8px; }
+        .photo-upload .upload-icon { font-size: 40px; margin-bottom: 8px; }
+        .photo-upload .upload-text { font-size: 14px; color: #888; }
+        .photo-upload .upload-hint { font-size: 11px; color: #AAA; margin-top: 4px; }
+        .photo-upload img { max-width: 100%; border-radius: 12px; display: block; }
+        
+        .condition-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .condition-option { 
+            padding: 10px 6px; border: 2px solid #E8E8F0; border-radius: 12px; text-align: center; 
+            cursor: pointer; transition: all 0.2s; font-size: 13px; background: white;
+        }
+        .condition-option .condition-label { font-weight: 600; color: #333; }
+        .condition-option .condition-desc { font-size: 10px; color: #999; margin-top: 2px; }
+        .condition-option.selected { border-color: #5B4AE0; background: #F5F3FF; }
+        .condition-option.selected .condition-label { color: #5B4AE0; }
+        
+        .price-row { display: flex; align-items: center; gap: 10px; }
+        .price-symbol { font-size: 20px; font-weight: 700; color: #5B4AE0; }
+        .price-input { flex: 1; font-size: 24px; font-weight: 700; color: #1a1a2e; padding: 12px; }
+        
+        .fee-preview { background: linear-gradient(135deg, #FFF8F0 0%, #FFF0E0 100%); border-radius: 12px; padding: 16px; margin-top: 16px; }
+        .fee-preview-title { font-size: 13px; font-weight: 700; color: #D4880F; margin-bottom: 12px; }
+        .fee-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+        .fee-line .fee-label { color: #666; }
+        .fee-line .fee-value { font-weight: 600; color: #333; }
+        .fee-line.earnings { border-top: 1px dashed #E8D0B0; padding-top: 10px; margin-top: 10px; }
+        .fee-line.earnings .fee-value { color: #27AE60; font-size: 18px; font-weight: 700; }
+        
+        .tags-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag-chip { 
+            padding: 6px 14px; border-radius: 20px; border: 1.5px solid #E8E8F0; 
+            font-size: 12px; cursor: pointer; transition: all 0.2s; background: white;
+        }
+        .tag-chip.selected { border-color: #5B4AE0; background: #F5F3FF; color: #5B4AE0; font-weight: 600; }
+        
+        .submit-btn { 
+            width: 100%; padding: 16px; border: none; border-radius: 16px; 
+            background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); color: white;
+            font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px;
+            box-shadow: 0 8px 24px rgba(91,74,224,0.35); transition: all 0.2s;
+        }
+        .submit-btn:active { transform: scale(0.98); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .agreement { text-align: center; font-size: 11px; color: #999; margin-top: 12px; }
+        .agreement a { color: #5B4AE0; }
+        
+        /* Nav */
+        .nav { 
+            position: fixed; bottom: 0; left: 0; right: 0; background: white; 
+            display: flex; justify-content: space-around; padding: 8px 0 16px; 
+            box-shadow: 0 -2px 20px rgba(0,0,0,0.08); z-index: 100;
+        }
+        .nav-item { text-decoration: none; color: #999; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 12px; }
+        .nav-item .nav-icon { font-size: 22px; }
+        .nav-item.active { color: #5B4AE0; }
+        
+        .loading-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; 
+            align-items: center; justify-content: center; z-index: 200; flex-direction: column; gap: 12px;
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: white; font-size: 14px; }
+        
+        .toast { 
+            position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); 
+            background: #333; color: white; padding: 12px 24px; border-radius: 12px; 
+            font-size: 14px; opacity: 0; transition: all 0.3s; z-index: 300; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">📦 发布寄售</div>
+        <div class="header-sub">上传卡牌 → 定价 → 坐等买家</div>
+    </div>
+    
+    <div class="container">
+        <!-- 卡牌照片 -->
+        <div class="section">
+            <div class="section-title"><span class="icon">📸</span> 卡牌照片 <span style="font-size:12px;color:#999;font-weight:400;">（正面清晰照片，建议自然光）</span></div>
+            <div class="photo-upload" id="photoUpload" onclick="document.getElementById('cardPhoto').click()">
+                <div class="upload-content">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">点击上传卡牌照片</div>
+                    <div class="upload-hint">支持 JPG、PNG，最大 10MB</div>
+                </div>
+            </div>
+            <input type="file" id="cardPhoto" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+        </div>
+        
+        <!-- 卡牌信息 -->
+        <div class="section">
+            <div class="section-title"><span class="icon">🃏</span> 卡牌信息</div>
+            
+            <div class="form-group">
+                <label class="form-label">卡牌名称 <span class="required">*</span></label>
+                <input type="text" class="form-input" id="cardName" placeholder="例如：喷火龙 VMAX">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">系列 / 版本</label>
+                <input type="text" class="form-input" id="cardSeries" placeholder="例如：剑&盾 极巨争锋">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">稀有度</label>
+                <select class="form-select" id="cardRarity">
+                    <option value="">选择稀有度</option>
+                    <option value="C">C - 普通</option>
+                    <option value="U">U - 非普通</option>
+                    <option value="R">R - 稀有</option>
+                    <option value="RR">RR - 双稀有</option>
+                    <option value="SR">SR - 超级稀有</option>
+                    <option value="SSR">SSR - 特级超级稀有</option>
+                    <option value="HR">HR - 全息稀有</option>
+                    <option value="UR">UR - 究极稀有</option>
+                    <option value="SEC">SEC - 秘密稀有</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">卡牌品类</label>
+                <select class="form-select" id="cardCategory">
+                    <option value="pokemon">宝可梦 PTCG</option>
+                    <option value="yugioh">游戏王 YGO</option>
+                    <option value="magic">万智牌 MTG</option>
+                    <option value="onepiece">海贼王 OPCG</option>
+                    <option value="lorcana">Lorcana</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">品相 <span class="required">*</span></label>
+                <div class="condition-grid" id="conditionGrid">
+                    <div class="condition-option" data-value="M" onclick="selectCondition(this)">
+                        <div class="condition-label">M</div>
+                        <div class="condition-desc">完美</div>
+                    </div>
+                    <div class="condition-option selected" data-value="NM" onclick="selectCondition(this)">
+                        <div class="condition-label">NM</div>
+                        <div class="condition-desc">近新</div>
+                    </div>
+                    <div class="condition-option" data-value="LP" onclick="selectCondition(this)">
+                        <div class="condition-label">LP</div>
+                        <div class="condition-desc">轻损</div>
+                    </div>
+                    <div class="condition-option" data-value="MP" onclick="selectCondition(this)">
+                        <div class="condition-label">MP</div>
+                        <div class="condition-desc">中损</div>
+                    </div>
+                    <div class="condition-option" data-value="HP" onclick="selectCondition(this)">
+                        <div class="condition-label">HP</div>
+                        <div class="condition-desc">重损</div>
+                    </div>
+                    <div class="condition-option" data-value="D" onclick="selectCondition(this)">
+                        <div class="condition-label">D</div>
+                        <div class="condition-desc">损坏</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 定价 -->
+        <div class="section">
+            <div class="section-title"><span class="icon">💰</span> 定价</div>
+            
+            <div class="form-group">
+                <label class="form-label">售价 <span class="required">*</span></label>
+                <div class="price-row">
+                    <span class="price-symbol">¥</span>
+                    <input type="number" class="form-input price-input" id="askingPrice" placeholder="0.00" min="1" step="0.01" oninput="updateFeePreview()">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">运费</label>
+                <select class="form-select" id="shippingFee" onchange="updateFeePreview()">
+                    <option value="0">包邮（卖家承担）</option>
+                    <option value="12" selected>买家承担 ¥12</option>
+                    <option value="15">买家承担 ¥15（偏远）</option>
+                    <option value="20">买家承担 ¥20（顺丰）</option>
+                </select>
+            </div>
+            
+            <div class="fee-preview" id="feePreview">
+                <div class="fee-preview-title">💡 手续费预览（平台抽成 8%）</div>
+                <div class="fee-line">
+                    <span class="fee-label">卡牌售价</span>
+                    <span class="fee-value" id="previewPrice">¥0.00</span>
+                </div>
+                <div class="fee-line">
+                    <span class="fee-label">平台手续费 (8%)</span>
+                    <span class="fee-value" id="previewFee" style="color:#E74C3C;">-¥0.00</span>
+                </div>
+                <div class="fee-line">
+                    <span class="fee-label">运费</span>
+                    <span class="fee-value" id="previewShipping">¥12（买家付）</span>
+                </div>
+                <div class="fee-line earnings">
+                    <span class="fee-label">你实际到手</span>
+                    <span class="fee-value" id="previewEarnings">¥0.00</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 描述 -->
+        <div class="section">
+            <div class="section-title"><span class="icon">📝</span> 详细描述</div>
+            <textarea class="form-textarea" id="cardDescription" placeholder="描述卡牌状况、版本差异、瑕疵位置等，让买家更放心..."></textarea>
+            
+            <div class="form-group" style="margin-top:16px;">
+                <label class="form-label">标签（多选，帮助买家发现）</label>
+                <div class="tags-grid" id="tagsGrid">
+                    <span class="tag-chip" onclick="toggleTag(this)">🔥 热门</span>
+                    <span class="tag-chip" onclick="toggleTag(this)">✨ 闪卡</span>
+                    <span class="tag-chip" onclick="toggleTag(this)">🎨 异画</span>
+                    <span class="tag-chip" onclick="toggleTag(this)">📦 原盒</span>
+                    <span class="tag-chip" onclick="toggleTag(this)">🏆 冠军</span>
+                    <span class="tag-chip" onclick="toggleTag(this)">🎁 附赠</span>
+                </div>
+            </div>
+        </div>
+        
+        <button class="submit-btn" id="submitBtn" onclick="submitConsignment()">🚀 立即发布寄售</button>
+        
+        <p class="agreement">发布即表示同意 <a href="#">《卡域寄售协议》</a> 和 <a href="#">《交易规则》</a></p>
+    </div>
+    
+    <!-- Nav -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span>看板</a>
+        <a href="community.html" class="nav-item"><span class="nav-icon">🌍</span>社区</a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
+    </div>
+    
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在发布...</div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let selectedCondition = 'NM';
+        let uploadedPhotoUrl = '';
+        const PLATFORM_FEE_PCT = 8;
+        
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+        
+        function handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('图片太大，请压缩后重试');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                uploadedPhotoUrl = ev.target.result;
+                const uploadDiv = document.getElementById('photoUpload');
+                uploadDiv.innerHTML = `<img src="${uploadedPhotoUrl}" alt="卡牌照片">`;
+                uploadDiv.classList.add('has-photo');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function selectCondition(el) {
+            document.querySelectorAll('.condition-option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedCondition = el.dataset.value;
+        }
+        
+        function toggleTag(el) {
+            el.classList.toggle('selected');
+        }
+        
+        function updateFeePreview() {
+            const price = parseFloat(document.getElementById('askingPrice').value) || 0;
+            const shipping = parseInt(document.getElementById('shippingFee').value) || 0;
+            const fee = price * PLATFORM_FEE_PCT / 100;
+            const earnings = price - fee;
+            
+            document.getElementById('previewPrice').textContent = `¥${price.toFixed(2)}`;
+            document.getElementById('previewFee').textContent = `-¥${fee.toFixed(2)}`;
+            document.getElementById('previewShipping').textContent = shipping > 0 ? `¥${shipping}（买家付）` : '包邮（卖家承担）';
+            document.getElementById('previewEarnings').textContent = `¥${earnings.toFixed(2)}`;
+        }
+        
+        async function submitConsignment() {
+            const name = document.getElementById('cardName').value.trim();
+            const price = parseFloat(document.getElementById('askingPrice').value);
+            
+            if (!name) { showToast('请填写卡牌名称'); return; }
+            if (!price || price <= 0) { showToast('请填写售价'); return; }
+            if (!uploadedPhotoUrl) { showToast('请上传卡牌照片'); return; }
+            
+            const { data: { session } } = await db.auth.getSession();
+            if (!session) {
+                showToast('请先登录');
+                setTimeout(() => location.href = 'login.html', 1500);
+                return;
+            }
+            
+            document.getElementById('loadingOverlay').classList.add('show');
+            
+            try {
+                // Upload photo to Supabase Storage
+                const photoFile = document.getElementById('cardPhoto').files[0];
+                let cardImageUrl = uploadedPhotoUrl;
+                
+                if (photoFile) {
+                    const fileExt = photoFile.name.split('.').pop();
+                    const filePath = `consignments/${session.user.id}/${Date.now()}.${fileExt}`;
+                    const { data: uploadData, error: uploadErr } = await db.storage
+                        .from('card-images')
+                        .upload(filePath, photoFile, { upsert: true });
+                    
+                    if (uploadErr) throw uploadErr;
+                    const { data: { publicUrl } } = db.storage.from('card-images').getPublicUrl(filePath);
+                    cardImageUrl = publicUrl;
+                }
+                
+                const tags = Array.from(document.querySelectorAll('.tag-chip.selected')).map(t => t.textContent);
+                
+                const { data, error } = await db.from('consignments').insert([{
+                    seller_id: session.user.id,
+                    card_name: name,
+                    card_name_en: document.getElementById('cardName').value.trim(),
+                    card_image: cardImageUrl,
+                    series: document.getElementById('cardSeries').value.trim(),
+                    rarity: document.getElementById('cardRarity').value,
+                    card_category: document.getElementById('cardCategory').value,
+                    condition: selectedCondition,
+                    asking_price: price,
+                    currency: 'CNY',
+                    platform_fee_pct: PLATFORM_FEE_PCT,
+                    shipping_fee: parseInt(document.getElementById('shippingFee').value) || 0,
+                    description: document.getElementById('cardDescription').value.trim(),
+                    tags: tags,
+                    status: 'active'
+                }]).select();
+                
+                if (error) throw error;
+                
+                showToast('✅ 寄售发布成功！');
+                setTimeout(() => location.href = 'market.html', 1500);
+            } catch (err) {
+                console.error(err);
+                showToast('发布失败：' + (err.message || '请重试'));
+            } finally {
+                document.getElementById('loadingOverlay').classList.remove('show');
+            }
+        }
+        
+        // Init
+        updateFeePreview();
+    </script>
+</body>
+</html>
