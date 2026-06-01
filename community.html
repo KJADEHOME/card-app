@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>社区 - 卡域 Card Realm</title>
+    <meta name="description" content="分享你的卡牌收藏，参与讨论，发现热门卡牌">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #5B4AE0;
+            --primary-light: #F0EDFF;
+            --primary-dark: #4438B0;
+            --bg: #f5f5f5;
+            --white: #fff;
+            --text: #1a1a1a;
+            --text-secondary: #888;
+            --border: #eee;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --radius: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            padding-bottom: 80px;
+            -webkit-tap-highlight-color: transparent;
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--white);
+            padding: 12px 16px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-title { font-size: 17px; font-weight: 700; }
+        .header-actions { display: flex; gap: 8px; }
+        .header-btn {
+            background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--white);
+            padding: 0 16px;
+            gap: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab {
+            padding: 12px 4px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Content */
+        .content { max-width: 560px; margin: 0 auto; padding: 12px 16px; }
+
+        /* Trending Banner */
+        .trending-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: var(--radius);
+            padding: 16px;
+            color: white;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .trending-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .trending-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+        .trending-item {
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 10px 12px;
+            min-width: 100px;
+            text-align: center;
+        }
+        .trending-rank { font-size: 18px; font-weight: 800; margin-bottom: 2px; }
+        .trending-name { font-size: 12px; font-weight: 600; white-space: nowrap; }
+        .trending-count { font-size: 10px; opacity: 0.7; margin-top: 2px; }
+
+        /* Post Card */
+        .post-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .post-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 14px; font-weight: 700;
+        }
+        .post-meta { flex: 1; }
+        .post-author { font-size: 14px; font-weight: 700; }
+        .post-time { font-size: 11px; color: var(--text-secondary); }
+        .post-note { font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+        .post-card-image {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            background: #f8f8f8;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+        }
+        .post-info {
+            background: var(--primary-light);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+        }
+        .post-info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+        .post-info-row + .post-info-row { margin-top: 4px; }
+        .post-info-label { color: var(--text-secondary); }
+        .post-info-value { font-weight: 700; color: var(--primary); }
+
+        /* Post Actions */
+        .post-actions {
+            display: flex;
+            gap: 16px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+        .post-action {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background: none; border: none;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .post-action:hover { background: var(--bg); }
+        .post-action.liked { color: #e74c3c; }
+        .post-action .icon { font-size: 16px; }
+
+        /* Bottom Nav */
+        .nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--white); display: flex;
+            justify-content: space-around; align-items: center;
+            padding: 8px 0 env(safe-area-inset-bottom, 8px) 0;
+            box-shadow: 0 -1px 0 rgba(0,0,0,0.06); z-index: 50;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            text-decoration: none; color: var(--text-secondary); font-size: 11px;
+            padding: 4px 12px; border-radius: 12px; transition: all 0.2s;
+        }
+        .nav-icon { font-size: 22px; }
+        .nav-item.active { color: var(--primary); font-weight: 600; }
+
+        /* Share Modal */
+        .share-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            justify-content: center; align-items: flex-end;
+        }
+        .share-modal.show { display: flex; }
+        .share-sheet {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            width: 100%; max-width: 560px;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .share-title { font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 16px; }
+        .share-options { display: flex; gap: 20px; justify-content: center; }
+        .share-option {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            cursor: pointer; background: none; border: none;
+        }
+        .share-icon {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+        }
+        .share-label { font-size: 12px; color: var(--text-secondary); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+        }
+        .empty-icon { font-size: 64px; margin-bottom: 12px; }
+        .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .empty-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 20px; }
+        .empty-btn {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%);
+            color: white;
+            border-radius: 24px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-title">🌍 卡牌社区</div>
+        <div class="header-actions">
+            <a href="index.html" class="header-btn">📷 识卡分享</a>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" data-tab="feed">动态</div>
+        <div class="tab" data-tab="trending">🔥 热门</div>
+        <div class="tab" data-tab="mine">我的</div>
+    </div>
+
+    <div class="content">
+        <!-- Trending Banner -->
+        <div class="trending-banner" id="trendingBanner">
+            <div class="trending-title">🔥 大家都在扫</div>
+            <div class="trending-list" id="trendingList">
+                <div class="trending-item">
+                    <div class="trending-rank">1</div>
+                    <div class="trending-name">皮卡丘 ex</div>
+                    <div class="trending-count">128次</div>
+                </div>
+                <div class="trending-item">
+                    <div class="trending-rank">2</div>
+                    <div class="trending-name">喷火龙 ex</div>
+                    <div class="trending-count">96次</div>
+                </div>
+                <div class="trending-item">
+                    <div class="trending-rank">3</div>
+                    <div class="trending-name">伊布 SAR</div>
+                    <div class="trending-count">84次</div>
+                </div>
+                <div class="trending-item">
+                    <div class="trending-rank">4</div>
+                    <div class="trending-name">超梦 UR</div>
+                    <div class="trending-count">72次</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Posts Feed -->
+        <div id="postsFeed"></div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-icon">📸</div>
+            <div class="empty-title">还没有分享</div>
+            <div class="empty-desc">
+                用 AI 扫描你的第一张卡牌<br>
+                分享估价结果，和大家一起讨论
+            </div>
+            <a href="index.html" class="empty-btn">去识卡分享</a>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="share-modal" id="shareModal" onclick="closeShare(event)">
+        <div class="share-sheet">
+            <div class="share-title">分享到</div>
+            <div class="share-options">
+                <button class="share-option" onclick="shareTo('wechat')">
+                    <div class="share-icon" style="background:#07C160;color:white;">💬</div>
+                    <div class="share-label">微信</div>
+                </button>
+                <button class="share-option" onclick="shareTo('qq')">
+                    <div class="share-icon" style="background:#12B7F5;color:white;">Q</div>
+                    <div class="share-label">QQ</div>
+                </button>
+                <button class="share-option" onclick="shareTo('copy')">
+                    <div class="share-icon" style="background:var(--primary);color:white;">🔗</div>
+                    <div class="share-label">复制链接</div>
+                </button>
+                <button class="share-option" onclick="shareTo('save')">
+                    <div class="share-icon" style="background:#FF8C00;color:white;">💾</div>
+                    <div class="share-label">保存图片</div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span>看板</a>
+        <a href="community.html" class="nav-item active"><span class="nav-icon">🌍</span>社区</a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        let currentUser = null;
+        let currentTab = 'feed';
+        let likedPosts = new Set();
+
+        // Demo posts data
+        const demoPosts = [
+            {
+                id: 'demo-1',
+                author: '卡牌收藏家小王',
+                avatar: '王',
+                time: '10分钟前',
+                note: '今天收到的皮卡丘 ex SAR，入手价580，AI估价比入手价高了快200！大家觉得现在适合出吗？🤔',
+                card_image: null,
+                card_name: '皮卡丘 ex SAR',
+                series: '超电突围',
+                rarity: 'SAR',
+                estimated_price: 780,
+                purchase_price: 580,
+                likes: 23,
+                comments: 8,
+            },
+            {
+                id: 'demo-2',
+                author: 'PTCG老司机',
+                avatar: '老',
+                time: '2小时前',
+                note: '这张喷火龙的品相 NM 级别，入手420，今天涨了18%！📈',
+                card_image: null,
+                card_name: '喷火龙 ex SAR',
+                series: '超电突围',
+                rarity: 'SAR',
+                estimated_price: 498,
+                purchase_price: 420,
+                likes: 45,
+                comments: 12,
+            },
+            {
+                id: 'demo-3',
+                author: '宝可梦萌新',
+                avatar: '萌',
+                time: '5小时前',
+                note: '第一次用AI识卡，好神奇！这是我在卡店淘到的伊布大师球镜面卡 ✨',
+                card_image: null,
+                card_name: '伊布 大师球镜面',
+                series: '151',
+                rarity: 'AR',
+                estimated_price: 210,
+                purchase_price: 180,
+                likes: 67,
+                comments: 15,
+            }
+        ];
+
+        async function init() {
+            const { data: { session } } = await db.auth.getSession();
+            if (session) currentUser = session.user;
+
+            // Load real posts or demo
+            await loadPosts();
+        }
+
+        async function loadPosts() {
+            try {
+                const { data: posts, error } = await db
+                    .from('community_posts')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (error) throw error;
+
+                if (!posts || posts.length === 0) {
+                    renderPosts(demoPosts);
+                } else {
+                    renderPosts(posts);
+                }
+            } catch (e) {
+                console.log('Using demo posts');
+                renderPosts(demoPosts);
+            }
+        }
+
+        function renderPosts(posts) {
+            const container = document.getElementById('postsFeed');
+            if (!posts || posts.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+            document.getElementById('emptyState').style.display = 'none';
+
+            container.innerHTML = posts.map(post => {
+                const profit = post.estimated_price - (post.purchase_price || post.estimated_price);
+                const profitPct = post.purchase_price ? ((profit / post.purchase_price) * 100).toFixed(1) : 0;
+                const isRise = profit >= 0;
+                const avatar = post.avatar || (post.author ? post.author[0] : '卡');
+                const name = post.author || '匿名玩家';
+
+                return `
+                    <div class="post-card" data-post-id="${post.id}">
+                        <div class="post-header">
+                            <div class="post-avatar">${avatar}</div>
+                            <div class="post-meta">
+                                <div class="post-author">${name}</div>
+                                <div class="post-time">${post.time || formatTime(post.created_at)}</div>
+                            </div>
+                        </div>
+                        <div class="post-note">${post.note || ''}</div>
+                        ${post.card_image ? `<img class="post-card-image" src="${post.card_image}" alt="card">` : ''}
+                        <div class="post-info">
+                            <div class="post-info-row">
+                                <span class="post-info-label">🎴 ${post.card_name || '未知卡牌'}</span>
+                                <span class="post-info-value">${post.series || ''} · ${post.rarity || ''}</span>
+                            </div>
+                            <div class="post-info-row">
+                                <span class="post-info-label">💰 AI估价</span>
+                                <span class="post-info-value">¥${(post.estimated_price || 0).toLocaleString()}</span>
+                            </div>
+                            ${post.purchase_price ? `
+                            <div class="post-info-row">
+                                <span class="post-info-label">📈 盈亏</span>
+                                <span class="post-info-value" style="color:${isRise ? '#e74c3c' : '#27ae60'}">
+                                    ${isRise ? '+' : ''}${profit.toLocaleString()} (${isRise ? '+' : ''}${profitPct}%)
+                                </span>
+                            </div>` : ''}
+                        </div>
+                        <div class="post-actions">
+                            <button class="post-action ${likedPosts.has(post.id) ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                                <span class="icon">${likedPosts.has(post.id) ? '❤️' : '🤍'}</span>
+                                <span>${post.likes || 0}</span>
+                            </button>
+                            <button class="post-action" onclick="showComments('${post.id}')">
+                                <span class="icon">💬</span>
+                                <span>${post.comments || 0}</span>
+                            </button>
+                            <button class="post-action" onclick="openShare('${post.id}')">
+                                <span class="icon">↗️</span>
+                                <span>分享</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '刚刚';
+            const d = new Date(ts);
+            const now = new Date();
+            const diff = (now - d) / 1000;
+            if (diff < 60) return '刚刚';
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+            return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+        }
+
+        async function toggleLike(postId) {
+            if (!currentUser) {
+                alert('请先登录');
+                return;
+            }
+            if (likedPosts.has(postId)) {
+                likedPosts.delete(postId);
+            } else {
+                likedPosts.add(postId);
+            }
+            // Re-render is cheap for demo
+            loadPosts();
+        }
+
+        function showComments(postId) {
+            alert('评论功能开发中，敬请期待！');
+        }
+
+        function openShare(postId) {
+            document.getElementById('shareModal').classList.add('show');
+        }
+
+        function closeShare(e) {
+            if (e.target.id === 'shareModal') {
+                document.getElementById('shareModal').classList.remove('show');
+            }
+        }
+
+        function shareTo(type) {
+            if (type === 'copy') {
+                navigator.clipboard.writeText(window.location.href);
+                alert('链接已复制！');
+            } else if (type === 'save') {
+                alert('图片生成中...（后续实现）');
+            } else {
+                alert('分享功能开发中！');
+            }
+            document.getElementById('shareModal').classList.remove('show');
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentTab = this.dataset.tab;
+                // For demo, all tabs show same content
+                loadPosts();
+            });
+        });
+
+        init();
+    </script>
+</body>
+</html>

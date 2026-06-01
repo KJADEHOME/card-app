@@ -284,7 +284,7 @@
     <div class="nav">
         <a href="index.html" class="nav-item active"><span class="nav-icon">🔍</span><span data-i18n="nav_explore">Explore</span></a>
         <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span data-i18n="nav_dashboard">看板</span></a>
-        <a href="publish.html" class="nav-add">+</a>
+        <a href="community.html" class="nav-item"><span class="nav-icon">🌍</span><span>社区</span></a>
         <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Me</span></a>
     </div>
 
@@ -707,8 +707,8 @@
                     <div class="ai-result-actions">
                         <button class="ai-action-btn secondary" onclick="retakePhoto()">${t('ai_retry_btn')}</button>
                         <button class="ai-action-btn primary" onclick="confirmAndSearch()">${t('ai_search_btn')}</button>
-                        <button class="ai-action-btn" style="background: linear-gradient(135deg,#F5A623,#FF8C00);color:white;" onclick="addToCollection()">⭐ 加入收藏</button>
-                        <a href="publish.html?name=${encodeURIComponent(aiDetectedName)}&series=${encodeURIComponent(aiDetectedSeries)}&rarity=${encodeURIComponent(rarity)}" class="ai-action-btn danger" style="display:flex;align-items:center;justify-content:center;">${t('ai_publish_btn')}</a>
+                        <button class="ai-action-btn" style="background: linear-gradient(135deg,#F5A623,#FF8C00);color:white;" onclick="addToCollection()">⭐ 收藏</button>
+                        <button class="ai-action-btn" style="background: linear-gradient(135deg,#667eea,#764ba2);color:white;" onclick="shareToCommunity()">🌍 分享</button>
                     </div>`;
 
                 fetchCardPrice(aiDetectedName, aiDetectedSeries);
@@ -818,6 +818,40 @@
             } catch (err) {
                 console.error('Add to collection error:', err);
                 alert('添加失败：' + (err.message || '未知错误'));
+            }
+        }
+
+        async function shareToCommunity() {
+            const note = prompt(`分享「${aiDetectedName}」到社区\n\n写点什么（可选）：`, `刚用AI识卡扫出了${aiDetectedName}，大家看看这个估价怎么样？`);
+            if (note === null) return;
+
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) {
+                    alert('请先登录后再分享');
+                    return;
+                }
+
+                const { error } = await db.from('community_posts').insert([{
+                    user_id: session.user.id,
+                    card_name: aiDetectedName,
+                    card_name_en: aiDetectedName,
+                    series: aiDetectedSeries,
+                    rarity: aiDetectedRarity,
+                    card_image: aiPreviewUrl,
+                    estimated_price: aiDetectedPrice,
+                    estimated_currency: 'CNY',
+                    user_note: note,
+                    likes: 0,
+                    comments: 0
+                }]);
+
+                if (error) throw error;
+                alert('✅ 已分享到社区！去「社区」页面看看大家的讨论');
+                document.getElementById('aiResultPanel').classList.remove('show');
+            } catch (err) {
+                console.error('Share to community error:', err);
+                alert('分享失败：' + (err.message || '未知错误'));
             }
         }
 
