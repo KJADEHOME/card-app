@@ -450,6 +450,9 @@
         let favorites = new Set();
         let aiDetectedName = '';
         let aiDetectedSeries = '';
+        let aiDetectedRarity = '';
+        let aiDetectedPrice = 0;
+        let aiPreviewUrl = '';
         let cameraStream = null;
         let facingMode = 'environment';
 
@@ -679,7 +682,8 @@
                 const data = result.data || {};
                 aiDetectedName = data.name || t('unknown_card');
                 aiDetectedSeries = data.series || t('unknown_series');
-                const rarity = data.rarity || 'N';
+                aiDetectedRarity = data.rarity || 'N';
+                aiPreviewUrl = previewUrl || '';
                 const isRare = data.isRare === true;
 
                 // Render result with preview
@@ -703,6 +707,7 @@
                     <div class="ai-result-actions">
                         <button class="ai-action-btn secondary" onclick="retakePhoto()">${t('ai_retry_btn')}</button>
                         <button class="ai-action-btn primary" onclick="confirmAndSearch()">${t('ai_search_btn')}</button>
+                        <button class="ai-action-btn" style="background: linear-gradient(135deg,#F5A623,#FF8C00);color:white;" onclick="addToCollection()">⭐ 加入收藏</button>
                         <a href="publish.html?name=${encodeURIComponent(aiDetectedName)}&series=${encodeURIComponent(aiDetectedSeries)}&rarity=${encodeURIComponent(rarity)}" class="ai-action-btn danger" style="display:flex;align-items:center;justify-content:center;">${t('ai_publish_btn')}</a>
                     </div>`;
 
@@ -740,6 +745,7 @@
                 }
                 const d = result.data;
                 const mp = d.market_price;
+                aiDetectedPrice = mp || 0;
                 const cur = d.currency === 'CNY' ? '¥' : d.currency === 'EUR' ? '€' : '$';
                 let html = `<div class="ai-price-header">
                     <span class="ai-price-label">${t('ai_price_title')}</span>
@@ -772,6 +778,47 @@
                 applyAllFilters();
             }
             document.getElementById('aiResultPanel').classList.remove('show');
+        }
+
+        async function addToCollection() {
+            const price = prompt(`将「${aiDetectedName}」加入收藏夹\n\n请输入入手价（元）：`, '');
+            if (price === null) return;
+            const purchasePrice = parseFloat(price);
+            if (isNaN(purchasePrice) || purchasePrice <= 0) {
+                alert('请输入有效的价格');
+                return;
+            }
+
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) {
+                    alert('请先登录后再添加收藏');
+                    return;
+                }
+
+                const { error } = await db.from('user_collections').insert([{
+                    user_id: session.user.id,
+                    card_name: aiDetectedName,
+                    card_name_en: aiDetectedName,
+                    series: aiDetectedSeries,
+                    rarity: aiDetectedRarity,
+                    card_image: aiPreviewUrl,
+                    purchase_price: purchasePrice,
+                    purchase_currency: 'CNY',
+                    current_price: aiDetectedPrice || purchasePrice,
+                    current_currency: 'CNY',
+                    purchase_date: new Date().toISOString().split('T')[0],
+                    condition: 'NM',
+                    quantity: 1
+                }]);
+
+                if (error) throw error;
+                alert('✅ 已加入收藏夹！去「我的资产」查看升值情况');
+                document.getElementById('aiResultPanel').classList.remove('show');
+            } catch (err) {
+                console.error('Add to collection error:', err);
+                alert('添加失败：' + (err.message || '未知错误'));
+            }
         }
 
         function dismissResult() {

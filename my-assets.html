@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>我的资产 - 卡域 Card Realm</title>
+    <meta name="description" content="追踪你的卡牌收藏资产，查看升值情况和资产曲线">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #5B4AE0;
+            --primary-light: #F0EDFF;
+            --primary-dark: #4438B0;
+            --bg: #f5f5f5;
+            --white: #fff;
+            --text: #1a1a1a;
+            --text-secondary: #888;
+            --border: #eee;
+            --rise: #e74c3c;
+            --fall: #27ae60;
+            --success: #27ae60;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --radius: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            padding-bottom: 80px;
+            -webkit-tap-highlight-color: transparent;
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 50%, #9B8FF0 100%);
+            padding: 16px;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .header-back {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+        }
+        .header-title { font-size: 17px; font-weight: 700; }
+        .header-actions { margin-left: auto; display: flex; gap: 8px; }
+        .header-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* Portfolio Summary */
+        .portfolio-value {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .portfolio-label { font-size: 13px; opacity: 0.8; margin-bottom: 4px; }
+        .portfolio-num { font-size: 36px; font-weight: 800; letter-spacing: -0.5px; }
+        .portfolio-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        /* Stat Grid */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-label { font-size: 11px; opacity: 0.75; margin-bottom: 4px; }
+        .stat-value { font-size: 15px; font-weight: 700; }
+
+        /* Content */
+        .content { max-width: 560px; margin: 0 auto; padding: 12px 16px; }
+
+        /* Chart Card */
+        .chart-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .chart-title { font-size: 14px; font-weight: 700; }
+        .chart-tabs { display: flex; gap: 4px; }
+        .chart-tab {
+            padding: 4px 10px;
+            border: none;
+            background: var(--bg);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        .chart-tab.active { background: var(--primary); color: white; }
+        .chart-canvas {
+            height: 180px;
+            position: relative;
+        }
+        .chart-svg { width: 100%; height: 100%; }
+        .chart-tooltip {
+            position: absolute;
+            background: var(--text);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 16px 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .section-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Collection List */
+        .collection-list { display: flex; flex-direction: column; gap: 10px; }
+        .collection-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .collection-img {
+            width: 70px;
+            height: 98px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .collection-img img { width: 100%; height: 100%; object-fit: cover; }
+        .collection-info { flex: 1; min-width: 0; }
+        .collection-name {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .collection-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .collection-prices {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .price-block { text-align: left; }
+        .price-label { font-size: 10px; color: var(--text-secondary); }
+        .price-value { font-size: 14px; font-weight: 700; }
+        .price-value.current { color: var(--primary); }
+        .price-change {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .price-change.rise { color: var(--rise); background: rgba(231,76,60,0.08); }
+        .price-change.fall { color: var(--fall); background: rgba(39,174,96,0.08); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+        }
+        .empty-icon { font-size: 64px; margin-bottom: 12px; }
+        .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .empty-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 20px; }
+        .empty-btn {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%);
+            color: white;
+            border-radius: 24px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(91,74,224,0.3);
+        }
+
+        /* Bottom Nav */
+        .nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--white); display: flex;
+            justify-content: space-around; align-items: center;
+            padding: 8px 0 env(safe-area-inset-bottom, 8px) 0;
+            box-shadow: 0 -1px 0 rgba(0,0,0,0.06); z-index: 50;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            text-decoration: none; color: var(--text-secondary); font-size: 11px;
+            padding: 4px 12px; border-radius: 12px; transition: all 0.2s;
+        }
+        .nav-icon { font-size: 22px; }
+        .nav-item.active { color: var(--primary); font-weight: 600; }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+            background: var(--text); color: white; padding: 10px 20px;
+            border-radius: 24px; font-size: 13px; font-weight: 600;
+            z-index: 999; display: none;
+        }
+        .toast.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="toast" id="toast"></div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-top">
+            <a href="collection.html" class="header-back">←</a>
+            <div class="header-title">💼 我的资产</div>
+            <div class="header-actions">
+                <a href="index.html" class="header-btn">+ 添加卡牌</a>
+            </div>
+        </div>
+        <div class="portfolio-value">
+            <div class="portfolio-label">总市值</div>
+            <div class="portfolio-num" id="totalValue">¥0</div>
+            <div class="portfolio-change" id="totalChange">
+                <span id="profitIcon">--</span> <span id="profitAmount">--</span> (<span id="profitPct">--</span>)
+            </div>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-item">
+                <div class="stat-label">总投入</div>
+                <div class="stat-value" id="totalCost">¥0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">持有卡牌</div>
+                <div class="stat-value" id="cardCount">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">浮盈卡牌</div>
+                <div class="stat-value" id="risingCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Asset Curve -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">📈 资产曲线</div>
+                <div class="chart-tabs">
+                    <button class="chart-tab" data-days="7">7天</button>
+                    <button class="chart-tab active" data-days="30">30天</button>
+                    <button class="chart-tab" data-days="90">90天</button>
+                </div>
+            </div>
+            <div class="chart-canvas" id="chartCanvas">
+                <svg class="chart-svg" id="chartSvg" viewBox="0 0 340 180"></svg>
+                <div class="chart-tooltip" id="chartTooltip"></div>
+            </div>
+        </div>
+
+        <!-- Collection List -->
+        <div class="section-title">
+            <span>🎴 我的收藏</span>
+            <span class="section-count" id="collectionCount">共 0 张</span>
+        </div>
+        <div class="collection-list" id="collectionList"></div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-icon">🃏</div>
+            <div class="empty-title">还没有收藏卡牌</div>
+            <div class="empty-desc">
+                使用 AI 扫描识别你的卡牌<br>
+                添加到收藏夹后即可追踪资产变化
+            </div>
+            <a href="index.html" class="empty-btn">🎯 去扫描卡牌</a>
+        </div>
+
+        <div style="height:20px;"></div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span>看板</a>
+        <a href="publish.html" class="nav-item"><span class="nav-icon">+</span>发布</a>
+        <a href="collection.html" class="nav-item active"><span class="nav-icon">👤</span>我的</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        let currentUser = null;
+
+        // Demo data for new users without collections
+        const demoCollections = [
+            { card_name: '皮卡丘 ex SAR', series: '超电突围', rarity: 'SAR', purchase_price: 580, current_price: 720, condition: 'NM', card_image: null, quantity: 1 },
+            { card_name: '喷火龙 ex SAR', series: '超电突围', rarity: 'SAR', purchase_price: 420, current_price: 498, condition: 'NM', card_image: null, quantity: 1 },
+            { card_name: '伊布 大师球镜面', series: '151', rarity: 'AR', purchase_price: 180, current_price: 210, condition: 'LP', card_image: null, quantity: 2 },
+            { card_name: '超梦 ex UR', series: '超电突围', rarity: 'UR', purchase_price: 320, current_price: 280, condition: 'NM', card_image: null, quantity: 1 },
+        ];
+
+        const demoSnapshots = {
+            7: [
+                { date: '06-25', value: 1450 }, { date: '06-26', value: 1480 },
+                { date: '06-27', value: 1420 }, { date: '06-28', value: 1500 },
+                { date: '06-29', value: 1520 }, { date: '06-30', value: 1480 },
+                { date: '07-01', value: 1560 }
+            ],
+            30: [
+                { date: '06-01', value: 1200 }, { date: '06-03', value: 1250 },
+                { date: '06-05', value: 1180 }, { date: '06-07', value: 1320 },
+                { date: '06-09', value: 1280 }, { date: '06-11', value: 1350 },
+                { date: '06-13', value: 1420 }, { date: '06-15', value: 1380 },
+                { date: '06-17', value: 1450 }, { date: '06-19', value: 1520 },
+                { date: '06-21', value: 1480 }, { date: '06-23', value: 1550 },
+                { date: '06-25', value: 1500 }, { date: '06-27', value: 1580 },
+                { date: '06-29', value: 1620 }, { date: '07-01', value: 1560 }
+            ],
+            90: [
+                { date: '04-01', value: 800 }, { date: '04-10', value: 950 },
+                { date: '04-20', value: 1100 }, { date: '05-01', value: 1050 },
+                { date: '05-10', value: 1200 }, { date: '05-20', value: 1350 },
+                { date: '06-01', value: 1280 }, { date: '06-15', value: 1450 },
+                { date: '07-01', value: 1560 }
+            ]
+        };
+
+        async function init() {
+            const { data: { session } } = await db.auth.getSession();
+            if (!session) {
+                // Show demo data for non-logged users
+                renderWithDemo();
+                return;
+            }
+            currentUser = session.user;
+            await loadRealData();
+        }
+
+        function renderWithDemo() {
+            renderPortfolio(demoCollections);
+            renderCollectionList(demoCollections);
+            renderChart(demoSnapshots[30]);
+        }
+
+        async function loadRealData() {
+            try {
+                const { data: collections, error } = await db
+                    .from('user_collections')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!collections || collections.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                    document.getElementById('collectionList').style.display = 'none';
+                    return;
+                }
+
+                renderPortfolio(collections);
+                renderCollectionList(collections);
+
+                // Load snapshots
+                const { data: snapshots } = await db
+                    .from('collection_price_snapshots')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('date', { ascending: true })
+                    .limit(30);
+
+                if (snapshots && snapshots.length >= 3) {
+                    renderChart(snapshots.map(s => ({ date: s.date.slice(5), value: s.total_value })));
+                } else {
+                    renderChart(demoSnapshots[30]);
+                }
+            } catch (e) {
+                console.error('Load error:', e);
+                renderWithDemo();
+            }
+        }
+
+        function renderPortfolio(collections) {
+            const totalCost = collections.reduce((sum, c) => sum + (c.purchase_price || 0) * (c.quantity || 1), 0);
+            const totalValue = collections.reduce((sum, c) => sum + (c.current_price || c.purchase_price || 0) * (c.quantity || 1), 0);
+            const profit = totalValue - totalCost;
+            const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
+            const rising = collections.filter(c => (c.current_price || c.purchase_price) > c.purchase_price).length;
+
+            document.getElementById('totalValue').textContent = '¥' + totalValue.toLocaleString();
+            document.getElementById('totalCost').textContent = '¥' + totalCost.toLocaleString();
+            document.getElementById('cardCount').textContent = collections.reduce((sum, c) => sum + (c.quantity || 1), 0);
+            document.getElementById('risingCount').textContent = rising;
+            document.getElementById('collectionCount').textContent = '共 ' + collections.length + ' 种';
+
+            const profitEl = document.getElementById('profitAmount');
+            const pctEl = document.getElementById('profitPct');
+            const iconEl = document.getElementById('profitIcon');
+
+            if (profit >= 0) {
+                profitEl.textContent = '+¥' + profit.toLocaleString();
+                pctEl.textContent = '+' + profitPct + '%';
+                iconEl.textContent = '📈';
+                document.querySelector('.portfolio-change').style.background = 'rgba(39,174,96,0.3)';
+            } else {
+                profitEl.textContent = '-¥' + Math.abs(profit).toLocaleString();
+                pctEl.textContent = profitPct + '%';
+                iconEl.textContent = '📉';
+                document.querySelector('.portfolio-change').style.background = 'rgba(231,76,60,0.3)';
+            }
+        }
+
+        function renderCollectionList(collections) {
+            const container = document.getElementById('collectionList');
+            container.innerHTML = collections.map(c => {
+                const profit = ((c.current_price || c.purchase_price) - c.purchase_price) * (c.quantity || 1);
+                const profitPct = c.purchase_price > 0 ? ((profit / (c.purchase_price * (c.quantity || 1))) * 100).toFixed(1) : 0;
+                const isRise = profit >= 0;
+                const condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
+
+                return `
+                    <div class="collection-card">
+                        <div class="collection-img">
+                            ${c.card_image ? `<img src="${c.card_image}" alt="">` : '🃏'}
+                        </div>
+                        <div class="collection-info">
+                            <div class="collection-name">${c.card_name}</div>
+                            <div class="collection-meta">${c.series || ''} · ${c.rarity || ''} · ${condLabels[c.condition] || c.condition || ''} · x${c.quantity || 1}</div>
+                            <div class="collection-prices">
+                                <div class="price-block">
+                                    <div class="price-label">入手</div>
+                                    <div class="price-value">¥${(c.purchase_price || 0).toLocaleString()}</div>
+                                </div>
+                                <div class="price-block">
+                                    <div class="price-label">现价</div>
+                                    <div class="price-value current">¥${(c.current_price || c.purchase_price || 0).toLocaleString()}</div>
+                                </div>
+                                <div class="price-change ${isRise ? 'rise' : 'fall'}">
+                                    ${isRise ? '+' : ''}${profitPct}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderChart(data) {
+            const svg = document.getElementById('chartSvg');
+            if (!data || data.length < 2) {
+                svg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据</text>';
+                return;
+            }
+
+            const values = data.map(d => d.value);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const range = max - min || 1;
+            const padding = { top: 20, right: 10, bottom: 30, left: 10 };
+            const w = 340 - padding.left - padding.right;
+            const h = 180 - padding.top - padding.bottom;
+
+            const points = data.map((d, i) => {
+                const x = padding.left + (i / (data.length - 1)) * w;
+                const y = padding.top + h - ((d.value - min) / range) * h;
+                return `${x},${y}`;
+            }).join(' ');
+
+            // Area path (closed)
+            const areaPath = `${points} ${padding.left + w},${padding.top + h} ${padding.left},${padding.top + h}`;
+
+            // Grid lines
+            const gridLines = [0.25, 0.5, 0.75].map(p => {
+                const y = padding.top + h * p;
+                return `<line x1="${padding.left}" y1="${y}" x2="${padding.left + w}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+            }).join('');
+
+            // X axis labels (show first, middle, last)
+            const labelIndices = [0, Math.floor(data.length / 2), data.length - 1];
+            const labels = labelIndices.map(i => {
+                const x = padding.left + (i / (data.length - 1)) * w;
+                return `<text x="${x}" y="${padding.top + h + 16}" text-anchor="middle" fill="#999" font-size="10">${data[i].date}</text>`;
+            }).join('');
+
+            svg.innerHTML = `
+                <defs>
+                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#5B4AE0" stop-opacity="0.3"/>
+                        <stop offset="100%" stop-color="#5B4AE0" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                ${gridLines}
+                <polygon points="${areaPath}" fill="url(#areaGrad)"/>
+                <polyline points="${points}" fill="none" stroke="#5B4AE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                ${data.map((d, i) => {
+                    const x = padding.left + (i / (data.length - 1)) * w;
+                    const y = padding.top + h - ((d.value - min) / range) * h;
+                    return `<circle cx="${x}" cy="${y}" r="3" fill="#5B4AE0" stroke="white" stroke-width="1.5" class="chart-point" data-value="${d.value}" data-date="${d.date}"/>`;
+                }).join('')}
+                ${labels}
+            `;
+
+            // Tooltip
+            const tooltip = document.getElementById('chartTooltip');
+            svg.querySelectorAll('.chart-point').forEach(pt => {
+                pt.addEventListener('mouseenter', (e) => {
+                    tooltip.textContent = `${e.target.dataset.date}: ¥${parseInt(e.target.dataset.value).toLocaleString()}`;
+                    tooltip.style.opacity = '1';
+                    tooltip.style.left = (e.target.cx.baseVal.value - 30) + 'px';
+                    tooltip.style.top = (e.target.cy.baseVal.value - 30) + 'px';
+                });
+                pt.addEventListener('mouseleave', () => {
+                    tooltip.style.opacity = '0';
+                });
+            });
+        }
+
+        // Chart tabs
+        document.querySelectorAll('.chart-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                const days = parseInt(this.dataset.days);
+                renderChart(demoSnapshots[days]);
+            });
+        });
+
+        // Init
+        init();
+    </script>
+</body>
+</html>
