@@ -188,6 +188,61 @@
         .rank-pct.rise { color: var(--rise); }
         .rank-pct.fall { color: var(--fall); }
 
+        /* Trade Top10 */
+        .trade-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+        }
+        .trade-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f8f8f8;
+        }
+        .trade-item:last-child { border-bottom: none; }
+        .trade-rank {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700;
+            color: var(--text-secondary);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+        .trade-rank.top { background: linear-gradient(135deg, #F5A623 0%, #FF8C00 100%); color: white; }
+        .trade-info { flex: 1; margin-left: 10px; min-width: 0; }
+        .trade-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .trade-tag { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+        .trade-price { font-size: 14px; font-weight: 700; color: var(--rise); min-width: 60px; text-align: right; }
+
+        /* Volume Chart */
+        .volume-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px;
+            box-shadow: var(--shadow);
+            margin-top: 12px;
+        }
+        .volume-area {
+            height: 160px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 10px 6px;
+            position: relative;
+        }
+        .volume-bar {
+            width: 12px;
+            background: linear-gradient(180deg, #5B4AE0 0%, #7B6CF0 100%);
+            border-radius: 4px 4px 0 0;
+            opacity: 0.8;
+            transition: all 0.3s;
+        }
+        .volume-bar:hover { opacity: 1; }
+
         /* Hot Keywords */
         .keywords-card {
             background: var(--white);
@@ -370,6 +425,15 @@
             </div>
         </div>
 
+        <!-- Trade Top10 -->
+        <div class="section-title">
+            <span>🏆 今日成交最高 TOP10</span>
+            <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">实时更新</span>
+        </div>
+        <div class="trade-card" id="tradeTopCard">
+            <div id="tradeTopList"></div>
+        </div>
+
         <!-- Hot Keywords -->
         <div class="section-title">
             <span>🔍 热门搜索关键词</span>
@@ -391,6 +455,17 @@
                 </div>
             </div>
             <div class="chart-area" id="chartArea"></div>
+        </div>
+
+        <!-- Volume Chart -->
+        <div class="section-title">
+            <span>📈 交易量统计</span>
+        </div>
+        <div class="volume-card">
+            <div class="chart-header">
+                <div class="chart-title">近7日成交笔数</div>
+            </div>
+            <div class="volume-area" id="volumeArea"></div>
         </div>
 
         <div style="height:40px;"></div>
@@ -442,7 +517,20 @@
                 { name: '水箭龟', trend: '+9.6%' },
                 { name: '妙蛙花', trend: '+8.1%' },
             ],
-            chart30: [45, 52, 48, 61, 55, 68, 72, 65, 78, 82, 75, 88, 92, 85, 98, 105, 95, 110, 115, 108, 120, 125, 118, 132, 128, 135, 142, 138, 145, 150]
+            chart30: [45, 52, 48, 61, 55, 68, 72, 65, 78, 82, 75, 88, 92, 85, 98, 105, 95, 110, 115, 108, 120, 125, 118, 132, 128, 135, 142, 138, 145, 150],
+            tradeTop: [
+                { name: '皮卡丘 ex SAR', tag: '超电突围', condition: 'PSA10', price: 3280 },
+                { name: '喷火龙 ex SAR', tag: '超电突围', condition: 'PSA10', price: 2850 },
+                { name: '伊布 大师球镜面', tag: '151', condition: 'NM', price: 1680 },
+                { name: '超梦 ex UR', tag: '超电突围', condition: 'BGS9.5', price: 1420 },
+                { name: '烈空坐 VMAX HR', tag: '古代咆哮', condition: 'PSA9', price: 980 },
+                { name: '梦幻 ex SAR', tag: '超电突围', condition: 'NM', price: 850 },
+                { name: '耿鬼 VMAX HR', tag: '古代咆哮', condition: 'PSA10', price: 720 },
+                { name: '快龙 ex SAR', tag: '超电突围', condition: 'BGS9', price: 650 },
+                { name: '甲贺忍蛙 GX HR', tag: '古代咆哮', condition: 'PSA8', price: 520 },
+                { name: '路卡利欧 VSTAR', tag: '151', condition: 'NM', price: 380 },
+            ],
+            volume7: [42, 58, 65, 48, 72, 85, 68]
         };
 
         function renderOverview() {
@@ -477,6 +565,40 @@
                     <div class="keyword-trend">↑ ${kw.trend}</div>
                 </div>
             `).join('');
+        }
+
+        function renderTradeTop() {
+            const container = document.getElementById('tradeTopList');
+            const list = demoData.tradeTop || [];
+            if (list.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">暂无成交数据</div>';
+                return;
+            }
+            container.innerHTML = list.map((item, i) => `
+                <div class="trade-item">
+                    <div class="trade-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+                    <div class="trade-info">
+                        <div class="trade-name">${item.name}</div>
+                        <div class="trade-tag">${item.tag || ''} · ${item.condition || 'NM'}</div>
+                    </div>
+                    <div class="trade-price">¥${(item.price || 0).toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderVolume(data) {
+            const container = document.getElementById('volumeArea');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:13px;">暂无数据</div>';
+                return;
+            }
+            const max = Math.max(...data);
+            const min = Math.min(...data);
+            const range = max - min || 1;
+            container.innerHTML = data.map((v, i) => {
+                const height = ((v - min) / range * 120 + 20) + 'px';
+                return `<div class="volume-bar" style="height:${height}" title="${v}笔"></div>`;
+            }).join('');
         }
 
         function renderChart(data) {
@@ -547,7 +669,9 @@
         renderRankList(demoData.riseList, 'riseList', 'rise');
         renderRankList(demoData.fallList, 'fallList', 'fall');
         renderKeywords();
+        renderTradeTop();
         renderChart(demoData.chart30);
+        renderVolume(demoData.volume7);
         loadRealData();
     </script>
 </body>

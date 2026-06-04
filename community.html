@@ -232,6 +232,66 @@
             font-size: 14px;
             font-weight: 600;
         }
+
+        /* Comment Modal */
+        .comment-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 1001;
+            justify-content: center; align-items: flex-end;
+        }
+        .comment-modal.show { display: flex; }
+        .comment-sheet {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            width: 100%; max-width: 560px;
+            max-height: 80vh;
+            display: flex; flex-direction: column;
+            animation: slideUp 0.3s ease;
+        }
+        .comment-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .comment-header-title { font-size: 16px; font-weight: 700; }
+        .comment-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
+        .comment-list {
+            flex: 1; overflow-y: auto; padding: 12px 20px;
+            max-height: 50vh;
+        }
+        .comment-item {
+            display: flex; gap: 10px; padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .comment-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 12px; font-weight: 700; flex-shrink: 0;
+        }
+        .comment-body { flex: 1; }
+        .comment-author { font-size: 13px; font-weight: 700; }
+        .comment-text { font-size: 13px; line-height: 1.5; margin-top: 2px; color: #333; }
+        .comment-time { font-size: 11px; color: #999; margin-top: 4px; }
+        .comment-input-area {
+            padding: 12px 20px 20px;
+            border-top: 1px solid var(--border);
+            display: flex; gap: 10px; align-items: center;
+        }
+        .comment-input {
+            flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+            border-radius: 20px; font-size: 14px; outline: none;
+        }
+        .comment-input:focus { border-color: var(--primary); }
+        .comment-submit {
+            background: var(--primary); color: white; border: none;
+            padding: 10px 18px; border-radius: 20px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .comment-submit:disabled { opacity: 0.5; }
+        .comment-empty {
+            text-align: center; padding: 30px; color: var(--text-secondary); font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -294,6 +354,21 @@
         </div>
     </div>
 
+    <!-- Comment Modal -->
+    <div class="comment-modal" id="commentModal" onclick="closeCommentModal(event)">
+        <div class="comment-sheet">
+            <div class="comment-header">
+                <div class="comment-header-title">💬 评论</div>
+                <button class="comment-close" onclick="closeCommentModal()">✕</button>
+            </div>
+            <div class="comment-list" id="commentList"></div>
+            <div class="comment-input-area">
+                <input type="text" class="comment-input" id="commentInput" placeholder="写点什么..." onkeypress="if(event.key==='Enter')submitComment()">
+                <button class="comment-submit" id="commentSubmitBtn" onclick="submitComment()">发送</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Share Modal -->
     <div class="share-modal" id="shareModal" onclick="closeShare(event)">
         <div class="share-sheet">
@@ -335,6 +410,7 @@
         let currentUser = null;
         let currentTab = 'feed';
         let likedPosts = new Set();
+        let currentPostId = null;
 
         // Demo posts data
         const demoPosts = [
@@ -387,7 +463,17 @@
 
         async function init() {
             const { data: { session } } = await db.auth.getSession();
-            if (session) currentUser = session.user;
+            if (session) {
+                currentUser = session.user;
+                // Load user's liked posts from DB
+                try {
+                    const { data: likes } = await db
+                        .from('post_likes')
+                        .select('post_id')
+                        .eq('user_id', currentUser.id);
+                    if (likes) likedPosts = new Set(likes.map(l => l.post_id));
+                } catch (e) { console.log('Load likes error:', e); }
+            }
 
             // Load real posts or demo
             await loadPosts();
@@ -492,17 +578,112 @@
                 alert('请先登录');
                 return;
             }
-            if (likedPosts.has(postId)) {
-                likedPosts.delete(postId);
-            } else {
-                likedPosts.add(postId);
+            const isLiked = likedPosts.has(postId);
+            try {
+                if (isLiked) {
+                    // Unlike: delete from DB
+                    await db.from('post_likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+                    likedPosts.delete(postId);
+                    // Decrement likes count
+                    await db.rpc('decrement_likes', { post_id: postId });
+                } else {
+                    // Like: insert to DB
+                    await db.from('post_likes').insert({ post_id: postId, user_id: currentUser.id });
+                    likedPosts.add(postId);
+                    // Increment likes count
+                    await db.rpc('increment_likes', { post_id: postId });
+                }
+                loadPosts();
+            } catch (e) {
+                console.error('Like error:', e);
+                alert('操作失败，请重试');
             }
-            // Re-render is cheap for demo
-            loadPosts();
         }
 
-        function showComments(postId) {
-            alert('评论功能开发中，敬请期待！');
+        async function showComments(postId) {
+            currentPostId = postId;
+            document.getElementById('commentModal').classList.add('show');
+            await loadComments(postId);
+        }
+
+        async function loadComments(postId) {
+            const list = document.getElementById('commentList');
+            list.innerHTML = '<div class="comment-empty">加载中...</div>';
+            try {
+                const { data: comments, error } = await db
+                    .from('community_comments')
+                    .select('*')
+                    .eq('post_id', postId)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                if (!comments || comments.length === 0) {
+                    list.innerHTML = '<div class="comment-empty">暂无评论，来写第一条吧</div>';
+                    return;
+                }
+
+                list.innerHTML = comments.map(c => {
+                    const avatar = c.user_name ? c.user_name[0] : '👤';
+                    return `
+                        <div class="comment-item">
+                            <div class="comment-avatar">${avatar}</div>
+                            <div class="comment-body">
+                                <div class="comment-author">${c.user_name || '匿名玩家'}</div>
+                                <div class="comment-text">${escHTML(c.content)}</div>
+                                <div class="comment-time">${formatTime(c.created_at)}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                list.innerHTML = '<div class="comment-empty">加载失败</div>';
+            }
+        }
+
+        async function submitComment() {
+            const input = document.getElementById('commentInput');
+            const content = input.value.trim();
+            if (!content) return;
+            if (!currentUser) { alert('请先登录'); return; }
+            if (!currentPostId) return;
+
+            const btn = document.getElementById('commentSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = '发送中...';
+
+            try {
+                const { error } = await db.from('community_comments').insert({
+                    post_id: currentPostId,
+                    user_id: currentUser.id,
+                    content: content
+                });
+                if (error) throw error;
+
+                input.value = '';
+                // Reload comments
+                await loadComments(currentPostId);
+                // Also update comment count on post
+                await db.rpc('increment_comments', { post_id: currentPostId });
+                loadPosts();
+            } catch (e) {
+                alert('评论失败：' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '发送';
+            }
+        }
+
+        function closeCommentModal(e) {
+            if (!e || e.target.id === 'commentModal' || e.target.classList.contains('comment-close')) {
+                document.getElementById('commentModal').classList.remove('show');
+                currentPostId = null;
+            }
+        }
+
+        function escHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
         }
 
         function openShare(postId) {

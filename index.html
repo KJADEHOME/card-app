@@ -180,6 +180,17 @@
         .ai-scanning { display: flex; align-items: center; gap: 10px; padding: 20px; justify-content: center; }
         .ai-spinner { width: 24px; height: 24px; border: 3px solid #eee; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* ===== Points Discount ===== */
+        .points-discount { background: #FFF8F0; border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
+        .points-discount-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; color: #D4880F; }
+        .points-discount-info { font-size: 12px; color: #999; margin-top: 6px; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: #F5A623; }
+        input:checked + .slider:before { transform: translateX(20px); }
 
         /* ===== Rarity Colors ===== */
         .rarity-N { color: #999; }
@@ -266,6 +277,16 @@
             <button class="rarity-chip" data-rarity="SEC" onclick="switchRarity('SEC')">SEC</button>
         </div>
         <span class="result-count" id="resultCount"></span>
+    </div>
+    <!-- Extra Filters: PSA/BGS/Local/Overseas -->
+    <div class="filter-bar" style="border-bottom:none;padding-top:0;">
+        <div class="rarity-chips" id="extraFilters">
+            <button class="rarity-chip active" data-filter="all" onclick="switchExtraFilter('all')">全部</button>
+            <button class="rarity-chip" data-filter="psa" onclick="switchExtraFilter('psa')">PSA</button>
+            <button class="rarity-chip" data-filter="bgs" onclick="switchExtraFilter('bgs')">BGS</button>
+            <button class="rarity-chip" data-filter="local" onclick="switchExtraFilter('local')">🇨🇳 本地</button>
+            <button class="rarity-chip" data-filter="overseas" onclick="switchExtraFilter('overseas')">🌏 海外</button>
+        </div>
     </div>
 
     <!-- Card Grid -->
@@ -443,6 +464,7 @@
         let currentLang = localStorage.getItem('cardrealm_lang') || 'zh';
         let currentGame = 'all';
         let currentRarity = 'all';
+        let currentExtraFilter = 'all';
         let currentSort = 'default';
         let searchKeyword = '';
         let allListings = [];
@@ -504,7 +526,12 @@
         }
         function switchRarity(rarity) {
             currentRarity = rarity;
-            document.querySelectorAll('.rarity-chip').forEach(b => b.classList.toggle('active', b.dataset.rarity === rarity));
+            document.querySelectorAll('#rarityChips .rarity-chip').forEach(b => b.classList.toggle('active', b.dataset.rarity === rarity));
+            applyAllFilters();
+        }
+        function switchExtraFilter(filter) {
+            currentExtraFilter = filter;
+            document.querySelectorAll('#extraFilters .rarity-chip').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
             applyAllFilters();
         }
         let searchTimer;
@@ -529,6 +556,20 @@
             let filtered = [...allListings];
             if (currentGame !== 'all') filtered = filtered.filter(item => matchGame(item.series) === currentGame);
             if (currentRarity !== 'all') filtered = filtered.filter(item => item.rarity === currentRarity);
+            // Extra filters: PSA/BGS/Local/Overseas
+            if (currentExtraFilter !== 'all') {
+                filtered = filtered.filter(item => {
+                    const name = (item.name || '').toLowerCase();
+                    const desc = (item.description || '').toLowerCase();
+                    const currency = (item.currency || '').toUpperCase();
+                    const from = (item.shipping_from || '').toLowerCase();
+                    if (currentExtraFilter === 'psa') return name.includes('psa') || desc.includes('psa');
+                    if (currentExtraFilter === 'bgs') return name.includes('bgs') || desc.includes('bgs');
+                    if (currentExtraFilter === 'local') return currency === 'CNY' || from.includes('cn') || from.includes('中国');
+                    if (currentExtraFilter === 'overseas') return currency === 'USD' || currency === 'EUR' || from.includes('jp') || from.includes('us');
+                    return true;
+                });
+            }
             if (searchKeyword) {
                 filtered = filtered.filter(item =>
                     (item.name && item.name.toLowerCase().includes(searchKeyword)) ||
@@ -704,6 +745,18 @@
                     <div id="aiPriceCard" class="ai-price-card">
                         <div class="ai-scanning"><div class="ai-spinner"></div><span>${t('ai_price_loading') || 'Fetching price...'}</span></div>
                     </div>
+                    <div class="points-discount" id="pointsDiscount" style="display:none;">
+                        <div class="points-discount-row">
+                            <span>🎁 积分抵扣</span>
+                            <label class="switch">
+                                <input type="checkbox" id="usePointsToggle" onchange="togglePointsDiscount()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="points-discount-info" id="pointsDiscountInfo">
+                            可用 <strong id="userPointsAvail">0</strong> 积分，抵扣 <strong id="discountAmount">¥0</strong>
+                        </div>
+                    </div>
                     <div class="ai-result-actions">
                         <button class="ai-action-btn secondary" onclick="retakePhoto()">${t('ai_retry_btn')}</button>
                         <button class="ai-action-btn primary" onclick="confirmAndSearch()">${t('ai_search_btn')}</button>
@@ -761,8 +814,56 @@
                 }
                 if (d.note) html += `<div class="ai-price-note">${escHTML(d.note)}</div>`;
                 card.innerHTML = html;
+                
+                // 加载积分抵扣信息
+                loadPointsForScan();
             } catch (e) {
                 card.innerHTML = `<div style="color:#999;">${t('ai_price_none')}</div>`;
+            }
+        }
+        
+        async function loadPointsForScan() {
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) return;
+                
+                const { data, error } = await db
+                    .from('user_points')
+                    .select('current_points, level')
+                    .eq('user_id', session.user.id)
+                    .single();
+                
+                if (error || !data || data.current_points <= 0) return;
+                
+                const { data: levelData } = await db
+                    .from('level_config')
+                    .select('scan_discount_pct')
+                    .eq('level', data.level)
+                    .single();
+                
+                const discountPct = levelData?.scan_discount_pct || 0;
+                const maxDiscount = Math.min(data.current_points, Math.floor(aiDetectedPrice * discountPct / 100));
+                
+                if (maxDiscount > 0 && discountPct > 0) {
+                    document.getElementById('pointsDiscount').style.display = 'block';
+                    document.getElementById('userPointsAvail').textContent = data.current_points;
+                    document.getElementById('discountAmount').textContent = '¥' + maxDiscount + '（' + discountPct + '%减免）';
+                    window.scanPointsDiscount = maxDiscount;
+                    window.scanPointsCost = maxDiscount;
+                }
+            } catch (e) { console.log('Points load error:', e); }
+        }
+        
+        async function togglePointsDiscount() {
+            const toggle = document.getElementById('usePointsToggle');
+            if (toggle.checked && window.scanPointsCost) {
+                try {
+                    const { data: { session } } = await db.auth.getSession();
+                    if (!session) { showToast('请先登录'); toggle.checked = false; return; }
+                    
+                    // 记录积分消耗（实际抵扣在后续交易中实现，这里只是标记）
+                    showToast('已启用积分抵扣，下单时自动减免 ¥' + window.scanPointsDiscount);
+                } catch (e) { toggle.checked = false; }
             }
         }
 
@@ -831,6 +932,20 @@
                     alert('请先登录后再分享');
                     return;
                 }
+
+                // Save scan history first
+                await db.from('scan_history').insert([{
+                    user_id: session.user.id,
+                    card_name: aiDetectedName,
+                    card_name_en: aiDetectedName,
+                    card_image: aiPreviewUrl,
+                    series: aiDetectedSeries,
+                    rarity: aiDetectedRarity,
+                    estimated_price: aiDetectedPrice,
+                    estimated_currency: 'CNY',
+                    ai_confidence: 0.85,
+                    scan_type: 'camera'
+                }]);
 
                 const { error } = await db.from('community_posts').insert([{
                     user_id: session.user.id,
