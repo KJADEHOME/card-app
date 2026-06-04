@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>卡域 - 积分中心</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 40px;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .back { color: white; font-size: 24px; text-decoration: none; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; flex: 1; }
+        .header-rule { color: rgba(255,255,255,0.8); font-size: 13px; }
+
+        /* 积分卡片 */
+        .points-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0 15px 15px;
+            border-radius: 20px;
+            padding: 24px 20px 20px;
+            color: white;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        .points-hero::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            width: 160px;
+            height: 160px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .points-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            left: -30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .level-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .level-emoji { font-size: 28px; }
+        .level-info {}
+        .level-title {
+            font-size: 16px;
+            font-weight: bold;
+            opacity: 0.95;
+        }
+        .level-num {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+        .checkin-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .checkin-btn:active { transform: scale(0.96); }
+        .checkin-btn.done {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+            opacity: 0.6;
+        }
+
+        .points-num {
+            font-size: 48px;
+            font-weight: bold;
+            letter-spacing: -1px;
+            margin-bottom: 4px;
+        }
+        .points-label { font-size: 13px; opacity: 0.75; margin-bottom: 16px; }
+
+        /* 经验值进度条 */
+        .exp-bar-wrap {
+            background: rgba(255,255,255,0.15);
+            border-radius: 6px;
+            height: 8px;
+            margin-bottom: 6px;
+            overflow: hidden;
+        }
+        .exp-bar-fill {
+            background: rgba(255,255,255,0.85);
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s ease;
+        }
+        .exp-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        /* 统计行 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 0 15px 15px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 14px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .stat-val {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .stat-label { font-size: 11px; color: #999; }
+
+        /* 签到日历 */
+        .section {
+            background: white;
+            margin: 0 15px 15px;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .section-subtitle {
+            font-size: 12px;
+            color: #999;
+            font-weight: normal;
+            margin-left: auto;
+        }
+
+        /* 周签到格 */
+        .checkin-week {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .checkin-day {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .day-label {
+            font-size: 10px;
+            color: #bbb;
+        }
+        .day-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            background: #f5f5f5;
+            border: 2px solid transparent;
+        }
+        .day-circle.done {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+        }
+        .day-circle.today {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .day-circle.today.done {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+        }
+        .day-pts {
+            font-size: 9px;
+            color: #bbb;
+        }
+        .day-pts.done { color: #667eea; }
+
+        /* 连续签到提示 */
+        .streak-tip {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #e65100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .streak-tip-text { flex: 1; }
+        .streak-tip-num { font-size: 20px; font-weight: bold; }
+
+        /* 等级特权表 */
+        .levels-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .level-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #f8f8f8;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        .level-row.current {
+            background: linear-gradient(135deg, #f0f4ff, #ece6ff);
+            border: 1px solid #c5caf5;
+        }
+        .level-row.locked { opacity: 0.5; }
+        .level-emoji-sm { font-size: 22px; width: 32px; text-align: center; }
+        .level-row-info { flex: 1; }
+        .level-row-name { font-size: 14px; font-weight: bold; color: #333; }
+        .level-row-exp { font-size: 11px; color: #999; margin-top: 2px; }
+        .level-perks {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .perk-tag {
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 6px;
+        }
+        .perk-tag.purple { background: #ede7f6; color: #5e35b1; }
+        .perk-tag.orange { background: #fff3e0; color: #e65100; }
+        .current-badge {
+            background: #667eea;
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+
+        /* 积分流水 */
+        .tx-list { display: flex; flex-direction: column; gap: 0; }
+        .tx-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f5f5f5;
+            gap: 12px;
+        }
+        .tx-item:last-child { border-bottom: none; }
+        .tx-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .tx-icon.earn { background: #e8f5e9; }
+        .tx-icon.spend { background: #ffebee; }
+        .tx-info { flex: 1; }
+        .tx-desc { font-size: 14px; color: #333; }
+        .tx-time { font-size: 11px; color: #bbb; margin-top: 3px; }
+        .tx-pts {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: right;
+        }
+        .tx-pts.earn { color: #4caf50; }
+        .tx-pts.spend { color: #f44336; }
+
+        /* 积分规则 */
+        .rules-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .rule-item {
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .rule-icon { font-size: 20px; }
+        .rule-info {}
+        .rule-name { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; }
+        .rule-pts { font-size: 12px; color: #667eea; font-weight: bold; }
+        .rule-desc { font-size: 11px; color: #999; margin-top: 2px; }
+
+        /* Toast */
+        .toast {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.75);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            z-index: 999;
+            text-align: center;
+            pointer-events: none;
+        }
+        .toast.show { display: block; }
+
+        /* 加载 */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: #999; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">加载积分数据...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 顶部导航 -->
+<div class="header">
+    <a href="javascript:history.back()" class="back">‹</a>
+    <span class="header-title">积分中心</span>
+    <span class="header-rule" onclick="scrollToRules()">获取规则 ›</span>
+</div>
+
+<!-- 积分英雄区 -->
+<div class="points-hero" id="pointsHero" style="margin-top:15px;">
+    <div class="hero-top">
+        <div class="level-badge">
+            <div class="level-emoji" id="levelEmoji">🌱</div>
+            <div class="level-info">
+                <div class="level-title" id="levelTitle">卡牌新手</div>
+                <div class="level-num" id="levelNum">Lv.1</div>
+            </div>
+        </div>
+        <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">
+            ✅ 签到
+        </button>
+    </div>
+    <div class="points-num" id="pointsNum">--</div>
+    <div class="points-label">当前积分</div>
+    <div class="exp-bar-wrap">
+        <div class="exp-bar-fill" id="expBar" style="width:0%"></div>
+    </div>
+    <div class="exp-labels">
+        <span id="expCurrent">0 经验</span>
+        <span id="expNext">升级需 100 经验</span>
+    </div>
+</div>
+
+<!-- 统计行 -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-val" id="totalEarned">--</div>
+        <div class="stat-label">累计获得</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-val" id="totalSpent">--</div>
+        <div class="stat-label">累计消耗</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-val" id="totalCheckins">--</div>
+        <div class="stat-label">累计签到</div>
+    </div>
+</div>
+
+<!-- 签到日历 -->
+<div class="section">
+    <div class="section-title">
+        📅 每日签到
+        <span class="section-subtitle" id="streakLabel">连续 0 天</span>
+    </div>
+    <div class="checkin-week" id="checkinWeek">
+        <!-- 动态生成 -->
+    </div>
+    <div class="streak-tip" id="streakTip">
+        <div>
+            <div class="streak-tip-text">🔥 连续签到 <b>3天</b> 额外 +3分，<b>7天</b> 额外 +10分</div>
+        </div>
+        <div class="streak-tip-num" id="streakNum">0</div>
+    </div>
+</div>
+
+<!-- 等级特权 -->
+<div class="section">
+    <div class="section-title">🏆 等级特权</div>
+    <div class="levels-grid" id="levelsGrid">
+        <!-- 动态生成 -->
+    </div>
+</div>
+
+<!-- 积分流水 -->
+<div class="section">
+    <div class="section-title">
+        📋 积分流水
+        <span class="section-subtitle" id="txMore" style="cursor:pointer;" onclick="loadMoreTx()">查看更多 ›</span>
+    </div>
+    <div class="tx-list" id="txList">
+        <div style="text-align:center;padding:30px;color:#bbb;font-size:14px;">加载中...</div>
+    </div>
+</div>
+
+<!-- 积分获取规则 -->
+<div class="section" id="rulesSection">
+    <div class="section-title">💡 积分获取方式</div>
+    <div class="rules-grid">
+        <div class="rule-item">
+            <div class="rule-icon">📅</div>
+            <div class="rule-info">
+                <div class="rule-name">每日签到</div>
+                <div class="rule-pts">+5 ~ +15 分</div>
+                <div class="rule-desc">连续3天+3，连续7天+10</div>
+            </div>
+        </div>
+        <div class="rule-item">
+            <div class="rule-icon">🤖</div>
+            <div class="rule-info">
+                <div class="rule-name">AI识卡</div>
+                <div class="rule-pts">+2 分/次</div>
+                <div class="rule-desc">每次识卡奖励积分</div>
+            </div>
+        </div>
+        <div class="rule-item">
+            <div class="rule-icon">📤</div>
+            <div class="rule-info">
+                <div class="rule-name">分享社区</div>
+                <div class="rule-pts">+5 分/条</div>
+                <div class="rule-desc">发布分享动态奖励</div>
+            </div>
+        </div>
+        <div class="rule-item">
+            <div class="rule-icon">👥</div>
+            <div class="rule-info">
+                <div class="rule-name">邀请好友</div>
+                <div class="rule-pts">+50 分/人</div>
+                <div class="rule-desc">好友注册成功即到账</div>
+            </div>
+        </div>
+        <div class="rule-item">
+            <div class="rule-icon">🛍️</div>
+            <div class="rule-info">
+                <div class="rule-name">完成交易</div>
+                <div class="rule-pts">消费额 × 1%</div>
+                <div class="rule-desc">买卖成交自动返积分</div>
+            </div>
+        </div>
+        <div class="rule-item">
+            <div class="rule-icon">⭐</div>
+            <div class="rule-info">
+                <div class="rule-name">积分用途</div>
+                <div class="rule-pts">抵扣 AI 识卡费</div>
+                <div class="rule-desc">100积分 = ¥1 识卡费</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============ Supabase 配置 ============
+const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyMzg0NDksImV4cCI6MjA1ODgxNDQ0OX0.C0Kl_8iQnEvadBHLRfjb1-PkUdBkCHQp1aRiVLiMahY';
+
+let supabaseClient = null;
+let currentUser = null;
+let userPoints = null;
+let levelConfigs = [];
+let txOffset = 0;
+const TX_LIMIT = 10;
+
+// ============ 初始化 ============
+async function init() {
+    // 动态加载 Supabase
+    if (!window.supabase) {
+        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
+    }
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 检查登录状态
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = 'login.html';
+        return;
+    }
+    currentUser = session.user;
+
+    // 并行加载数据
+    await Promise.all([
+        loadLevelConfigs(),
+        loadUserPoints(),
+    ]);
+
+    renderCheckinWeek();
+    await loadTxList(true);
+
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
+
+// ============ 加载等级配置 ============
+async function loadLevelConfigs() {
+    const { data, error } = await supabaseClient
+        .from('level_config')
+        .select('*')
+        .order('level', { ascending: true });
+    if (!error && data) {
+        levelConfigs = data;
+        renderLevels();
+    }
+}
+
+// ============ 加载用户积分 ============
+async function loadUserPoints() {
+    const { data, error } = await supabaseClient
+        .from('user_points')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single();
+
+    if (error || !data) {
+        // 新用户可能还没有记录，手动创建
+        const { data: created } = await supabaseClient
+            .from('user_points')
+            .insert({ user_id: currentUser.id })
+            .select()
+            .single();
+        userPoints = created || { current_points: 0, total_earned: 0, total_spent: 0, checkin_streak: 0, total_checkins: 0, exp: 0, level: 1 };
+    } else {
+        userPoints = data;
+    }
+    renderPointsHero();
+}
+
+// ============ 渲染积分英雄区 ============
+function renderPointsHero() {
+    if (!userPoints) return;
+    const lvl = userPoints.level || 1;
+    const cfg = levelConfigs.find(l => l.level === lvl) || { title: '卡牌新手', special_badge: '🌱' };
+    const nextCfg = levelConfigs.find(l => l.level === lvl + 1);
+    const exp = userPoints.exp || 0;
+    const expRequired = cfg.exp_required || 0;
+    const expNext = nextCfg ? nextCfg.exp_required : expRequired;
+    const expPct = nextCfg ? Math.min(100, Math.round((exp - expRequired) / (expNext - expRequired) * 100)) : 100;
+
+    document.getElementById('levelEmoji').textContent = cfg.special_badge || '🌱';
+    document.getElementById('levelTitle').textContent = cfg.title;
+    document.getElementById('levelNum').textContent = `Lv.${lvl}`;
+    document.getElementById('pointsNum').textContent = (userPoints.current_points || 0).toLocaleString();
+    document.getElementById('totalEarned').textContent = (userPoints.total_earned || 0).toLocaleString();
+    document.getElementById('totalSpent').textContent = (userPoints.total_spent || 0).toLocaleString();
+    document.getElementById('totalCheckins').textContent = (userPoints.total_checkins || 0);
+    document.getElementById('expBar').style.width = expPct + '%';
+    document.getElementById('expCurrent').textContent = `${exp} 经验`;
+    document.getElementById('expNext').textContent = nextCfg ? `升级还需 ${expNext - exp} 经验` : '已满级 🎉';
+    document.getElementById('streakNum').textContent = userPoints.checkin_streak || 0;
+    document.getElementById('streakLabel').textContent = `连续 ${userPoints.checkin_streak || 0} 天`;
+
+    // 检查今天是否已签到
+    const lastDate = userPoints.last_checkin_date;
+    const today = new Date().toISOString().slice(0, 10);
+    if (lastDate === today) {
+        const btn = document.getElementById('checkinBtn');
+        btn.textContent = '✅ 已签到';
+        btn.classList.add('done');
+        btn.disabled = true;
+    }
+}
+
+// ============ 渲染签到日历（本周7天）============
+function renderCheckinWeek() {
+    const days = ['日', '一', '二', '三', '四', '五', '六'];
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const container = document.getElementById('checkinWeek');
+    container.innerHTML = '';
+
+    const lastDate = userPoints ? userPoints.last_checkin_date : null;
+    const streak = userPoints ? (userPoints.checkin_streak || 0) : 0;
+    const todayStr = today.toISOString().slice(0, 10);
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - dayOfWeek + i);
+        const dStr = d.toISOString().slice(0, 10);
+        const isPast = dStr < todayStr;
+        const isToday = dStr === todayStr;
+
+        // 判断是否已签到：今天已签（last=today），或者是past且在streak范围内（粗略判断）
+        let isDone = false;
+        if (isToday && lastDate === todayStr) isDone = true;
+        // 过去的天数：根据streak反推
+        if (isPast && lastDate) {
+            const diffDays = Math.round((new Date(todayStr) - new Date(dStr)) / 86400000);
+            if (diffDays <= streak && (lastDate === todayStr || lastDate > dStr)) {
+                isDone = true;
+            }
+        }
+
+        // 当天积分说明
+        const dayIdx = i; // 第几天（0-6）
+        const pts = dayIdx < 3 ? '+5' : dayIdx < 7 ? '+8' : '+15';
+
+        const el = document.createElement('div');
+        el.className = 'checkin-day';
+        el.innerHTML = `
+            <div class="day-label">${days[d.getDay()]}</div>
+            <div class="day-circle ${isDone ? 'done' : ''} ${isToday ? 'today' : ''}">
+                ${isDone ? '✅' : (isToday ? '🎯' : (isPast ? '○' : '○'))}
+            </div>
+            <div class="day-pts ${isDone ? 'done' : ''}">${isPast || isToday ? pts : ''}</div>
+        `;
+        container.appendChild(el);
+    }
+}
+
+// ============ 渲染等级列表 ============
+function renderLevels() {
+    const container = document.getElementById('levelsGrid');
+    if (!levelConfigs.length) return;
+    const currentLevel = userPoints ? (userPoints.level || 1) : 1;
+
+    container.innerHTML = levelConfigs.map(cfg => {
+        const isCurrent = cfg.level === currentLevel;
+        const isLocked = cfg.level > currentLevel;
+        const perks = [];
+        if (cfg.scan_discount_pct > 0) perks.push({ text: `识卡-${cfg.scan_discount_pct}%`, cls: 'purple' });
+        if (cfg.daily_checkin_bonus > 0) perks.push({ text: `签到+${cfg.daily_checkin_bonus}分`, cls: '' });
+        if (cfg.listing_fee_discount > 0) perks.push({ text: `手续费-${cfg.listing_fee_discount}%`, cls: 'orange' });
+        if (cfg.priority_support) perks.push({ text: '优先客服', cls: 'orange' });
+
+        return `
+        <div class="level-row ${isCurrent ? 'current' : ''} ${isLocked ? 'locked' : ''}">
+            <div class="level-emoji-sm">${cfg.special_badge || '⭐'}</div>
+            <div class="level-row-info">
+                <div class="level-row-name">${cfg.title}</div>
+                <div class="level-row-exp">需 ${cfg.exp_required} 经验</div>
+                <div class="level-perks">
+                    ${perks.map(p => `<span class="perk-tag ${p.cls}">${p.text}</span>`).join('')}
+                    ${!perks.length ? '<span class="perk-tag">基础权益</span>' : ''}
+                </div>
+            </div>
+            ${isCurrent ? '<span class="current-badge">当前</span>' : ''}
+        </div>`;
+    }).join('');
+}
+
+// ============ 加载积分流水 ============
+async function loadTxList(reset = false) {
+    if (reset) txOffset = 0;
+    const { data, error } = await supabaseClient
+        .from('point_transactions')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .range(txOffset, txOffset + TX_LIMIT - 1);
+
+    const container = document.getElementById('txList');
+    if (error || !data || !data.length) {
+        if (reset) {
+            container.innerHTML = '<div style="text-align:center;padding:30px;color:#bbb;font-size:14px;">暂无积分记录<br><span style="font-size:12px;">签到或使用AI识卡获取第一笔积分</span></div>';
+        } else {
+            document.getElementById('txMore').textContent = '没有更多了';
+        }
+        return;
+    }
+
+    const iconMap = {
+        checkin: { icon: '📅', cls: 'earn' },
+        checkin_streak: { icon: '🔥', cls: 'earn' },
+        scan: { icon: '🤖', cls: 'earn' },
+        scan_discount: { icon: '💡', cls: 'spend' },
+        share: { icon: '📤', cls: 'earn' },
+        invite: { icon: '👥', cls: 'earn' },
+        purchase: { icon: '🛍️', cls: 'earn' },
+        levelup: { icon: '⭐', cls: 'earn' },
+        admin_gift: { icon: '🎁', cls: 'earn' },
+        expire: { icon: '⏰', cls: 'spend' },
+    };
+
+    const items = data.map(tx => {
+        const isEarn = tx.points > 0;
+        const meta = iconMap[tx.type] || { icon: '💎', cls: isEarn ? 'earn' : 'spend' };
+        const timeStr = new Date(tx.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return `
+        <div class="tx-item">
+            <div class="tx-icon ${meta.cls}">${meta.icon}</div>
+            <div class="tx-info">
+                <div class="tx-desc">${tx.description || tx.type}</div>
+                <div class="tx-time">${timeStr} · 余额 ${tx.balance_after}</div>
+            </div>
+            <div class="tx-pts ${meta.cls}">${isEarn ? '+' : ''}${tx.points}</div>
+        </div>`;
+    }).join('');
+
+    if (reset) {
+        container.innerHTML = items;
+    } else {
+        container.insertAdjacentHTML('beforeend', items);
+    }
+    txOffset += data.length;
+    if (data.length < TX_LIMIT) {
+        document.getElementById('txMore').textContent = '没有更多了';
+    }
+}
+
+async function loadMoreTx() {
+    await loadTxList(false);
+}
+
+// ============ 执行签到 ============
+async function doCheckin() {
+    const btn = document.getElementById('checkinBtn');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '签到中...';
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabaseClient
+        .from('daily_checkins')
+        .insert({ user_id: currentUser.id, checkin_date: today });
+
+    if (error) {
+        if (error.code === '23505') {
+            showToast('今天已经签到过啦 ✅');
+            btn.textContent = '✅ 已签到';
+            btn.classList.add('done');
+        } else {
+            showToast('签到失败，请重试');
+            btn.disabled = false;
+            btn.textContent = '✅ 签到';
+        }
+        return;
+    }
+
+    // 重新加载积分数据
+    await loadUserPoints();
+    renderCheckinWeek();
+    await loadTxList(true);
+    btn.textContent = '✅ 已签到';
+    btn.classList.add('done');
+
+    const streak = userPoints.checkin_streak || 1;
+    let pts = 5;
+    if (streak >= 7) pts = 15;
+    else if (streak >= 3) pts = 8;
+    showToast(`🎉 签到成功！+${pts} 积分\n连续第 ${streak} 天`);
+}
+
+// ============ 工具 ============
+function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function scrollToRules() {
+    document.getElementById('rulesSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ============ 启动 ============
+init().catch(e => {
+    console.error(e);
+    document.getElementById('loadingOverlay').innerHTML = '<div style="color:#f44336;font-size:14px;padding:20px;">加载失败，请刷新重试</div>';
+});
+</script>
+</body>
+</html>
