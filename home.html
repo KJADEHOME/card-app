@@ -50,6 +50,28 @@
             font-size: 12px;
             margin-left: 5px;
         }
+
+        /* 积分入口 */
+        .points-entry {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 5px 10px;
+            border-radius: 20px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            backdrop-filter: blur(4px);
+            transition: background 0.2s;
+        }
+        .points-entry:active { background: rgba(255,255,255,0.25); }
+        .points-entry-emoji { font-size: 16px; }
+        .points-entry-info {}
+        .points-entry-pts { font-weight: bold; font-size: 13px; }
+        .points-entry-lv { font-size: 10px; opacity: 0.8; }
         
         /* 发售日历 */
         .calendar-btn {
@@ -367,8 +389,17 @@
             <div class="game-selector" onclick="switchGame()">
                 游戏王 <span class="game-lang">日文</span> <span class="dropdown-arrow">▼</span>
             </div>
-            <div class="calendar-btn" onclick="showCalendar()">
-                📅 发售日历
+            <div style="display:flex;align-items:center;gap:8px;">
+                <a href="points.html" class="points-entry" id="pointsEntry">
+                    <span class="points-entry-emoji" id="homePointsEmoji">🌱</span>
+                    <div class="points-entry-info">
+                        <div class="points-entry-pts"><span id="homePointsNum">--</span> 分</div>
+                        <div class="points-entry-lv" id="homePointsLv">Lv.1</div>
+                    </div>
+                </a>
+                <div class="calendar-btn" onclick="showCalendar()">
+                    📅 发售日历
+                </div>
             </div>
         </div>
         
@@ -546,6 +577,43 @@
         function showCalendar() {
             alert('发售日历功能开发中...');
         }
+
+        // ============ 加载积分入口数据 ============
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyMzg0NDksImV4cCI6MjA1ODgxNDQ0OX0.C0Kl_8iQnEvadBHLRfjb1-PkUdBkCHQp1aRiVLiMahY';
+
+        const LEVEL_BADGES = { 1:'🌱', 2:'⭐', 3:'💫', 4:'🏅', 5:'🎖️', 6:'👑', 7:'💎' };
+
+        async function loadHomePoints() {
+            if (!window.supabase) {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+                await new Promise((res, rej) => { s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+            }
+            const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return;
+            const { data } = await sb.from('user_points').select('current_points,level').eq('user_id', session.user.id).single();
+            if (data) {
+                document.getElementById('homePointsNum').textContent = (data.current_points || 0).toLocaleString();
+                document.getElementById('homePointsLv').textContent = `Lv.${data.level || 1}`;
+                document.getElementById('homePointsEmoji').textContent = LEVEL_BADGES[data.level || 1] || '🌱';
+            }
+
+            // 签到提醒（今天未签到时悄悄提示）
+            const today = new Date().toISOString().slice(0, 10);
+            if (data && data.last_checkin_date !== today) {
+                const entry = document.getElementById('pointsEntry');
+                if (entry) {
+                    const dot = document.createElement('span');
+                    dot.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ff5722;border-radius:50%;';
+                    entry.style.position = 'relative';
+                    entry.appendChild(dot);
+                }
+            }
+        }
+
+        loadHomePoints().catch(() => {});
     </script>
 </body>
 </html>
