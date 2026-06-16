@@ -593,9 +593,10 @@
                 return;
             }
             
+            const today = new Date().toISOString().split('T')[0];
             const { error } = await db
-                .from('daily_checkins')
-                .insert([{ user_id: uid }]);
+          .from('daily_checkins')
+         .insert([{ user_id: uid, checkin_date: today }]);
             
             if (error) {
                 showToast('签到失败：' + error.message);
