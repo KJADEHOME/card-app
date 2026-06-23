@@ -292,6 +292,16 @@
         .comment-empty {
             text-align: center; padding: 30px; color: var(--text-secondary); font-size: 14px;
         }
+
+        /* Toast animations */
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -411,6 +421,7 @@
         let currentTab = 'feed';
         let likedPosts = new Set();
         let currentPostId = null;
+        let currentSharePost = null;
 
         // Demo posts data
         const demoPosts = [
@@ -560,6 +571,7 @@
                     </div>
                 `;
             }).join('');
+            window._communityPosts = posts;
         }
 
         function formatTime(ts) {
@@ -687,6 +699,7 @@
         }
 
         function openShare(postId) {
+            currentSharePost = (window._communityPosts || demoPosts).find(p => p.id === postId) || null;
             document.getElementById('shareModal').classList.add('show');
         }
 
@@ -696,16 +709,119 @@
             }
         }
 
+        function showToast(msg, duration = 2500) {
+            const t = document.createElement('div');
+            t.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:3000;animation:toastIn 0.3s,toastOut 0.3s ' + (duration - 300) + 'ms forwards;';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), duration);
+        }
+
         function shareTo(type) {
+            const post = currentSharePost;
+            const shareUrl = post ? (window.location.origin + window.location.pathname + '?post=' + post.id) : window.location.href;
+            const shareTitle = post ? (post.card_name + ' - 卡域社区') : '卡域 Card Realm - 卡牌社区';
+            const shareText = post ? (post.note || post.card_name) : '来看看卡牌社区的精彩内容';
+
             if (type === 'copy') {
-                navigator.clipboard.writeText(window.location.href);
-                alert('链接已复制！');
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('🔗 链接已复制到剪贴板');
+                }).catch(() => {
+                    showToast('复制失败，请手动复制');
+                });
             } else if (type === 'save') {
-                alert('图片生成中...（后续实现）');
-            } else {
-                alert('分享功能开发中！');
+                generateShareCard(post).then(() => {
+                    showToast('📷 分享卡片已保存');
+                }).catch(() => {
+                    showToast('图片生成失败');
+                });
+            } else if (type === 'wechat' || type === 'qq') {
+                if (navigator.share) {
+                    navigator.share({ title: shareTitle, text: shareText, url: shareUrl }).catch(() => {});
+                } else {
+                    navigator.clipboard.writeText(shareUrl + '\n\n' + shareText).then(() => {
+                        showToast(type === 'wechat' ? '💬 已复制，请粘贴到微信' : 'Q 已复制，请粘贴到QQ');
+                    });
+                }
             }
             document.getElementById('shareModal').classList.remove('show');
+        }
+
+        function drawRoundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.arcTo(x + w, y, x + w, y + r, r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+            ctx.lineTo(x + r, y + h);
+            ctx.arcTo(x, y + h, x, y + h - r, r);
+            ctx.lineTo(x, y + r);
+            ctx.arcTo(x, y, x + r, y, r);
+            ctx.closePath();
+        }
+
+        async function generateShareCard(post) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const W = 600, H = 800;
+            canvas.width = W * 2; canvas.height = H * 2;
+            ctx.scale(2, 2);
+
+            const grad = ctx.createLinearGradient(0, 0, W, H);
+            grad.addColorStop(0, '#5B4AE0');
+            grad.addColorStop(1, '#4438B0');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.beginPath(); ctx.arc(80, 80, 120, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(W - 60, H - 60, 160, 0, Math.PI * 2); ctx.fill();
+
+            const pad = 30;
+            const cw = W - pad * 2, ch = H - 180;
+            ctx.fillStyle = 'white';
+            drawRoundRect(ctx, pad, 80, cw, ch, 16);
+            ctx.fill();
+
+            ctx.fillStyle = '#1a1a1a';
+            ctx.font = 'bold 22px -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            let y = 120;
+            const title = post ? (post.card_name || '卡域社区') : '卡域 Card Realm';
+            ctx.fillText(title, pad + 20, y);
+
+            y += 40;
+            ctx.fillStyle = '#666';
+            ctx.font = '16px -apple-system, sans-serif';
+            const note = post ? (post.note || '') : '发现卡牌价值，分享收藏乐趣';
+            const maxChars = 28;
+            const lines = note.length > maxChars ? [note.slice(0, maxChars) + '…'] : [note];
+            lines.forEach(line => { ctx.fillText(line, pad + 20, y); y += 26; });
+
+            if (post && post.estimated_price) {
+                y += 20;
+                ctx.fillStyle = '#e74c3c';
+                ctx.font = 'bold 28px -apple-system, sans-serif';
+                ctx.fillText('¥' + (post.estimated_price || 0).toLocaleString(), pad + 20, y);
+                ctx.fillStyle = '#999';
+                ctx.font = '14px -apple-system, sans-serif';
+                ctx.fillText('AI 估价', pad + 20, y + 22);
+            }
+
+            y = H - 100;
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = '14px -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('扫码打开「卡域」查看更多', W / 2, y);
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = '12px -apple-system, sans-serif';
+            ctx.fillText('cardrealm.shop', W / 2, y + 22);
+
+            const link = document.createElement('a');
+            link.download = '卡域分享_' + (post ? post.id : '社区') + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         }
 
         // Tab switching
