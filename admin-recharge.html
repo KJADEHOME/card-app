@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 充值审核</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .header-back { color: white; text-decoration: none; font-size: 14px; }
+
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; background: white; margin: 15px; border-radius: 12px; }
+        .stat { text-align: center; padding: 12px; background: #f8f9fa; border-radius: 10px; }
+        .stat-num { font-size: 22px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+
+        .section { background: white; margin: 0 15px 15px; border-radius: 12px; overflow: hidden; }
+        .section-header { padding: 14px 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .section-title { font-size: 16px; font-weight: bold; }
+        .refresh-btn { background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .refresh-btn:hover { background: #5a6fd6; }
+
+        .empty { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+
+        .request-item { padding: 16px; border-bottom: 1px solid #f0f0f0; }
+        .request-item:last-child { border-bottom: none; }
+        .request-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .request-user { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
+        .user-info { flex: 1; }
+        .user-name { font-size: 14px; font-weight: 600; color: #333; }
+        .user-id { font-size: 11px; color: #999; margin-top: 1px; }
+        .request-amount { font-size: 20px; font-weight: bold; color: #f44336; }
+
+        .request-detail { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 13px; color: #666; line-height: 1.6; }
+        .request-detail .label { color: #999; }
+        .request-detail .value { color: #333; font-weight: 500; }
+        .request-detail .remark-code { font-size: 15px; color: #e65100; font-weight: bold; letter-spacing: 1px; background: #fff3e0; padding: 2px 8px; border-radius: 4px; }
+
+        .request-actions { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .btn-approve { background: linear-gradient(135deg, #4caf50, #388e3c); color: white; }
+        .btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-reject { background: #f5f5f5; color: #666; border: 1px solid #e0e0e0; }
+        .btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .status-pending { background: #fff3e0; color: #f57c00; }
+        .status-completed { background: #e8f5e9; color: #4caf50; }
+        .status-rejected { background: #ffebee; color: #f44336; }
+
+        .toast { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.75); color: white; padding: 16px 28px; border-radius: 12px; font-size: 15px; z-index: 999; text-align: center; }
+        .toast.show { display: block; }
+
+        .tabs { display: flex; border-bottom: 1px solid #f0f0f0; margin: 0 15px; background: white; border-radius: 12px 12px 0 0; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; }
+        .tab.active { color: #667eea; border-color: #667eea; font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="admin.html" class="header-back">← 返回管理</a>
+        <div class="header-title">💰 充值审核</div>
+        <div></div>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-num" id="statPending">-</div>
+            <div class="stat-label">待审核</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" id="statToday">-</div>
+            <div class="stat-label">今日申请</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" id="statTotal">-</div>
+            <div class="stat-label">累计充值</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('pending', this)">🟡 待审核</div>
+        <div class="tab" onclick="switchTab('completed', this)">✅ 已到账</div>
+        <div class="tab" onclick="switchTab('rejected', this)">❌ 已拒绝</div>
+    </div>
+
+    <div class="tab-content active" id="tab-pending">
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">待审核充值申请</div>
+                <button class="refresh-btn" onclick="loadData()">🔄 刷新</button>
+            </div>
+            <div id="pendingList">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-completed">
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">已到账记录</div>
+                <button class="refresh-btn" onclick="loadData()">🔄 刷新</button>
+            </div>
+            <div id="completedList">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-rejected">
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title">已拒绝记录</div>
+                <button class="refresh-btn" onclick="loadData()">🔄 刷新</button>
+            </div>
+            <div id="rejectedList">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        let currentUser = null;
+        let currentTab = 'pending';
+
+        function showToast(msg, duration) {
+            duration = duration || 2000;
+            var t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(function() { t.classList.remove('show'); }, duration);
+        }
+
+        async function checkAdmin() {
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return false;
+            }
+            currentUser = user;
+            return true;
+        }
+
+        function switchTab(tab, el) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        async function loadData() {
+            const isAdmin = await checkAdmin();
+            if (!isAdmin) return;
+
+            // 加载所有充值记录
+            const { data, error } = await db
+                .from('wallet_transactions')
+                .select('*')
+                .eq('type', 'deposit')
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (error) {
+                console.error('加载充值记录失败:', error);
+                showToast('加载失败: ' + error.message);
+                return;
+            }
+
+            // 统计
+            const pending = data.filter(x => (x.status === 'pending') || (x.description && x.description.includes('待审核')));
+            const completed = data.filter(x => x.status === 'completed' || (x.description && x.description.includes('已到账')));
+            const rejected = data.filter(x => x.status === 'rejected' || (x.description && x.description.includes('已拒绝')));
+            const today = new Date().toISOString().split('T')[0];
+            const todayCount = data.filter(x => x.created_at && x.created_at.startsWith(today)).length;
+
+            document.getElementById('statPending').textContent = pending.length;
+            document.getElementById('statToday').textContent = todayCount;
+            document.getElementById('statTotal').textContent = '¥' + data.reduce((s, x) => s + parseFloat(x.amount), 0).toFixed(0);
+
+            renderList('pendingList', pending, true);
+            renderList('completedList', completed, false);
+            renderList('rejectedList', rejected, false);
+        }
+
+        function renderList(containerId, items, showActions) {
+            const container = document.getElementById(containerId);
+            if (!items || items.length === 0) {
+                container.innerHTML = '<div class="empty">暂无记录</div>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => {
+                const time = new Date(item.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                const uid = item.user_id ? item.user_id.substring(0, 8) : '--';
+                const remarkMatch = (item.description || '').match(/(CY-[A-Z0-9]{6}-\d+)/);
+                const remarkCode = remarkMatch ? remarkMatch[1] : '--';
+                const status = item.status === 'pending' || (item.description && item.description.includes('待审核')) ? 'pending' :
+                               item.status === 'rejected' || (item.description && item.description.includes('已拒绝')) ? 'rejected' : 'completed';
+                const statusLabel = status === 'pending' ? '待审核' : status === 'rejected' ? '已拒绝' : '已到账';
+                const statusClass = status === 'pending' ? 'status-pending' : status === 'rejected' ? 'status-rejected' : 'status-completed';
+
+                return `
+                    <div class="request-item" data-id="${item.id}">
+                        <div class="request-header">
+                            <div class="request-user">
+                                <div class="user-avatar">${uid.substring(0, 2).toUpperCase()}</div>
+                                <div class="user-info">
+                                    <div class="user-name">用户 ${uid}... <span class="status-badge ${statusClass}">${statusLabel}</span></div>
+                                    <div class="user-id">${time}</div>
+                                </div>
+                            </div>
+                            <div class="request-amount">+¥${parseFloat(item.amount).toFixed(2)}</div>
+                        </div>
+                        <div class="request-detail">
+                            <div><span class="label">备注码：</span><span class="remark-code">${remarkCode}</span></div>
+                            <div><span class="label">当前余额：</span><span class="value">¥${parseFloat(item.balance_after || 0).toFixed(2)}</span></div>
+                            <div><span class="label">说明：</span><span class="value">${item.description || '充值'}</span></div>
+                        </div>
+                        ${showActions ? `
+                        <div class="request-actions">
+                            <button class="btn btn-approve" onclick="approve('${item.id}', this)">✅ 确认到账</button>
+                            <button class="btn btn-reject" onclick="reject('${item.id}', this)">❌ 拒绝</button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function approve(txId, btn) {
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                const { data, error } = await db.rpc('approve_recharge', {
+                    p_tx_id: txId,
+                    p_admin_uid: currentUser.id
+                });
+
+                if (error) {
+                    console.error('RPC error:', error);
+                    showToast('操作失败: ' + error.message);
+                    btn.disabled = false;
+                    btn.textContent = '✅ 确认到账';
+                    return;
+                }
+
+                const result = data || {};
+                if (result.success) {
+                    showToast('✅ ' + (result.message || '充值已确认到账'));
+                    setTimeout(loadData, 500);
+                } else {
+                    showToast('❌ ' + (result.error || '操作失败'));
+                    btn.disabled = false;
+                    btn.textContent = '✅ 确认到账';
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('网络错误，请重试');
+                btn.disabled = false;
+                btn.textContent = '✅ 确认到账';
+            }
+        }
+
+        async function reject(txId, btn) {
+            const reason = prompt('请输入拒绝原因（可选）：');
+            if (reason === null) return; // 用户取消
+
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                const { data, error } = await db.rpc('reject_recharge', {
+                    p_tx_id: txId,
+                    p_admin_uid: currentUser.id,
+                    p_reason: reason || '充值审核未通过'
+                });
+
+                if (error) {
+                    showToast('操作失败: ' + error.message);
+                    btn.disabled = false;
+                    btn.textContent = '❌ 拒绝';
+                    return;
+                }
+
+                const result = data || {};
+                if (result.success) {
+                    showToast('❌ 已拒绝该充值申请');
+                    setTimeout(loadData, 500);
+                } else {
+                    showToast('❌ ' + (result.error || '操作失败'));
+                    btn.disabled = false;
+                    btn.textContent = '❌ 拒绝';
+                }
+            } catch (e) {
+                showToast('网络错误，请重试');
+                btn.disabled = false;
+                btn.textContent = '❌ 拒绝';
+            }
+        }
+
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>

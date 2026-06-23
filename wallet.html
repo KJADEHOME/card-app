@@ -63,6 +63,8 @@
         .modal-subtitle { font-size: 13px; color: #999; text-align: center; margin-bottom: 20px; }
         .qrcode-wrap { text-align: center; margin-bottom: 20px; }
         .qrcode-wrap img { width: 200px; height: 200px; border-radius: 12px; border: 1px solid #f0f0f0; }
+        .copy-btn { background: #e3f2fd; color: #1976d2; border: 1px solid #bbdefb; padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
+        .copy-btn:active { background: #bbdefb; }
         .qrcode-amount { font-size: 28px; font-weight: bold; color: #667eea; text-align: center; margin-bottom: 6px; }
         .qrcode-amount .unit { font-size: 16px; }
         .qrcode-tip { font-size: 13px; color: #666; text-align: center; margin-bottom: 20px; line-height: 1.6; }
@@ -76,6 +78,10 @@
         .qr-step.hide { display: none; }
         .remark-tip { background: #fff8e1; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #795548; margin-bottom: 16px; line-height: 1.5; }
         .remark-tip .remark-code { font-weight: bold; color: #e65100; font-size: 15px; letter-spacing: 1px; }
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; vertical-align: middle; }
+        .status-pending { background: #fff3e0; color: #f57c00; }
+        .status-completed { background: #e8f5e9; color: #4caf50; }
+        .status-rejected { background: #ffebee; color: #f44336; }
     </style>
 </head>
 <body>
@@ -150,7 +156,8 @@
 
             <div class="remark-tip">
                 ⚠️ 付款时请务必在<strong>备注/留言</strong>中填写：<br>
-                <span class="remark-code" id="rechargeRemarkCode">---</span><br>
+                <span class="remark-code" id="rechargeRemarkCode">---</span>
+                <button class="copy-btn" onclick="copyRemarkCode()">📋 复制</button><br>
                 否则无法自动到账，需人工处理
             </div>
 
@@ -268,18 +275,34 @@
             document.getElementById('rechargeModal').classList.remove('show');
         }
 
+        function copyRemarkCode() {
+            var code = document.getElementById('rechargeRemarkCode').textContent;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(code).then(function() { showToast('备注码已复制：' + code, 2000); });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = code;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('备注码已复制：' + code, 2000);
+            }
+        }
+
         async function submitRechargeRequest() {
             var amount = selectedRechargeAmount;
             var uid = currentUser.id.replace(/-/g, '').slice(-6).toUpperCase();
             var remarkCode = 'CY-' + uid + '-' + amount;
 
-            // 写入一条"待审核"充值记录
+            // 写入一条"待审核"充值记录（使用 deposit 类型，description 标注为充值）
             try {
                 await db.from('wallet_transactions').insert([{
                     wallet_id: wallet.id,
-                    type: 'recharge',
+                    user_id: currentUser.id,
                     amount: amount,
-                    balance_after: parseFloat(wallet.balance), // 余额还没变，等管理员审核后才加
+                    balance_after: parseFloat(wallet.balance),
+                    type: 'deposit',
                     description: '充值申请 ' + remarkCode + '（待审核）'
                 }]);
             } catch(e) {
@@ -288,6 +311,8 @@
 
             closeModal();
             showToast('已提交充值申请，客服核实到账后余额将自动更新', 3000);
+            // 刷新交易记录列表
+            setTimeout(loadTransactions, 500);
         }
 
         async function loadTransactions() {
@@ -307,24 +332,36 @@
             }
 
             var TYPE_CONFIG = {
-                recharge: { icon: '💳', cls: 'icon-recharge', text: '充值' },
+                deposit: { icon: '💳', cls: 'icon-recharge', text: '充值' },
                 payment: { icon: '💰', cls: 'icon-expense', text: '付款' },
-                income: { icon: '💵', cls: 'icon-income', text: '收入' },
+                sale: { icon: '💵', cls: 'icon-income', text: '收入' },
+                purchase: { icon: '🛒', cls: 'icon-expense', text: '购买' },
                 refund: { icon: '↩️', cls: 'icon-income', text: '退款' },
-                freeze: { icon: '❄️', cls: 'icon-frozen', text: '冻结' },
-                unfreeze: { icon: '🔥', cls: 'icon-recharge', text: '解冻' }
+                fee: { icon: '🧾', cls: 'icon-expense', text: '手续费' },
+                reward: { icon: '🎁', cls: 'icon-income', text: '奖励' },
+                withdrawal: { icon: '🏧', cls: 'icon-expense', text: '提现' }
             };
 
             list.innerHTML = result.data.map(function(tx) {
                 var config = TYPE_CONFIG[tx.type] || { icon: '📝', cls: 'icon-recharge', text: tx.type };
-                var isIncome = ['income', 'refund', 'recharge', 'unfreeze'].indexOf(tx.type) >= 0;
+                var isIncome = ['deposit', 'sale', 'refund', 'reward', 'unfreeze'].indexOf(tx.type) >= 0;
                 var time = new Date(tx.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                 var sign = isIncome ? '+' : '-';
                 var colorCls = isIncome ? 'amount-income' : 'amount-expense';
+                // 状态标签（根据 description 内容判断）
+                var statusBadge = '';
+                var desc = (tx.description || '').toLowerCase();
+                if (desc.indexOf('待审核') >= 0) {
+                    statusBadge = '<span class="status-badge status-pending">待审核</span>';
+                } else if (desc.indexOf('已拒绝') >= 0 || desc.indexOf('拒绝') >= 0) {
+                    statusBadge = '<span class="status-badge status-rejected">已拒绝</span>';
+                } else if (desc.indexOf('充值申请') >= 0 && desc.indexOf('待审核') < 0) {
+                    statusBadge = '<span class="status-badge status-completed">已到账</span>';
+                }
                 return '<div class="transaction-item">' +
                     '<div class="transaction-icon ' + config.cls + '">' + config.icon + '</div>' +
                     '<div class="transaction-info">' +
-                        '<div class="transaction-desc">' + (tx.description || config.text) + '</div>' +
+                        '<div class="transaction-desc">' + (tx.description || config.text) + statusBadge + '</div>' +
                         '<div class="transaction-time">' + time + '</div>' +
                     '</div>' +
                     '<div class="transaction-amount ' + colorCls + '">' + sign + '¥' + parseFloat(tx.amount).toFixed(2) + '</div>' +
