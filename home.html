@@ -83,7 +83,10 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
         }
+        .calendar-btn:active { background: rgba(255,255,255,0.35); }
         
         /* 搜索栏 */
         .search-box {
@@ -380,6 +383,262 @@
             margin-top: -20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
+
+        /* ===== 发售日历弹窗 ===== */
+        .calendar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .calendar-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+        .calendar-sheet {
+            background: white;
+            width: 100%;
+            max-width: 560px;
+            max-height: 85vh;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+        }
+        .calendar-overlay.show .calendar-sheet {
+            transform: translateY(0);
+        }
+        .calendar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        .calendar-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .calendar-close {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: #f5f5f5;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .calendar-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .calendar-month-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 4px 12px;
+        }
+        .calendar-month-btn {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .calendar-month-btn:active { background: #e0e0e0; }
+        .calendar-month-label {
+            font-size: 17px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .calendar-weekday {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            padding: 8px 0;
+            font-weight: 500;
+        }
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.15s;
+            background: transparent;
+            border: none;
+        }
+        .calendar-day:active { background: #f0f0f0; }
+        .calendar-day.other-month { color: #ccc; }
+        .calendar-day.today { background: #f0edff; color: #5B4AE0; font-weight: 700; }
+        .calendar-day.has-release::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #5B4AE0;
+        }
+        .calendar-day.selected { background: #5B4AE0; color: white; }
+        .calendar-day.selected.has-release::after { background: white; }
+
+        .calendar-filter {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding: 4px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        .calendar-filter::-webkit-scrollbar { display: none; }
+        .calendar-filter-chip {
+            padding: 6px 14px;
+            border-radius: 16px;
+            border: 1px solid #eee;
+            background: white;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calendar-filter-chip.active {
+            background: #5B4AE0;
+            color: white;
+            border-color: #5B4AE0;
+        }
+
+        .calendar-section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .calendar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .calendar-card {
+            display: flex;
+            gap: 12px;
+            padding: 14px;
+            background: #f8f8f8;
+            border-radius: 12px;
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+        .calendar-card:active { background: #f0f0f0; }
+        .calendar-card-img {
+            width: 56px; height: 78px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+        .calendar-card-info { flex: 1; min-width: 0; }
+        .calendar-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .calendar-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        .calendar-card-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .calendar-tag-pokemon { background: #fff3e0; color: #ff9800; }
+        .calendar-tag-yugioh { background: #e3f2fd; color: #2196f3; }
+        .calendar-tag-mtg { background: #f3e5f5; color: #9c27b0; }
+        .calendar-tag-digimon { background: #e8f5e9; color: #4caf50; }
+        .calendar-tag-other { background: #f5f5f5; color: #666; }
+        .calendar-card-date {
+            font-size: 12px;
+            color: #888;
+        }
+        .calendar-card-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 6px;
+        }
+        .calendar-card-price {
+            font-size: 14px;
+            color: #e53935;
+            font-weight: 700;
+        }
+        .calendar-remind-btn {
+            padding: 4px 12px;
+            border-radius: 12px;
+            border: 1px solid #5B4AE0;
+            background: transparent;
+            color: #5B4AE0;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calendar-remind-btn.active {
+            background: #5B4AE0;
+            color: white;
+        }
+        .calendar-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        .calendar-empty-emoji { font-size: 48px; margin-bottom: 12px; display: block; }
     </style>
 </head>
 <body>
@@ -544,6 +803,49 @@
         </div>
     </div>
     
+    <!-- 底部导        </div>
+    </div>
+
+    <!-- 发售日历弹窗 -->
+    <div class="calendar-overlay" id="calendarOverlay" onclick="closeCalendar(event)">
+        <div class="calendar-sheet" onclick="event.stopPropagation()">
+            <div class="calendar-header">
+                <div class="calendar-title">📅 发售日历</div>
+                <button class="calendar-close" onclick="closeCalendar()">✕</button>
+            </div>
+            <div class="calendar-body">
+                <div class="calendar-month-nav">
+                    <button class="calendar-month-btn" onclick="changeMonth(-1)">‹</button>
+                    <div class="calendar-month-label" id="calendarMonthLabel">2026年6月</div>
+                    <button class="calendar-month-btn" onclick="changeMonth(1)">›</button>
+                </div>
+                <div class="calendar-weekdays">
+                    <div class="calendar-weekday">日</div>
+                    <div class="calendar-weekday">一</div>
+                    <div class="calendar-weekday">二</div>
+                    <div class="calendar-weekday">三</div>
+                    <div class="calendar-weekday">四</div>
+                    <div class="calendar-weekday">五</div>
+                    <div class="calendar-weekday">六</div>
+                </div>
+                <div class="calendar-days" id="calendarDays"></div>
+
+                <div class="calendar-filter" id="calendarFilter">
+                    <button class="calendar-filter-chip active" data-filter="all" onclick="filterReleases('all')">全部</button>
+                    <button class="calendar-filter-chip" data-filter="pokemon" onclick="filterReleases('pokemon')">宝可梦</button>
+                    <button class="calendar-filter-chip" data-filter="yugioh" onclick="filterReleases('yugioh')">游戏王</button>
+                    <button class="calendar-filter-chip" data-filter="mtg" onclick="filterReleases('mtg')">万智牌</button>
+                    <button class="calendar-filter-chip" data-filter="digimon" onclick="filterReleases('digimon')">数码宝贝</button>
+                </div>
+
+                <div class="calendar-section-title">
+                    <span>🚀</span> 本月发售
+                </div>
+                <div class="calendar-list" id="calendarList"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- 底部导航 -->
     <div class="bottom-nav">
         <div class="nav-item active">
@@ -575,8 +877,191 @@
         }
         
         function showCalendar() {
-            alert('发售日历功能开发中...');
+            document.getElementById('calendarOverlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            renderCalendar();
+            renderReleaseList();
         }
+
+        function closeCalendar(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('calendarOverlay').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // ===== 发售日历数据与逻辑 =====
+        let calendarCurrentDate = new Date();
+        let calendarFilter = 'all';
+        let userReminders = JSON.parse(localStorage.getItem('cardRealm_reminders') || '[]');
+
+        // 内置发售数据（示例，可替换为从Supabase加载）
+        const RELEASE_DATA = [
+            { id: 1, title: '宝可梦 TCG 集换式卡牌 强化扩充包「战斗伙伴」', game: 'pokemon', date: '2026-06-13', price: '¥180', emoji: '⚔️' },
+            { id: 2, title: '游戏王 OCG 1208 补充包', game: 'yugioh', date: '2026-06-21', price: '¥240', emoji: '👁️' },
+            { id: 3, title: '宝可梦 TCG 起始牌组「超能力/钢」', game: 'pokemon', date: '2026-06-27', price: '¥60', emoji: '🛡️' },
+            { id: 4, title: '万智牌 MTG 摩登新篇3', game: 'mtg', date: '2026-06-06', price: '¥350', emoji: '✨' },
+            { id: 5, title: '数码宝贝 DTCG 补充包 BT22', game: 'digimon', date: '2026-06-15', price: '¥280', emoji: '🐉' },
+            { id: 6, title: '宝可梦 TCG 扩充包「星晶皇冠」', game: 'pokemon', date: '2026-07-18', price: '¥180', emoji: '👑' },
+            { id: 7, title: '游戏王 OCG 结构牌组「青眼白龙」预组', game: 'yugioh', date: '2026-07-05', price: '¥150', emoji: '🐉' },
+            { id: 8, title: '万智牌 MTG 指挥官大师 2026', game: 'mtg', date: '2026-07-25', price: '¥480', emoji: '🎭' },
+            { id: 9, title: '宝可梦 TCG 高级扩充包「璀璨反击」', game: 'pokemon', date: '2026-08-08', price: '¥220', emoji: '💎' },
+            { id: 10, title: '数码宝贝 DTCG 预组 ST19', game: 'digimon', date: '2026-08-15', price: '¥120', emoji: '🤖' },
+            { id: 11, title: '游戏王 OCG 25周年稀有珍藏盒', game: 'yugioh', date: '2026-08-22', price: '¥680', emoji: '🎁' },
+            { id: 12, title: '宝可梦 TCG 特别牌组「皮卡丘大集合」', game: 'pokemon', date: '2026-09-05', price: '¥150', emoji: '⚡' },
+            { id: 13, title: '万智牌 MTG 标准系列 秋临王朝', game: 'mtg', date: '2026-09-19', price: '¥320', emoji: '🍂' },
+            { id: 14, title: '游戏王 OCG 季度礼盒 Q3', game: 'yugioh', date: '2026-09-26', price: '¥520', emoji: '🎊' }
+        ];
+
+        function getGameTagClass(game) {
+            const map = { pokemon: 'calendar-tag-pokemon', yugioh: 'calendar-tag-yugioh', mtg: 'calendar-tag-mtg', digimon: 'calendar-tag-digimon' };
+            return map[game] || 'calendar-tag-other';
+        }
+        function getGameLabel(game) {
+            const map = { pokemon: '宝可梦', yugioh: '游戏王', mtg: '万智牌', digimon: '数码宝贝' };
+            return map[game] || game;
+        }
+
+        function changeMonth(delta) {
+            calendarCurrentDate.setMonth(calendarCurrentDate.getMonth() + delta);
+            renderCalendar();
+            renderReleaseList();
+        }
+
+        function filterReleases(filter) {
+            calendarFilter = filter;
+            document.querySelectorAll('.calendar-filter-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.filter === filter);
+            });
+            renderCalendar();
+            renderReleaseList();
+        }
+
+        function renderCalendar() {
+            const year = calendarCurrentDate.getFullYear();
+            const month = calendarCurrentDate.getMonth();
+            document.getElementById('calendarMonthLabel').textContent = `${year}年${month + 1}月`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            const currentMonthStr = `${year}-${String(month+1).padStart(2,'0')}`;
+
+            let html = '';
+            // 上月补位
+            for (let i = firstDay - 1; i >= 0; i--) {
+                html += `<div class="calendar-day other-month">${daysInPrevMonth - i}</div>`;
+            }
+            // 当月
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${currentMonthStr}-${String(d).padStart(2,'0')}`;
+                const isToday = dateStr === todayStr;
+                const hasRelease = RELEASE_DATA.some(r => {
+                    if (r.date !== dateStr) return false;
+                    return calendarFilter === 'all' || r.game === calendarFilter;
+                });
+                const classes = ['calendar-day'];
+                if (isToday) classes.push('today');
+                if (hasRelease) classes.push('has-release');
+                html += `<div class="${classes.join(' ')}" onclick="selectDate('${dateStr}')">${d}</div>`;
+            }
+            // 下月补位（凑满6行或保持完整）
+            const totalCells = firstDay + daysInMonth;
+            const remainder = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            for (let d = 1; d <= remainder; d++) {
+                html += `<div class="calendar-day other-month">${d}</div>`;
+            }
+            document.getElementById('calendarDays').innerHTML = html;
+        }
+
+        function selectDate(dateStr) {
+            // 可扩展：选中日期，显示当日发售详情
+            const dayEls = document.querySelectorAll('.calendar-day');
+            dayEls.forEach(el => el.classList.remove('selected'));
+            const target = Array.from(dayEls).find(el => {
+                const d = parseInt(el.textContent);
+                if (isNaN(d)) return false;
+                const padD = String(d).padStart(2,'0');
+                // 简单匹配：非 other-month 且日期匹配
+                return !el.classList.contains('other-month') && padD === dateStr.slice(-2);
+            });
+            if (target) target.classList.add('selected');
+        }
+
+        function renderReleaseList() {
+            const year = calendarCurrentDate.getFullYear();
+            const month = calendarCurrentDate.getMonth();
+            const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+
+            let releases = RELEASE_DATA.filter(r => r.date.startsWith(monthPrefix));
+            if (calendarFilter !== 'all') {
+                releases = releases.filter(r => r.game === calendarFilter);
+            }
+            releases.sort((a, b) => a.date.localeCompare(b.date));
+
+            const listEl = document.getElementById('calendarList');
+            if (releases.length === 0) {
+                listEl.innerHTML = `
+                    <div class="calendar-empty">
+                        <span class="calendar-empty-emoji">📭</span>
+                        <div>本月暂无发售信息</div>
+                        <div style="font-size:12px;margin-top:4px;">切换分类或查看其他月份</div>
+                    </div>`;
+                return;
+            }
+
+            listEl.innerHTML = releases.map(item => {
+                const day = parseInt(item.date.slice(-2));
+                const isReminded = userReminders.includes(String(item.id));
+                return `
+                <div class="calendar-card">
+                    <div class="calendar-card-img">${item.emoji}</div>
+                    <div class="calendar-card-info">
+                        <div class="calendar-card-title">${item.title}</div>
+                        <div class="calendar-card-meta">
+                            <span class="calendar-card-tag ${getGameTagClass(item.game)}">${getGameLabel(item.game)}</span>
+                            <span class="calendar-card-date">${month + 1}月${day}日</span>
+                        </div>
+                        <div class="calendar-card-bottom">
+                            <span class="calendar-card-price">${item.price}</span>
+                            <button class="calendar-remind-btn ${isReminded ? 'active' : ''}" onclick="toggleReminder(${item.id}, this)">
+                                ${isReminded ? '已提醒' : '提醒我'}
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleReminder(id, btn) {
+            const idStr = String(id);
+            const idx = userReminders.indexOf(idStr);
+            if (idx >= 0) {
+                userReminders.splice(idx, 1);
+                btn.classList.remove('active');
+                btn.textContent = '提醒我';
+            } else {
+                userReminders.push(idStr);
+                btn.classList.add('active');
+                btn.textContent = '已提醒';
+                // 模拟提醒设置成功
+                showToast('已设置发售提醒');
+            }
+            localStorage.setItem('cardRealm_reminders', JSON.stringify(userReminders));
+        }
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:300;animation:toastIn 0.3s,toastOut 0.3s 2s forwards;';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 2500);
+        }
+        // 动态添加toast动画
+        const toastStyle = document.createElement('style');
+        toastStyle.textContent = '@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}@keyframes toastOut{from{opacity:1}to{opacity:0}}';
+        document.head.appendChild(toastStyle);
 
         // ============ 加载积分入口数据 ============
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
