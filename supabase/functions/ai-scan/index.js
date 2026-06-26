@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
 Rules:
 - name: The card's English name. If the card has Japanese/Chinese text, translate to English.
-- series: Must be one of: "Pokemon", "Yu-Gi-Oh", "Magic", "Other"
+- series: Must be one of: "Pokemon", "Yu-Gi-Oh", "Magic", "Nikke", "Brown Dust", "Stellar Blade", "Other"
 - rarity: Must be one of: "N", "R", "SR", "UR", "SSR", "SEC", "PR"
 
 CRITICAL: Output ONLY the JSON object. No explanations. No markdown code blocks. Just the raw JSON.`

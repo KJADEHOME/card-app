@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Card Realm - AI Card Scanner</title>
-    <meta name="description" content="Scan trading cards with AI. Get real-time market prices. Pokemon, Yu-Gi-Oh!, Magic: The Gathering.">
+    <meta name="description" content="Scan trading cards with AI. Get real-time market prices. Pokemon, Yu-Gi-Oh!, Magic, Nikke, Brown Dust, Stellar Blade.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Card Realm">
@@ -252,6 +252,9 @@
         <button class="game-tab" data-game="pokemon" onclick="switchGame('pokemon')">Pokémon</button>
         <button class="game-tab" data-game="yugioh" onclick="switchGame('yugioh')">Yu-Gi-Oh!</button>
         <button class="game-tab" data-game="magic" onclick="switchGame('magic')">Magic</button>
+        <button class="game-tab" data-game="nikke" onclick="switchGame('nikke')">Nikke</button>
+        <button class="game-tab" data-game="brown-dust" onclick="switchGame('brown-dust')">Brown Dust</button>
+        <button class="game-tab" data-game="stellar-blade" onclick="switchGame('stellar-blade')">Stellar Blade</button>
     </div>
 
     <!-- Search -->
@@ -549,6 +552,9 @@
             if (s.includes('pokémon') || s.includes('pokemon') || s.includes('宝可梦')) return 'pokemon';
             if (s.includes('yu-gi-oh') || s.includes('ygo') || s.includes('游戏王')) return 'yugioh';
             if (s.includes('magic') || s.includes('mtg') || s.includes('万智牌')) return 'magic';
+            if (s.includes('nikke') || s.includes('胜利女神') || s.includes('니케')) return 'nikke';
+            if (s.includes('brown dust') || s.includes('棕色尘埃') || s.includes('브라운')) return 'brown-dust';
+            if (s.includes('stellar blade') || s.includes('剑星') || s.includes('스텔라')) return 'stellar-blade';
             return 'other';
         }
 
