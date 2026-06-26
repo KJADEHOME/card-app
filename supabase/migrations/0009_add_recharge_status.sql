@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_wallet_tx_type_status ON public.wallet_transactio
 -- 2. 添加管理员配置（把你的 Supabase 用户ID填入）
 -- 注意：请把下面 'YOUR-ADMIN-UUID-HERE' 替换为你的实际管理员用户ID
 INSERT INTO public.platform_config (key, value, description) VALUES
-    ('admin_user_id', 'YOUR-ADMIN-UUID-HERE', '管理员用户UUID，用于管理后台权限判断')
+    ('admin_user_id', '45678987-ac1f-4f21-8973-9906d5b30de5', '管理员用户UUID，用于管理后台权限判断')
 ON CONFLICT (key) DO NOTHING;
 
 -- 3. 添加管理员 RLS 策略：管理员可以查看所有钱包流水
