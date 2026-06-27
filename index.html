@@ -741,10 +741,10 @@
                         <div class="ai-result-thumb">${previewUrl ? `<img src="${previewUrl}" alt="card">` : '🃏'}</div>
                         <div class="ai-result-info">
                             <div class="ai-result-name">${escHTML(aiDetectedName)}</div>
-                            <div class="ai-result-series">${escHTML(aiDetectedSeries)} · ${escHTML(rarity)}</div>
+                            <div class="ai-result-series">${escHTML(aiDetectedSeries)} · ${escHTML(aiDetectedRarity)}</div>
                             <div class="ai-result-tags">
                                 ${isRare ? `<span class="ai-result-tag rare">⭐ ${rareLabel}</span>` : ''}
-                                <span class="ai-result-tag rarity">${escHTML(rarity)}</span>
+                                <span class="ai-result-tag rarity">${escHTML(aiDetectedRarity)}</span>
                             </div>
                         </div>
                     </div>
