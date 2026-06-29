@@ -1,5 +1,6 @@
 // ai-scan Edge Function — Pure JavaScript (no TypeScript imports)
-// This file is pure Deno/JavaScript — Management API can deploy it directly
+// Supports: Pokemon, Yu-Gi-Oh, Magic, Nikke, Brown Dust, Stellar Blade
+// Returns image_hash for client-side dedup
 "use strict";
 
 const MOONSHOT_API_KEY = Deno.env.get("MOONSHOT_API_KEY") || "sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk";
@@ -15,6 +16,23 @@ function jsonResponse(body, status) {
     status: status || 200,
     headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
   });
+}
+
+// Compute SHA-256 hash of image for dedup
+async function computeImageHash(base64Image) {
+  try {
+    const binaryStr = atob(base64Image);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch (e) {
+    console.error("Hash computation error:", e);
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -42,6 +60,9 @@ Deno.serve(async (req) => {
         error: "image too short or empty — provide a base64 encoded image"
       }, 400);
     }
+
+    // Compute image hash (runs in parallel with AI call)
+    const imageHashPromise = computeImageHash(image);
 
     const imageUrl = image.startsWith("data:") ? image : "data:image/jpeg;base64," + image;
 
@@ -118,22 +139,28 @@ CRITICAL: Output ONLY the JSON object. No explanations. No markdown code blocks.
       }
 
       if (parsed && parsed.name && typeof parsed.name === "string") {
-        // Sanitize the name: remove garbled characters, limit length
         let name = String(parsed.name).trim();
-        // If name contains too many non-ASCII garbled-looking chars, it might be corrupted
         if (name.length > 100) name = name.substring(0, 80);
         result.name = name || "unknown";
         result.series = String(parsed.series || "Yu-Gi-Oh").trim();
         result.rarity = String(parsed.rarity || "N").trim();
         result.isRare = ["SSR", "UR", "SEC", "PR", "SR"].indexOf(result.rarity) !== -1;
       } else {
-        // No valid JSON found — use cleaned text as fallback, capped
         const fallback = cleaned.substring(0, 50).replace(/[{}\[\]"':,\n\r\t]/g, "").trim();
         result.name = fallback || "unknown";
       }
     }
 
-    return jsonResponse({ success: true, data: result });
+    // Get image hash
+    const imageHash = await imageHashPromise;
+
+    return jsonResponse({
+      success: true,
+      data: {
+        ...result,
+        image_hash: imageHash
+      }
+    });
 
   } catch (error) {
     const msg = error.message || "scan failed";

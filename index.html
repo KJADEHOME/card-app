@@ -478,6 +478,7 @@
         let aiDetectedRarity = '';
         let aiDetectedPrice = 0;
         let aiPreviewUrl = '';
+        let aiDetectedImageHash = null;     // SHA256 for dedup
         let cameraStream = null;
         let facingMode = 'environment';
 
@@ -731,6 +732,7 @@
                 aiDetectedSeries = data.series || t('unknown_series');
                 aiDetectedRarity = data.rarity || 'N';
                 aiPreviewUrl = previewUrl || '';
+                aiDetectedImageHash = data.image_hash || null;
                 const isRare = data.isRare === true;
 
                 // Render result with preview
@@ -887,6 +889,7 @@
             document.getElementById('aiResultPanel').classList.remove('show');
         }
 
+        // ===== 完整闭环: AI扫描 → 去重检查 → 积分扣费 → Storage上传 → DB写入 =====
         async function addToCollection() {
             const price = prompt(`将「${aiDetectedName}」加入收藏夹\n\n请输入入手价（元）：`, '');
             if (price === null) return;
@@ -896,34 +899,188 @@
                 return;
             }
 
+            // 显示 loading toast
+            showToast('⏳ 正在添加...');
+
             try {
+                // Step 1: 登录检查
                 const { data: { session } } = await db.auth.getSession();
                 if (!session) {
                     alert('请先登录后再添加收藏');
                     return;
                 }
+                const userId = session.user.id;
 
-                const { error } = await db.from('user_collections').insert([{
-                    user_id: session.user.id,
+                // Step 2: 图片去重检查（同一用户 + 同一图片哈希）
+                if (aiDetectedImageHash) {
+                    const { data: dupLogs, error: dupErr } = await db
+                        .from('ai_scan_logs')
+                        .select('id, created_at')
+                        .eq('user_id', userId)
+                        .eq('image_hash', aiDetectedImageHash)
+                        .limit(1);
+                    
+                    if (!dupErr && dupLogs && dupLogs.length > 0) {
+                        alert('⚠️ 该图片已扫描过，请勿重复识卡！\n\n扫描时间：' + new Date(dupLogs[0].created_at).toLocaleString());
+                        return;
+                    }
+                }
+
+                // Step 3: 检查每日扫描上限
+                const { data: limitData, error: limitErr } = await db.rpc('check_scan_limit', { p_user_id: userId });
+                if (limitErr) {
+                    console.warn('check_scan_limit error:', limitErr);
+                } else if (limitData && limitData.length > 0 && !limitData[0].can_scan) {
+                    alert(`⚠️ 今日AI识卡已达上限（${limitData[0].daily_limit}次），请明天再来！`);
+                    return;
+                }
+
+                // Step 4: 积分检查 & 计算消耗
+                const SCAN_BASE_COST = 10; // 基础消耗10积分
+                let pointsCost = SCAN_BASE_COST;
+                let pointsDiscounted = 0;
+
+                const { data: ptsData, error: ptsErr } = await db
+                    .from('user_points')
+                    .select('current_points, level')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (!ptsErr && ptsData) {
+                    if (ptsData.current_points < SCAN_BASE_COST) {
+                        alert(`⚠️ 积分不足！\n\n当前积分：${ptsData.current_points}\n需要积分：${SCAN_BASE_COST}\n\n请去「个人中心」签到获取积分`);
+                        return;
+                    }
+
+                    // 等级折扣
+                    const { data: lvlData } = await db
+                        .from('level_config')
+                        .select('scan_discount_pct')
+                        .eq('level', ptsData.level || 1)
+                        .single();
+                    
+                    if (lvlData && lvlData.scan_discount_pct > 0) {
+                        pointsDiscounted = Math.floor(SCAN_BASE_COST * lvlData.scan_discount_pct / 100);
+                        pointsCost = SCAN_BASE_COST - pointsDiscounted;
+                    }
+                }
+
+                console.log(`[addToCollection] points: cost=${pointsCost}, discounted=${pointsDiscounted}, base=${SCAN_BASE_COST}`);
+
+                // Step 5: 上传图片到 Supabase Storage（代替 base64 存库）
+                let storageUrl = aiPreviewUrl; // fallback 用 base64
+                try {
+                    const base64Data = aiPreviewUrl.includes('base64,') 
+                        ? aiPreviewUrl.split('base64,')[1] 
+                        : aiPreviewUrl;
+                    const byteStr = atob(base64Data);
+                    const ab = new ArrayBuffer(byteStr.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+                    const blob = new Blob([ab], { type: 'image/jpeg' });
+                    const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+                    
+                    const { data: uploadData, error: uploadErr } = await db.storage
+                        .from('card-scans')
+                        .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
+                    
+                    if (!uploadErr && uploadData) {
+                        const { data: urlData } = db.storage.from('card-scans').getPublicUrl(fileName);
+                        if (urlData && urlData.publicUrl) storageUrl = urlData.publicUrl;
+                        console.log('[addToCollection] uploaded to Storage:', storageUrl);
+                    } else {
+                        console.warn('[addToCollection] Storage upload failed, using base64 fallback:', uploadErr?.message);
+                    }
+                } catch (storageErr) {
+                    console.warn('[addToCollection] Storage error, using base64 fallback:', storageErr.message);
+                }
+
+                // Step 6: 写入 user_collections
+                const { data: collData, error: collErr } = await db.from('user_collections').insert([{
+                    user_id: userId,
                     card_name: aiDetectedName,
                     card_name_en: aiDetectedName,
                     series: aiDetectedSeries,
                     rarity: aiDetectedRarity,
-                    card_image: aiPreviewUrl,
+                    card_image: storageUrl,
                     purchase_price: purchasePrice,
                     purchase_currency: 'CNY',
                     current_price: aiDetectedPrice || purchasePrice,
                     current_currency: 'CNY',
                     purchase_date: new Date().toISOString().split('T')[0],
                     condition: 'NM',
-                    quantity: 1
+                    quantity: 1,
+                    source: 'AI_SCAN'
+                }]).select('id').single();
+
+                if (collErr) throw new Error('收藏写入失败：' + collErr.message);
+                const collectionId = collData?.id;
+                console.log('[addToCollection] user_collections id:', collectionId);
+
+                // Step 7: 写入 scan_history
+                const { data: scanData, error: scanErr } = await db.from('scan_history').insert([{
+                    user_id: userId,
+                    card_name: aiDetectedName,
+                    card_name_en: aiDetectedName,
+                    card_image: storageUrl,
+                    series: aiDetectedSeries,
+                    rarity: aiDetectedRarity,
+                    estimated_price: aiDetectedPrice,
+                    estimated_currency: 'CNY',
+                    ai_confidence: 0.85,
+                    scan_type: aiPreviewUrl ? 'upload' : 'camera',
+                    image_hash: aiDetectedImageHash,
+                    collection_id: collectionId
+                }]).select('id').single();
+
+                if (scanErr) console.warn('[addToCollection] scan_history write warning:', scanErr.message);
+                const scanHistoryId = scanData?.id;
+
+                // Step 8: 写入 ai_scan_logs（防刷记录）
+                const { error: logErr } = await db.from('ai_scan_logs').insert([{
+                    user_id: userId,
+                    image_hash: aiDetectedImageHash || ('nohash_' + Date.now()),
+                    card_name: aiDetectedName,
+                    series: aiDetectedSeries,
+                    rarity: aiDetectedRarity,
+                    collection_id: collectionId,
+                    scan_history_id: scanHistoryId,
+                    points_cost: pointsCost,
+                    points_discounted: pointsDiscounted,
+                    points_base: SCAN_BASE_COST
                 }]);
 
-                if (error) throw error;
-                alert('✅ 已加入收藏夹！去「我的资产」查看升值情况');
-                document.getElementById('aiResultPanel').classList.remove('show');
+                if (logErr) console.warn('[addToCollection] ai_scan_logs write warning:', logErr.message);
+
+                // Step 9: 扣除积分（使用 RPC 原子操作）
+                if (pointsCost > 0) {
+                    const { data: deductOk, error: deductErr } = await db.rpc('deduct_scan_points', {
+                        p_user_id: userId,
+                        p_points: pointsCost,
+                        p_card_name: aiDetectedName,
+                        p_scan_log_id: collectionId
+                    });
+
+                    if (deductErr || !deductOk) {
+                        console.warn('[addToCollection] Points deduction warning:', deductErr?.message || 'rpc returned false');
+                    } else {
+                        console.log(`[addToCollection] Points deducted: ${pointsCost}`);
+                    }
+                }
+
+                // Step 10: 刷新积分显示
+                loadPointsForScan();
+
+                // Step 11: 成功提示
+                const costMsg = pointsCost > 0 ? `\n消耗积分：${pointsCost}${pointsDiscounted > 0 ? '（等级减免' + pointsDiscounted + '）' : ''}` : '';
+                showToast('✅ 已加入卡册！' + costMsg);
+                
+                setTimeout(() => {
+                    document.getElementById('aiResultPanel').classList.remove('show');
+                }, 800);
+
             } catch (err) {
-                console.error('Add to collection error:', err);
+                console.error('[addToCollection] Error:', err);
                 alert('添加失败：' + (err.message || '未知错误'));
             }
         }
@@ -950,7 +1107,8 @@
                     estimated_price: aiDetectedPrice,
                     estimated_currency: 'CNY',
                     ai_confidence: 0.85,
-                    scan_type: 'camera'
+                    scan_type: 'camera',
+                    image_hash: aiDetectedImageHash
                 }]);
 
                 const { error } = await db.from('community_posts').insert([{
@@ -974,6 +1132,20 @@
                 console.error('Share to community error:', err);
                 alert('分享失败：' + (err.message || '未知错误'));
             }
+        }
+
+        function showToast(msg) {
+            let toast = document.getElementById('toastEl');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toastEl';
+                toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:10px 24px;border-radius:24px;font-size:14px;font-weight:600;z-index:9999;transition:all 0.3s;opacity:0;pointer-events:none;white-space:nowrap;';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
         }
 
         function dismissResult() {
