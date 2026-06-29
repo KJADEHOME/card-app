@@ -6,21 +6,55 @@
     <title>卡域 - 卡牌详情</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 100px; }
+        :root {
+            --rise: #e74c3c;
+            --fall: #27ae60;
+            --primary: #5B4AE0;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; background: #f5f5f5; padding-bottom: 100px; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
         .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
         .header-title { color: white; font-size: 18px; font-weight: bold; }
-        .card-image { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .info { background: white; padding: 20px; margin-bottom: 15px; }
-        .card-name { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+        .card-image { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; font-size: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden; }
+        .card-image img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Price Section */
+        .price-section { background: white; padding: 20px; margin-bottom: 15px; }
+        .card-name { font-size: 22px; font-weight: bold; margin-bottom: 6px; }
         .card-meta { color: #666; font-size: 14px; margin-bottom: 15px; }
-        .card-price { font-size: 28px; font-weight: bold; color: #667eea; margin-bottom: 15px; }
+        .price-main { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+        .price-current { font-size: 32px; font-weight: 800; color: var(--primary); }
+        .price-change-tag {
+            font-size: 14px; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+        }
+        .price-change-tag.rise { color: var(--rise); background: rgba(231,76,60,0.08); }
+        .price-change-tag.fall { color: var(--fall); background: rgba(39,174,96,0.08); }
+        .price-detail-row { display: flex; gap: 20px; font-size: 13px; color: #888; margin-top: 8px; }
+        .price-detail-row span { font-weight: 600; }
+        .price-detail-row .prev { color: #666; }
+        
+        /* Asset Value Tag */
+        .asset-tags { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .asset-tag {
+            padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .asset-tag.blue { background: #E3F2FD; color: #1976D2; }
+        .asset-tag.green { background: #E8F5E9; color: #388E3C; }
+        .asset-tag.orange { background: #FFF3E0; color: #F57C00; }
+        .asset-tag.purple { background: #F3E5F5; color: #7B1FA2; }
+        
+        .info { background: white; padding: 20px; margin-bottom: 15px; }
+        .section { background: white; padding: 20px; margin-bottom: 15px; }
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; display: flex; align-items: center; gap: 6px; }
+        .section-content { color: #666; font-size: 14px; line-height: 1.6; }
+        
+        /* Trend Chart */
+        .trend-canvas { height: 140px; background: #fafafa; border-radius: 8px; position: relative; overflow: hidden; margin-top: 10px; }
+        .trend-bar { position: absolute; bottom: 0; background: linear-gradient(180deg, #5B4AE0 0%, #7B6CF0 100%); border-radius: 2px 2px 0 0; opacity: 0.6; }
+        
         .tag { display: inline-block; padding: 4px 12px; border-radius: 15px; font-size: 12px; margin-right: 10px; }
         .tag-sell { background: #e3f2fd; color: #1976d2; }
         .tag-buy { background: #fff3e0; color: #f57c00; }
-        .section { background: white; padding: 20px; margin-bottom: 15px; }
-        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }
-        .section-content { color: #666; font-size: 14px; line-height: 1.6; }
         .seller { display: flex; align-items: center; gap: 15px; }
         .seller-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; }
         .seller-name { font-weight: bold; font-size: 16px; }
@@ -51,26 +85,23 @@
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
-        // 获取URL参数
         const urlParams = new URLSearchParams(window.location.search);
         const cardId = urlParams.get('id');
         
         let currentCard = null;
         let currentUser = null;
         let isFav = false;
-        
-        // 加载详情
+        let cardMarketPrice = null;
+
         async function loadDetail() {
             if (!cardId) {
                 document.getElementById('content').innerHTML = '<div class="loading">卡牌不存在</div>';
                 return;
             }
             
-            // 获取当前用户
             const { data: { user } } = await db.auth.getUser();
             currentUser = user;
             
-            // 获取卡牌详情
             const { data, error } = await db
                 .from('market_listings')
                 .select('*')
@@ -84,7 +115,7 @@
             
             currentCard = data;
             
-            // 检查是否已收藏
+            // Check if favorited
             if (currentUser) {
                 const { data: favData } = await db
                     .from('favorites')
@@ -96,37 +127,107 @@
                 updateFavButton();
             }
             
+            // Load market price from card_prices
+            await loadMarketPrice(data.name, data.series, data.rarity);
+            
             renderDetail(data);
         }
         
-        // 渲染详情
+        // Load current market price & trend from card_prices
+        async function loadMarketPrice(cardName, series, rarity) {
+            try {
+                const { data: priceData } = await db
+                    .from('card_prices')
+                    .select('*')
+                    .eq('card_name', cardName)
+                    .eq('market', 'CN')
+                    .single();
+                
+                if (priceData) {
+                    cardMarketPrice = priceData;
+                }
+            } catch (e) {
+                console.log('No market price data for:', cardName);
+            }
+        }
+        
         function renderDetail(card) {
-            const gradients = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #ff6b9d 0%, #feca57 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-            ];
-            
             const bgStyle = card.image_url 
                 ? 'background-image: url(' + card.image_url + '); background-size: cover;' 
-                : 'background: ' + gradients[0];
+                : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
             
             const timeStr = new Date(card.created_at).toLocaleString('zh-CN');
             
+            // Market price info
+            const mp = cardMarketPrice;
+            const marketPrice = mp ? mp.current_price : null;
+            const prevPrice = mp ? mp.previous_price : null;
+            const changePct = mp ? mp.change_percent : 0;
+            const changeAmt = mp ? mp.change_amount : 0;
+            const isUp = changePct > 0;
+            const isDown = changePct < 0;
+            
+            let priceHTML = '';
+            if (marketPrice) {
+                priceHTML = `
+                    <div class="price-main">
+                        <span class="price-current">¥${marketPrice.toLocaleString()}</span>
+                        ${changePct !== 0 ? `<span class="price-change-tag ${isUp ? 'rise' : 'fall'}">${isUp ? '📈' : '📉'} ${isUp ? '+' : ''}${changePct.toFixed(1)}%</span>` : ''}
+                    </div>
+                    <div class="price-detail-row">
+                        ${prevPrice ? `<span class="prev">昨收 ¥${prevPrice.toLocaleString()}</span>` : ''}
+                        ${changeAmt !== 0 ? `<span>涨跌 ¥${changeAmt > 0 ? '+' : ''}${changeAmt.toLocaleString()}</span>` : ''}
+                        ${mp.data_source ? `<span>数据源: ${mp.data_source}</span>` : ''}
+                    </div>
+                    <div class="asset-tags">
+                        <span class="asset-tag blue">📊 市价: ¥${marketPrice.toLocaleString()}</span>
+                        ${changePct > 0 ? `<span class="asset-tag orange">📈 今日 +${changePct.toFixed(1)}%</span>` : ''}
+                        ${changePct < 0 ? `<span class="asset-tag green">📉 今日 ${changePct.toFixed(1)}%</span>` : ''}
+                        <span class="asset-tag purple">📅 ${new Date(mp.updated_at).toLocaleDateString('zh-CN')}</span>
+                    </div>
+                `;
+            }
+            
+            // Price history trend bars
+            let trendHTML = '';
+            if (marketPrice && prevPrice) {
+                const data = [prevPrice, marketPrice];
+                const max = Math.max(...data);
+                trendHTML = `
+                    <div class="section">
+                        <div class="section-title">📈 价格趋势</div>
+                        <div class="trend-canvas">
+                            ${data.map((v, i) => {
+                                const h = Math.max((v / max) * 100, 10);
+                                const label = i === 0 ? '昨日' : '今日';
+                                const color = i === 0 ? '#999' : (changePct > 0 ? '#e74c3c' : '#27ae60');
+                                return `<div class="trend-bar" style="left:${10 + i * 50}%;width:40px;height:${h}%;background:${color};" title="${label}: ¥${v}"></div>`;
+                            }).join('')}
+                            <div style="position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-around;font-size:10px;color:#999;padding:4px;">
+                                <span>昨日 ¥${prevPrice.toLocaleString()}</span>
+                                <span>今日 ¥${marketPrice.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
             document.getElementById('content').innerHTML = `
                 <div class="card-image" style="${bgStyle}">
-                    ${card.image_url ? '' : card.name.substring(0, 2)}
+                    ${card.image_url ? '<img src="' + card.image_url + '" alt="">' : card.name.substring(0, 2)}
                 </div>
                 
-                <div class="info">
+                <div class="price-section">
                     <div>
                         <span class="tag ${card.type === 'sell' ? 'tag-sell' : 'tag-buy'}">${card.type === 'sell' ? '出售' : '求购'}</span>
                     </div>
                     <div class="card-name">${card.name}</div>
                     <div class="card-meta">${card.series} · ${card.rarity}</div>
-                    <div class="card-price">¥${card.price}</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--rise);">挂牌价 ¥${card.price}</div>
+                    ${priceHTML}
                 </div>
+                
+                ${trendHTML}
                 
                 <div class="section">
                     <div class="section-title">📝 描述</div>
@@ -145,79 +246,44 @@
                 </div>
             `;
             
-            // 显示底部按钮
             document.getElementById('bottomBar').style.display = 'flex';
         }
         
-        // 联系卖家
         function contactSeller() {
-            if (!currentUser) {
-                alert('请先登录');
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            if (currentUser.id === currentCard.seller_id) {
-                alert('这是你自己发布的卡牌');
-                return;
-            }
-            
-            // 先发送一条默认消息
+            if (!currentUser) { alert('请先登录'); window.location.href = 'login.html'; return; }
+            if (currentUser.id === currentCard.seller_id) { alert('这是你自己发布的卡牌'); return; }
             db.from('messages').insert([{
                 sender_id: currentUser.id,
                 receiver_id: currentCard.seller_id,
                 card_id: cardId,
                 content: '你好，我对这张卡牌感兴趣：' + currentCard.name
             }]).then(() => {
-                // 跳转到消息页
                 window.location.href = 'message.html?seller=' + currentCard.seller_id + '&card=' + cardId;
             });
         }
         
-        // 更新收藏按钮
         function updateFavButton() {
-            const btn = document.getElementById('favBtn');
-            btn.textContent = isFav ? '❤️' : '🤍';
+            document.getElementById('favBtn').textContent = isFav ? '❤️' : '🤍';
         }
         
-        // 立即购买
         function buyNow() {
-            if (!currentUser) {
-                alert('请先登录');
-                window.location.href = 'login.html';
-                return;
-            }
-            if (currentUser.id === currentCard.seller_id) {
-                alert('这是你自己发布的卡牌');
-                return;
-            }
+            if (!currentUser) { alert('请先登录'); window.location.href = 'login.html'; return; }
+            if (currentUser.id === currentCard.seller_id) { alert('这是你自己发布的卡牌'); return; }
             window.location.href = 'order-confirm.html?id=' + cardId;
         }
 
-        // 切换收藏
         async function toggleFav() {
-            if (!currentUser) {
-                alert('请先登录');
-                return;
-            }
-            
+            if (!currentUser) { alert('请先登录'); return; }
             if (isFav) {
-                // 取消收藏
                 await db.from('favorites').delete().eq('user_id', currentUser.id).eq('card_id', cardId);
                 isFav = false;
             } else {
-                // 添加收藏
-                await db.from('favorites').insert({
-                    user_id: currentUser.id,
-                    card_id: cardId
-                });
+                await db.from('favorites').insert({ user_id: currentUser.id, card_id: cardId });
                 isFav = true;
             }
-            
             updateFavButton();
         }
         
-        // 加载
         loadDetail();
     </script>
 </body>

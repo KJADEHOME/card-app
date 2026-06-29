@@ -1015,7 +1015,24 @@
 
                 if (collErr) throw new Error('收藏写入失败：' + collErr.message);
                 const collectionId = collData?.id;
-                console.log('[addToCollection] user_collections id:', collectionId);
+
+                // Step 6b: Upsert card_prices（供市场涨跌榜使用）
+                if (aiDetectedPrice > 0) {
+                    const { error: priceErr } = await db.from('card_prices').upsert({
+                        card_name: aiDetectedName,
+                        series: aiDetectedSeries,
+                        rarity: aiDetectedRarity,
+                        card_category: matchGame(aiDetectedSeries),
+                        current_price: aiDetectedPrice,
+                        previous_price: null,
+                        change_percent: 0,
+                        market: 'CN',
+                        currency: 'CNY',
+                        data_source: 'tcgdex',
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'card_name, series, rarity, market' });
+                    if (priceErr) console.warn('[addToCollection] card_prices upsert warning:', priceErr.message);
+                }
 
                 // Step 7: 写入 scan_history
                 const { data: scanData, error: scanErr } = await db.from('scan_history').insert([{

@@ -220,6 +220,43 @@
         .price-change.rise { color: var(--rise); background: rgba(231,76,60,0.08); }
         .price-change.fall { color: var(--fall); background: rgba(39,174,96,0.08); }
 
+        /* Refresh button */
+        .refresh-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            margin-bottom: 12px;
+        }
+        .refresh-btn {
+            padding: 8px 20px;
+            border: 1px solid var(--primary);
+            background: var(--white);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .refresh-btn:active { background: var(--primary-light); }
+        .refresh-time { font-size: 11px; color: var(--text-secondary); margin-left: 12px; }
+
+        /* Today change row in portfolio */
+        .today-change-row {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .today-change-item { display: flex; align-items: center; gap: 4px; }
+        .today-change-val { font-weight: 700; }
+        .today-change-val.rise { color: var(--rise); }
+        .today-change-val.fall { color: var(--fall); }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -284,6 +321,11 @@
             <div class="portfolio-change" id="totalChange">
                 <span id="profitIcon">--</span> <span id="profitAmount">--</span> (<span id="profitPct">--</span>)
             </div>
+            <div class="today-change-row" id="todayChangeRow" style="display:none;">
+                <div class="today-change-item">
+                    📈 今日涨跌 <span class="today-change-val" id="todayChangeVal">--</span>
+                </div>
+            </div>
         </div>
         <div class="stat-grid">
             <div class="stat-item">
@@ -302,6 +344,14 @@
     </div>
 
     <div class="content">
+        <!-- Refresh Bar -->
+        <div class="refresh-bar">
+            <button class="refresh-btn" onclick="refreshPrices()" id="refreshBtn">
+                🔄 刷新市价
+            </button>
+            <span class="refresh-time" id="refreshTime"></span>
+        </div>
+
         <!-- Asset Curve -->
         <div class="chart-card">
             <div class="chart-header">
@@ -353,11 +403,11 @@
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         let currentUser = null;
+        let currentCollections = null;
 
         async function init() {
             const { data: { session } } = await db.auth.getSession();
             if (!session) {
-                // Not logged in — show empty state with login prompt
                 showEmptyState('请先登录查看资产');
                 return;
             }
@@ -389,10 +439,17 @@
                     return;
                 }
 
-                renderPortfolio(collections);
-                renderCollectionList(collections);
+                currentCollections = collections;
 
-                // Load snapshots from Supabase
+                // Try to sync with card_prices for latest market prices
+                await syncWithMarketPrices(collections);
+
+                // Render everything
+                renderPortfolio(currentCollections);
+                renderCollectionList(currentCollections);
+                updateRefreshTime();
+
+                // Load snapshots for chart
                 const { data: snapshots } = await db
                     .from('collection_price_snapshots')
                     .select('*')
@@ -403,9 +460,8 @@
                 if (snapshots && snapshots.length >= 3) {
                     renderChart(snapshots.map(s => ({ date: s.date.slice(5), value: s.total_value })));
                 } else {
-                    // No snapshot data yet — show empty chart
                     const noDataSvg = document.getElementById('chartSvg');
-                    if (noDataSvg) noDataSvg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据（扫描卡牌后自动生成）</text>';
+                    if (noDataSvg) noDataSvg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据（明日自动生成快照）</text>';
                 }
             } catch (e) {
                 console.error('Load error:', e);
@@ -413,12 +469,97 @@
             }
         }
 
+        // Sync user collections with card_prices market data
+        async function syncWithMarketPrices(collections) {
+            if (!collections || collections.length === 0) return;
+            
+            try {
+                // Get all card prices that match user's collection
+                const names = [...new Set(collections.map(c => c.card_name))];
+                const { data: prices } = await db
+                    .from('card_prices')
+                    .select('card_name, series, rarity, current_price, change_percent, change_amount, updated_at')
+                    .eq('market', 'CN')
+                    .in('card_name', names);
+
+                if (!prices || prices.length === 0) return;
+
+                // Build lookup map
+                const priceMap = {};
+                prices.forEach(p => {
+                    const key = `${p.card_name}|${p.series || ''}|${p.rarity || 'N'}`;
+                    priceMap[key] = p;
+                });
+
+                // Enrich collections with market prices
+                let hasChanges = false;
+                collections.forEach(c => {
+                    const key = `${c.card_name}|${c.series || ''}|${c.rarity || 'N'}`;
+                    const p = priceMap[key];
+                    if (p && p.current_price > 0) {
+                        c.market_price = p.current_price;
+                        c.change_percent = p.change_percent || c.change_percent || 0;
+                        c.change_amount = p.change_amount || 0;
+                        c.price_updated_at = p.updated_at;
+                        hasChanges = true;
+                    }
+                });
+
+                // Update last refresh time
+                if (hasChanges && prices.length > 0) {
+                    const latest = prices.reduce((a, b) => 
+                        new Date(a.updated_at) > new Date(b.updated_at) ? a : b
+                    );
+                    localStorage.setItem('last_price_refresh', latest.updated_at);
+                }
+            } catch (e) {
+                console.warn('Market price sync skipped:', e.message);
+            }
+        }
+
+        // Manual refresh prices
+        async function refreshPrices() {
+            if (!currentCollections || currentCollections.length === 0) return;
+            
+            const btn = document.getElementById('refreshBtn');
+            btn.textContent = '⏳ 刷新中...';
+            btn.disabled = true;
+
+            try {
+                // Call price-updater to sync prices for this user
+                const { error } = await db.rpc('sync_user_collections_prices', { p_user_id: currentUser.id });
+                if (error) console.warn('Sync RPC warning:', error.message);
+
+                // Reload data
+                await loadRealData();
+                showToast('✅ 价格已刷新');
+            } catch (e) {
+                console.warn('Refresh error:', e.message);
+            } finally {
+                btn.textContent = '🔄 刷新市价';
+                btn.disabled = false;
+            }
+        }
+
+        function updateRefreshTime() {
+            const lastRefresh = localStorage.getItem('last_price_refresh');
+            const el = document.getElementById('refreshTime');
+            if (lastRefresh) {
+                el.textContent = '更新于 ' + new Date(lastRefresh).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                el.textContent = '点击刷新获取最新市价';
+            }
+        }
+
         function renderPortfolio(collections) {
             const totalCost = collections.reduce((sum, c) => sum + (c.purchase_price || 0) * (c.quantity || 1), 0);
-            const totalValue = collections.reduce((sum, c) => sum + (c.current_price || c.purchase_price || 0) * (c.quantity || 1), 0);
+            const totalValue = collections.reduce((sum, c) => {
+                const price = c.market_price || c.current_price || c.purchase_price || 0;
+                return sum + price * (c.quantity || 1);
+            }, 0);
             const profit = totalValue - totalCost;
             const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
-            const rising = collections.filter(c => (c.current_price || c.purchase_price) > c.purchase_price).length;
+            const rising = collections.filter(c => ((c.market_price || c.current_price || c.purchase_price) || 0) > (c.purchase_price || 0)).length;
 
             document.getElementById('totalValue').textContent = '¥' + totalValue.toLocaleString();
             document.getElementById('totalCost').textContent = '¥' + totalCost.toLocaleString();
@@ -441,14 +582,32 @@
                 iconEl.textContent = '📉';
                 document.querySelector('.portfolio-change').style.background = 'rgba(231,76,60,0.3)';
             }
+
+            // Show today's change based on card_prices data
+            const todayRow = document.getElementById('todayChangeRow');
+            const todayVal = document.getElementById('todayChangeVal');
+            const todayChanges = collections.filter(c => c.change_percent != null && c.change_percent !== 0);
+            if (todayChanges.length > 0) {
+                todayRow.style.display = 'flex';
+                const avgChange = todayChanges.reduce((s, c) => s + (c.change_percent || 0), 0) / todayChanges.length;
+                const isRise = avgChange > 0;
+                todayVal.textContent = (isRise ? '+' : '') + avgChange.toFixed(2) + '%';
+                todayVal.className = 'today-change-val ' + (isRise ? 'rise' : 'fall');
+            } else {
+                todayRow.style.display = 'none';
+            }
         }
 
         function renderCollectionList(collections) {
             const container = document.getElementById('collectionList');
             container.innerHTML = collections.map(c => {
-                const profit = ((c.current_price || c.purchase_price) - c.purchase_price) * (c.quantity || 1);
-                const profitPct = c.purchase_price > 0 ? ((profit / (c.purchase_price * (c.quantity || 1))) * 100).toFixed(1) : 0;
+                const marketPrice = c.market_price || c.current_price || c.purchase_price || 0;
+                const profit = (marketPrice - (c.purchase_price || 0)) * (c.quantity || 1);
+                const profitPct = c.purchase_price > 0 ? ((profit / ((c.purchase_price || 1) * (c.quantity || 1))) * 100).toFixed(1) : 0;
                 const isRise = profit >= 0;
+                const todayChange = c.change_percent || 0;
+                const isTodayUp = todayChange > 0;
+                const isTodayDown = todayChange < 0;
                 const condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
 
                 return `
@@ -458,19 +617,22 @@
                         </div>
                         <div class="collection-info">
                             <div class="collection-name">${c.card_name}</div>
-                            <div class="collection-meta">${c.series || ''} · ${c.rarity || ''} · ${condLabels[c.condition] || c.condition || ''} · x${c.quantity || 1}</div>
+                            <div class="collection-meta">${c.series || ''} · ${c.rarity || ''} · ${condLabels[c.condition] || c.condition || ''} · x${c.quantity || 1}${c.source ? ' · ' + c.source : ''}</div>
                             <div class="collection-prices">
                                 <div class="price-block">
                                     <div class="price-label">入手</div>
                                     <div class="price-value">¥${(c.purchase_price || 0).toLocaleString()}</div>
                                 </div>
                                 <div class="price-block">
-                                    <div class="price-label">现价</div>
-                                    <div class="price-value current">¥${(c.current_price || c.purchase_price || 0).toLocaleString()}</div>
+                                    <div class="price-label">市价</div>
+                                    <div class="price-value current">¥${marketPrice.toLocaleString()}</div>
                                 </div>
                                 <div class="price-change ${isRise ? 'rise' : 'fall'}">
                                     ${isRise ? '+' : ''}${profitPct}%
                                 </div>
+                                ${todayChange !== 0 ? `<div class="price-change ${isTodayUp ? 'rise' : 'fall'}" style="min-width:56px;text-align:center;">
+                                    ${isTodayUp ? '📈 ' : '📉 '}${isTodayUp ? '+' : ''}${todayChange.toFixed(1)}%
+                                </div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -578,6 +740,14 @@
 
         // Init
         init();
+
+        // Toast helper
+        function showToast(msg, duration = 2000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
     </script>
 </body>
 </html>
