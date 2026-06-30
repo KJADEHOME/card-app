@@ -244,6 +244,65 @@
         .refresh-btn:active { background: var(--primary-light); }
         .refresh-time { font-size: 11px; color: var(--text-secondary); margin-left: 12px; }
 
+        /* Today Alert Banner */
+        .today-alert {
+            background: linear-gradient(135deg, #FFF8E1, #FFF3CD);
+            border: 1px solid #FFE082;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+            display: none;
+        }
+        .today-alert.show { display: block; }
+        .today-alert-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .today-alert-cards {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .today-alert-card {
+            flex-shrink: 0;
+            background: white;
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            min-width: 120px;
+        }
+        .today-alert-name {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .today-alert-pct {
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+        .today-alert-pct.up { color: var(--rise); }
+        .today-alert-pct.down { color: var(--fall); }
+
+        /* Watchlist button */
+        .watchlist-btn {
+            padding: 4px 10px;
+            border: 1px solid #FFD700;
+            background: #FFFDE7;
+            color: #F9A825;
+            border-radius: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .watchlist-btn.watching {
+            background: #FFF8E1;
+            border-color: #FFA000;
+            color: #F57F17;
+        }
+
         /* Today change row in portfolio */
         .today-change-row {
             display: flex;
@@ -352,6 +411,12 @@
             <span class="refresh-time" id="refreshTime"></span>
         </div>
 
+        <!-- Today Change Alert -->
+        <div class="today-alert" id="todayAlert">
+            <div class="today-alert-title" id="todayAlertTitle">📈 你的资产今天有变化</div>
+            <div class="today-alert-cards" id="todayAlertCards"></div>
+        </div>
+
         <!-- Asset Curve -->
         <div class="chart-card">
             <div class="chart-header">
@@ -405,6 +470,7 @@
 
         let currentUser = null;
         let currentCollections = null;
+        let watchlistItems = new Map();
 
         async function init() {
             const { data: { session } } = await db.auth.getSession();
@@ -413,6 +479,7 @@
                 return;
             }
             currentUser = session.user;
+            await loadWatchlist();
             await loadRealData();
         }
 
@@ -450,20 +517,34 @@
                 renderCollectionList(currentCollections);
                 updateRefreshTime();
 
-                // Load snapshots for chart
+                // Load snapshots for chart - from user_daily_snapshot
                 const { data: snapshots } = await db
-                    .from('collection_price_snapshots')
-                    .select('*')
+                    .from('user_daily_snapshot')
+                    .select('snapshot_date, total_asset, change_percent, rising_count, falling_count')
                     .eq('user_id', currentUser.id)
-                    .order('date', { ascending: true })
-                    .limit(30);
+                    .order('snapshot_date', { ascending: true })
+                    .limit(90);
 
-                if (snapshots && snapshots.length >= 3) {
-                    renderChart(snapshots.map(s => ({ date: s.date.slice(5), value: s.total_value })));
+                if (snapshots && snapshots.length >= 2) {
+                    renderChart(snapshots.map(s => ({ date: s.snapshot_date.slice(5), value: s.total_asset })));
                 } else {
-                    const noDataSvg = document.getElementById('chartSvg');
-                    if (noDataSvg) noDataSvg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据（明日自动生成快照）</text>';
+                    // Try legacy snapshots
+                    const { data: legacySnaps } = await db
+                        .from('collection_price_snapshots')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('date', { ascending: true })
+                        .limit(30);
+                    if (legacySnaps && legacySnaps.length >= 3) {
+                        renderChart(legacySnaps.map(s => ({ date: s.date.slice(5), value: s.total_value })));
+                    } else {
+                        const noDataSvg = document.getElementById('chartSvg');
+                        if (noDataSvg) noDataSvg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据（明日自动生成快照）</text>';
+                    }
                 }
+
+                // Load today's asset change alert
+                await loadTodayChange();
             } catch (e) {
                 console.error('Load error:', e);
                 showEmptyState('加载失败，请刷新重试');
@@ -610,6 +691,8 @@
                 const isTodayUp = todayChange > 0;
                 const isTodayDown = todayChange < 0;
                 const condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
+                const watchKey = c.card_name + '|' + (c.series || '') + '|' + (c.rarity || 'N');
+                const isWatching = watchlistItems.has(watchKey);
 
                 return `
                     <div class="collection-card">
@@ -634,6 +717,11 @@
                                 ${todayChange !== 0 ? `<div class="price-change ${isTodayUp ? 'rise' : 'fall'}" style="min-width:56px;text-align:center;">
                                     ${isTodayUp ? '📈 ' : '📉 '}${isTodayUp ? '+' : ''}${todayChange.toFixed(1)}%
                                 </div>` : ''}
+                            </div>
+                            <div style="margin-top:6px;">
+                                <button class="watchlist-btn ${isWatching ? 'watching' : ''}" onclick="event.stopPropagation();toggleWatchlist('${c.card_name.replace(/'/g, "\\'")}','${(c.series || '').replace(/'/g, "\\'")}','${(c.rarity || 'N').replace(/'/g, "\\'")}')">
+                                    ${isWatching ? '🔔 已关注' : '🔔 关注价格'}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -711,7 +799,7 @@
             });
         }
 
-        // Chart tabs — reload from Supabase
+        // Chart tabs — reload from Supabase (user_daily_snapshot)
         document.querySelectorAll('.chart-tab').forEach(tab => {
             tab.addEventListener('click', async function() {
                 document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
@@ -721,14 +809,14 @@
                 
                 try {
                     const { data: snapshots } = await db
-                        .from('collection_price_snapshots')
-                        .select('*')
+                        .from('user_daily_snapshot')
+                        .select('snapshot_date, total_asset')
                         .eq('user_id', currentUser.id)
-                        .order('date', { ascending: true })
+                        .order('snapshot_date', { ascending: true })
                         .limit(days);
                     
-                    if (snapshots && snapshots.length >= 3) {
-                        renderChart(snapshots.map(s => ({ date: s.date.slice(5), value: s.total_value })));
+                    if (snapshots && snapshots.length >= 2) {
+                        renderChart(snapshots.map(s => ({ date: s.snapshot_date.slice(5), value: s.total_asset })));
                     } else {
                         const chartSvg = document.getElementById('chartSvg');
                         if (chartSvg) chartSvg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据</text>';
@@ -739,7 +827,109 @@
             });
         });
 
-        // Init
+        // Load today's change alert
+        async function loadTodayChange() {
+            try {
+                const { data, error } = await db.rpc('get_user_asset_change', { p_user_id: currentUser.id });
+                if (error || !data || !data.success) return;
+
+                const change = data.change;
+                const changedCards = data.changed_cards || [];
+
+                // Update today change row
+                const todayRow = document.getElementById('todayChangeRow');
+                const todayVal = document.getElementById('todayChangeVal');
+                if (change.percent !== 0) {
+                    todayRow.style.display = 'flex';
+                    const isRise = change.percent > 0;
+                    todayVal.textContent = (isRise ? '+' : '') + change.percent.toFixed(2) + '%';
+                    todayVal.className = 'today-change-val ' + (isRise ? 'rise' : 'fall');
+                }
+
+                // Show alert banner for changed cards
+                const alertEl = document.getElementById('todayAlert');
+                const alertTitle = document.getElementById('todayAlertTitle');
+                const alertCards = document.getElementById('todayAlertCards');
+
+                if (changedCards.length > 0) {
+                    alertEl.classList.add('show');
+                    const isUp = change.percent >= 0;
+                    alertTitle.textContent = (isUp ? '📈' : '📉') + ' 你有 ' + changedCards.length + ' 张卡今天' + (isUp ? '上涨' : '下跌') + '了 ' + (isUp ? '+' : '') + change.percent.toFixed(2) + '%';
+
+                    alertCards.innerHTML = changedCards.map(c => {
+                        const up = c.change_percent > 0;
+                        return `
+                            <div class="today-alert-card">
+                                <div class="today-alert-name">${c.card_name}</div>
+                                <div class="today-alert-pct ${up ? 'up' : 'down'}">
+                                    ${up ? '📈 ' : '📉 '}${up ? '+' : ''}${c.change_percent.toFixed(1)}%  → ¥${(c.current_price || 0).toLocaleString()}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    alertEl.classList.remove('show');
+                }
+
+                // Update portfolio change display
+                if (change.percent !== 0) {
+                    const pctEl = document.getElementById('profitPct');
+                    if (pctEl && change.percent !== 0) {
+                        pctEl.textContent = (change.percent > 0 ? '+' : '') + change.percent.toFixed(2) + '% (今日)';
+                    }
+                }
+            } catch (e) {
+                console.warn('Today change load error:', e.message);
+            }
+        }
+
+        // Load user's watchlist
+        async function loadWatchlist() {
+            if (!currentUser) return;
+            try {
+                const { data } = await db
+                    .from('price_watchlist')
+                    .select('card_name, series, rarity, id')
+                    .eq('user_id', currentUser.id);
+                if (data) {
+                    watchlistItems.clear();
+                    data.forEach(w => watchlistItems.set(w.card_name + '|' + (w.series || '') + '|' + (w.rarity || 'N'), w));
+                }
+            } catch (e) {
+                console.warn('Watchlist load error:', e.message);
+            }
+        }
+
+        // Toggle watchlist for a card
+        async function toggleWatchlist(cardName, series, rarity) {
+            if (!currentUser) { showToast('请先登录'); return; }
+            const key = cardName + '|' + (series || '') + '|' + (rarity || 'N');
+            const existing = watchlistItems.get(key);
+
+            try {
+                if (existing) {
+                    await db.from('price_watchlist').delete().eq('id', existing.id).eq('user_id', currentUser.id);
+                    watchlistItems.delete(key);
+                    showToast('已取消关注 ' + cardName);
+                } else {
+                    const { data, error } = await db.rpc('add_to_watchlist', {
+                        p_user_id: currentUser.id,
+                        p_card_name: cardName,
+                        p_series: series || '',
+                        p_rarity: rarity || 'N',
+                        p_notify_pct: 5.0
+                    });
+                    if (error) throw error;
+                    watchlistItems.set(key, { id: data.watch_id, card_name: cardName, series: series, rarity: rarity });
+                    showToast('🔔 已关注 ' + cardName + '（涨跌超5%提醒）');
+                }
+                // Re-render to update buttons
+                if (currentCollections) renderCollectionList(currentCollections);
+            } catch (e) {
+                console.error('Watchlist error:', e);
+                showToast('操作失败');
+            }
+        }
         init();
 
         // Toast helper

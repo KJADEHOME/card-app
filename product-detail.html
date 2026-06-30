@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡域 - 商品详情</title>
+    <title>卡域 - 预约商品</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding-bottom: 100px; }
@@ -25,6 +25,7 @@
         .meta-label { font-size: 14px; color: #666; }
         .meta-value { font-size: 14px; color: #333; font-weight: 500; }
         .meta-value.warn { color: #ff3b30; }
+        .meta-value.reserved { color: #5B4AE0; font-weight: bold; }
         .section-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
         .desc-text { font-size: 14px; color: #666; line-height: 1.8; white-space: pre-wrap; }
 
@@ -64,7 +65,7 @@
 <body>
     <div class="header">
         <a href="shop.html" class="back">←</a>
-        <div class="header-title">商品详情</div>
+        <div class="header-title">预约详情</div>
     </div>
 
     <div class="hero-img" id="heroImg"></div>
@@ -82,9 +83,10 @@
     <div class="section" id="metaSection">
         <div class="meta-row"><span class="meta-label">库存</span><span class="meta-value" id="stockVal">--</span></div>
         <div class="meta-row"><span class="meta-label">已售</span><span class="meta-value" id="soldVal">--</span></div>
+        <div class="meta-row"><span class="meta-label">已预约</span><span class="meta-value reserved" id="reservedVal">--</span></div>
         <div class="meta-row"><span class="meta-label">类别</span><span class="meta-value" id="catVal">--</span></div>
         <div class="qty-row">
-            <span class="meta-label">购买数量</span>
+            <span class="meta-label">预约数量</span>
             <div class="qty-control">
                 <button class="qty-btn" id="qtyMinus" onclick="changeQty(-1)">−</button>
                 <span class="qty-num" id="qtyNum">1</span>
@@ -99,17 +101,17 @@
     </div>
 
     <div class="bottom-bar">
-        <div class="total-display">合计 <span class="total-amount" id="totalAmount">--</span></div>
-        <button class="buy-btn" id="buyBtn" onclick="buyNow()">立即购买</button>
+        <div class="total-display"><span id="totalLabel">预约数量</span> <span class="total-amount" id="totalAmount">--</span></div>
+        <button class="buy-btn" id="buyBtn" onclick="makeReservation()">预约购买</button>
     </div>
 
-    <!-- 购买结果弹窗 -->
+    <!-- 预约结果弹窗 -->
     <div class="modal-mask" id="resultModal">
         <div class="modal-box">
-            <div class="modal-icon" id="modalIcon">🎉</div>
-            <div class="modal-title" id="modalTitle">购买成功！</div>
+            <div class="modal-icon" id="modalIcon">📋</div>
+            <div class="modal-title" id="modalTitle">预约成功！</div>
             <div class="modal-desc" id="modalDesc"></div>
-            <button class="modal-btn" onclick="closeModal()">查看我的订单</button>
+            <button class="modal-btn" onclick="closeModal()">查看我的预约</button>
             <button class="modal-btn-secondary" onclick="closeModalAndBack()">继续逛逛</button>
         </div>
     </div>
@@ -129,6 +131,7 @@
 
     function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
     function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+    function isLiveProduct(p) { return p.source === 'tiktok' || p.source === 'live'; }
 
     async function init() {
         const params = new URLSearchParams(location.search);
@@ -153,7 +156,8 @@
 
         // 标签
         const tags = [];
-        if (product.source === 'tiktok') tags.push('<span class="product-tag live">🔴 直播同款</span>');
+        const isLive = isLiveProduct(product);
+        if (isLive) tags.push('<span class="product-tag live">🔴 直播同款</span>');
         if (product.tags) product.tags.forEach(t => { tags.push(`<span class="product-tag">${esc(t)}</span>`); });
         document.getElementById('productTags').innerHTML = tags.join('');
 
@@ -172,6 +176,7 @@
         document.getElementById('stockVal').textContent = product.stock;
         document.getElementById('stockVal').className = 'meta-value' + (product.stock <= 5 ? ' warn' : '');
         document.getElementById('soldVal').textContent = product.sold_count || 0;
+        document.getElementById('reservedVal').textContent = '加载中...';
         const catMap = { card:'卡牌', pack:'卡包', merch:'周边', supply:'配件', live:'直播' };
         document.getElementById('catVal').textContent = catMap[product.category] || product.category;
 
@@ -183,11 +188,21 @@
 
         updateTotal();
         updateQtyBtns();
+        loadReservationStats();
+    }
+
+    async function loadReservationStats() {
+        const { data } = await db.rpc('get_product_reservation_stats', {
+            p_product_id: product.id
+        });
+        if (data) {
+            document.getElementById('reservedVal').textContent = data.pending || 0;
+        }
     }
 
     function changeQty(delta) {
         let q = quantity + delta;
-        if (q < 1 || q > product.stock) return;
+        if (q < 1 || q > 99) return;
         quantity = q;
         document.getElementById('qtyNum').textContent = quantity;
         updateTotal();
@@ -196,79 +211,64 @@
 
     function updateQtyBtns() {
         document.getElementById('qtyMinus').disabled = quantity <= 1;
-        document.getElementById('qtyPlus').disabled = quantity >= product.stock;
+        document.getElementById('qtyPlus').disabled = quantity >= 99;
     }
 
     function updateTotal() {
-        const total = product.price * quantity;
-        document.getElementById('totalAmount').textContent = total.toFixed(2);
-        document.getElementById('buyBtn').disabled = product.stock === 0;
-        if (product.stock === 0) { document.getElementById('buyBtn').textContent = '已售罄'; }
-        else { document.getElementById('buyBtn').textContent = '立即购买'; }
+        document.getElementById('totalAmount').textContent = quantity;
+        document.getElementById('totalLabel').textContent = '预约数量';
+        document.getElementById('buyBtn').disabled = false;
+        const isLive = isLiveProduct(product);
+        document.getElementById('buyBtn').textContent = isLive ? '🔴 直播预约' : '预约购买';
+        if (isLive) document.getElementById('buyBtn').style.background = 'linear-gradient(135deg, #ff2d55 0%, #ff3b30 100%)';
     }
 
-    async function buyNow() {
+    async function makeReservation() {
         if (!currentUser) { showToast('请先登录'); setTimeout(() => location.href = 'login.html', 1200); return; }
 
         document.getElementById('buyBtn').disabled = true;
-        document.getElementById('buyBtn').textContent = '处理中...';
+        document.getElementById('buyBtn').textContent = '提交中...';
 
-        const idempotencyKey = `${currentUser.id}_${product.id}_${Date.now()}`;
+        const source = isLiveProduct(product) ? 'tiktok' : 'shop';
 
-        const { data, error } = await db.rpc('create_shop_order', {
+        const { data, error } = await db.rpc('create_reservation', {
             p_user_id: currentUser.id,
             p_product_id: product.id,
             p_quantity: quantity,
-            p_currency: 'CNY',
-            p_source: 'shop',
-            p_idempotency_key: idempotencyKey
+            p_source: source
         });
 
         if (error) {
-            showToast('下单失败: ' + error.message);
+            showToast('预约失败: ' + error.message);
             document.getElementById('buyBtn').disabled = false;
-            document.getElementById('buyBtn').textContent = '立即购买';
+            updateTotal();
             return;
         }
 
         if (!data.success) {
-            showToast(data.error || '下单失败');
+            showToast(data.error || '预约失败');
             document.getElementById('buyBtn').disabled = false;
-            document.getElementById('buyBtn').textContent = '立即购买';
+            updateTotal();
             return;
         }
 
-        // 自动支付
-        const { error: payErr } = await db.rpc('pay_shop_order', {
-            p_order_id: data.order_id,
-            p_user_id: currentUser.id
-        });
-
-        if (payErr) {
-            console.warn('自动支付失败（订单已创建）:', payErr);
-        }
-
         // 显示结果
-        document.getElementById('modalIcon').textContent = '🎉';
-        document.getElementById('modalTitle').textContent = '购买成功！';
+        document.getElementById('modalIcon').textContent = '📋';
+        document.getElementById('modalTitle').textContent = '预约成功！';
         document.getElementById('modalDesc').innerHTML =
-            `订单号: <strong>${esc(data.order_no)}</strong><br>
-             商品: ${esc(product.title)} x ${quantity}<br>
-             实付: <strong>¥${data.total_amount.toFixed(2)}</strong>`;
+            `${data.message}<br><br>
+             商品: <strong>${esc(product.title)}</strong> x ${quantity}<br>
+             当前库存: ${product.stock}<br>
+             已预约人数: <strong>${data.total_reserved}</strong>`;
         document.getElementById('resultModal').classList.add('show');
 
-        // 刷新库存
-        const { data: fresh } = await db.from('products').select('stock,sold_count').eq('id', product.id).single();
-        if (fresh) {
-            product.stock = fresh.stock;
-            product.sold_count = fresh.sold_count;
-            renderProduct();
-        }
+        // 刷新预约统计
+        loadReservationStats();
     }
 
     function closeModal() {
         document.getElementById('resultModal').classList.remove('show');
-        location.href = 'my-orders.html';
+        location.href = 'my-reservations.html';
     }
 
     function closeModalAndBack() {

@@ -84,7 +84,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-    v_product products%ROWTYPE;
+    v_product public.products%ROWTYPE;
     v_total_price NUMERIC(12,2);
     v_order_no TEXT;
     v_order_id UUID;
@@ -181,7 +181,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-    v_order orders%ROWTYPE;
+    v_order public.orders%ROWTYPE;
 BEGIN
     SELECT * INTO v_order FROM public.orders
     WHERE id = p_order_id AND buyer_id = p_user_id AND order_source IN ('shop','live')

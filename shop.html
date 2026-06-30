@@ -51,6 +51,13 @@
         .product-original { font-size: 12px; color: #999; text-decoration: line-through; }
         .product-stock { font-size: 11px; color: #999; margin-top: 4px; }
         .product-sold { font-size: 11px; color: #ff6b35; margin-top: 2px; }
+        .product-reserved { font-size: 11px; color: #5B4AE0; margin-top: 2px; }
+
+        /* 预约按钮 */
+        .reserve-btn { width: 100%; margin-top: 8px; padding: 9px 0; background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .reserve-btn:active { transform: scale(0.96); opacity: 0.9; }
+        .reserve-btn.pending { background: #f0f0f0; color: #5B4AE0; cursor: default; }
+        .reserve-btn.live-src { background: linear-gradient(135deg, #ff2d55 0%, #ff3b30 100%); }
 
         /* 加载与空态 */
         .loading { text-align: center; padding: 60px 20px; color: #999; }
@@ -75,7 +82,8 @@
         <div class="header-top">
             <div class="header-title">官方商城</div>
             <div class="header-actions">
-                <a href="my-orders.html" class="header-btn">我的订单</a>
+                <a href="my-reservations.html" class="header-btn">我的预约</a>
+                <a href="my-orders.html" class="header-btn">订单</a>
             </div>
         </div>
         <div class="search-bar">
@@ -131,6 +139,8 @@
     let currentCategory = 'all';
     let currentSearch = '';
     let currentUser = null;
+
+    function isLiveProduct(p) { return p.source === 'tiktok' || p.source === 'live'; }
 
     function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
@@ -200,15 +210,24 @@
             return;
         }
 
+        allProducts = data;
+
+        // 批量获取预约统计
+        const { data: resStatsRaw } = await db.rpc('get_product_reservation_stats_all');
+        const resStats = resStatsRaw?.stats || {};
+
         grid.innerHTML = data.map(p => {
             let tagHtml = '';
-            if (p.source === 'tiktok') tagHtml = '<div class="product-tag live">直播同款</div>';
+            if (isLiveProduct(p)) tagHtml = '<div class="product-tag live">直播同款</div>';
             else if (p.tags && p.tags.includes('热门')) tagHtml = '<div class="product-tag hot">热门</div>';
             else if (p.tags && p.tags.includes('新系列')) tagHtml = '<div class="product-tag new">新品</div>';
 
             const stockText = p.stock > 0 ? `库存 ${p.stock}` : '已售罄';
             const stockClass = p.stock === 0 ? 'style="color:#ff3b30;"' : '';
             const soldText = p.sold_count > 0 ? `已售 ${p.sold_count}` : '';
+
+            const reservedCount = resStats?.[p.id]?.pending || 0;
+            const reservedText = reservedCount > 0 ? `已预约 ${reservedCount}` : '';
 
             return `
             <div class="product-card" onclick="goDetail('${p.id}')">
@@ -222,7 +241,9 @@
                         ${p.original_price ? `<span class="product-original">¥${p.original_price.toFixed(2)}</span>` : ''}
                     </div>
                     <div class="product-stock" ${stockClass}>${stockText}</div>
-                    ${soldText ? `<div class="product-sold">🔥 ${soldText}</div>` : ''}
+                    ${soldText ? `<div class="product-sold">${soldText}</div>` : ''}
+                    ${reservedText ? `<div class="product-reserved">📋 ${reservedText}</div>` : ''}
+                    <button class="reserve-btn ${isLiveProduct(p) ? 'live-src' : ''}" onclick="event.stopPropagation();reserveProduct('${p.id}')">${isLiveProduct(p) ? '🔴 直播预约' : '预约购买'}</button>
                 </div>
             </div>`;
         }).join('');
@@ -230,6 +251,38 @@
 
     function goDetail(productId) {
         location.href = `product-detail.html?id=${encodeURIComponent(productId)}`;
+    }
+
+    async function reserveProduct(productId) {
+        if (!currentUser) {
+            showToast('请先登录后再预约');
+            setTimeout(() => location.href = 'login.html', 1200);
+            return;
+        }
+
+        const product = allProducts.find(p => p.id === productId);
+        if (!product) return;
+        const source = isLiveProduct(product) ? 'tiktok' : 'shop';
+
+        const { data, error } = await db.rpc('create_reservation', {
+            p_user_id: currentUser.id,
+            p_product_id: productId,
+            p_quantity: 1,
+            p_source: source
+        });
+
+        if (error) {
+            showToast('预约失败: ' + error.message);
+            return;
+        }
+
+        if (!data.success) {
+            showToast(data.error || '预约失败');
+            return;
+        }
+
+        showToast(data.message || '预约成功！');
+        loadProducts(); // 刷新预约人数
     }
 
     init();

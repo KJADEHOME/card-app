@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 我的预约</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); padding: 15px; display: flex; align-items: center; gap: 12px; }
+        .back { color: white; font-size: 22px; text-decoration: none; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+
+        /* Tab 筛选 */
+        .tab-bar { display: flex; gap: 8px; padding: 12px 15px; overflow-x: auto; scrollbar-width: none; background: white; border-bottom: 0.5px solid #eee; }
+        .tab-bar::-webkit-scrollbar { display: none; }
+        .tab-chip { padding: 6px 16px; border-radius: 18px; font-size: 13px; white-space: nowrap; cursor: pointer; border: 1.5px solid #e0e0e0; background: white; color: #666; }
+        .tab-chip.active { background: #5B4AE0; color: white; border-color: transparent; font-weight: bold; }
+        .tab-chip .count { margin-left: 4px; opacity: 0.7; }
+
+        /* 统计条 */
+        .stats-bar { display: flex; padding: 12px 15px; gap: 12px; background: white; margin-bottom: 8px; }
+        .stat-item { flex: 1; text-align: center; padding: 8px; background: #f8f8ff; border-radius: 10px; }
+        .stat-num { font-size: 20px; font-weight: bold; color: #5B4AE0; }
+        .stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+
+        /* 预约列表 */
+        .list { padding: 0 15px; }
+        .res-card { background: white; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; gap: 12px; align-items: flex-start; }
+        .res-img { width: 72px; height: 72px; border-radius: 8px; background: #f0f0f0; background-size: cover; background-position: center; flex-shrink: 0; }
+        .res-info { flex: 1; min-width: 0; }
+        .res-name { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .res-meta { font-size: 12px; color: #999; margin-bottom: 4px; }
+        .res-price { font-size: 15px; font-weight: bold; color: #ff3b30; }
+        .res-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+
+        /* 状态标签 */
+        .status-badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
+        .status-badge.pending { background: #fff3e0; color: #f7931e; }
+        .status-badge.notified { background: #e8f5e9; color: #34c759; }
+        .status-badge.converted { background: #e3f2fd; color: #2196f3; }
+        .status-badge.cancelled { background: #f5f5f5; color: #999; }
+
+        /* 来源标签 */
+        .source-tag { font-size: 10px; padding: 2px 6px; border-radius: 6px; }
+        .source-tag.tiktok { background: #ff2d55; color: white; }
+        .source-tag.live { background: #ff2d55; color: white; }
+        .source-tag.shop { background: #f0f0f0; color: #666; }
+
+        /* 按钮 */
+        .cancel-btn { padding: 5px 14px; border-radius: 14px; border: 1px solid #ff3b30; color: #ff3b30; background: white; font-size: 12px; cursor: pointer; }
+        .cancel-btn:active { background: #fff5f5; }
+        .view-btn { padding: 5px 14px; border-radius: 14px; border: 1px solid #5B4AE0; color: #5B4AE0; background: white; font-size: 12px; cursor: pointer; text-decoration: none; }
+        .view-btn:active { background: #f8f8ff; }
+
+        .loading { text-align: center; padding: 80px 20px; color: #999; }
+        .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #5B4AE0; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: white; padding: 10px 24px; border-radius: 20px; font-size: 13px; z-index: 200; opacity: 0; transition: all 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* 底部导航 */
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); border-top: 0.5px solid #eee; z-index: 100; }
+        .nav-item { text-decoration: none; color: #999; font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
+        .nav-item.active { color: #5B4AE0; font-weight: bold; }
+        .nav-icon { font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="shop.html" class="back">←</a>
+        <div class="header-title">我的预约</div>
+    </div>
+
+    <!-- 统计条 -->
+    <div class="stats-bar">
+        <div class="stat-item"><div class="stat-num" id="pendingCount">--</div><div class="stat-label">等待中</div></div>
+        <div class="stat-item"><div class="stat-num" id="notifiedCount">--</div><div class="stat-label">已通知</div></div>
+        <div class="stat-item"><div class="stat-num" id="convertedCount">--</div><div class="stat-label">已转化</div></div>
+    </div>
+
+    <!-- Tab 筛选 -->
+    <div class="tab-bar">
+        <div class="tab-chip active" data-status="" onclick="filterByStatus('')">全部</div>
+        <div class="tab-chip" data-status="pending" onclick="filterByStatus('pending')">等待中<span class="count" id="tabPending">0</span></div>
+        <div class="tab-chip" data-status="notified" onclick="filterByStatus('notified')">已通知<span class="count" id="tabNotified">0</span></div>
+        <div class="tab-chip" data-status="converted" onclick="filterByStatus('converted')">已转化<span class="count" id="tabConverted">0</span></div>
+        <div class="tab-chip" data-status="cancelled" onclick="filterByStatus('cancelled')">已取消<span class="count" id="tabCancelled">0</span></div>
+    </div>
+
+    <!-- 预约列表 -->
+    <div class="list" id="reservationList">
+        <div class="loading"><div class="spinner"></div><div>加载中...</div></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 底部导航 -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span>看板</span></a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🏪</span><span>市场</span></a>
+        <a href="shop.html" class="nav-item active"><span class="nav-icon">🛍</span><span>商城</span></a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>我的</span></a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+    const db = window.supabase.createClient(
+        'https://xybpcsmjjcnkjwfsuder.supabase.co',
+        'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+    );
+
+    let currentFilter = '';
+    let allReservations = [];
+    let currentUser = null;
+
+    function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+    async function init() {
+        const { data: { user } } = await db.auth.getUser();
+        if (!user) { location.href = 'login.html'; return; }
+        currentUser = user;
+        await loadReservations();
+    }
+
+    async function loadReservations() {
+        const list = document.getElementById('reservationList');
+        list.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
+
+        const pStatus = currentFilter || null;
+        const { data, error } = await db.rpc('get_user_reservations', {
+            p_user_id: currentUser.id,
+            p_status: pStatus
+        });
+
+        if (error) {
+            list.innerHTML = '<div class="empty"><div class="empty-icon">❌</div>加载失败，请刷新重试</div>';
+            return;
+        }
+
+        const reservations = data?.reservations || [];
+        allReservations = reservations;
+        renderList(reservations);
+
+        // 如果加载全部，更新统计（需要额外请求一次无过滤的）
+        if (!currentFilter) {
+            updateStats(reservations);
+        }
+    }
+
+    function renderList(reservations) {
+        const list = document.getElementById('reservationList');
+        if (!reservations || reservations.length === 0) {
+            list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>暂无预约记录<br><small>去 <a href="shop.html" style="color:#5B4AE0;">商城</a> 看看吧</small></div>`;
+            return;
+        }
+
+        list.innerHTML = reservations.map(r => {
+            const statusMap = { pending: '等待中', notified: '已通知', converted: '已转化', cancelled: '已取消' };
+            const srcMap = { tiktok: '直播', live: '直播', shop: '商城' };
+            const isPending = r.status === 'pending';
+            const isLive = r.source === 'tiktok' || r.source === 'live';
+
+            return `
+            <div class="res-card">
+                <div class="res-img" style="background-image:url('${esc(r.product_image) || ''}')"></div>
+                <div class="res-info">
+                    <div class="res-name">${esc(r.product_title)}</div>
+                    <div class="res-meta">
+                        <span class="status-badge ${r.status}">${statusMap[r.status]}</span>
+                        <span class="source-tag ${r.source}">${srcMap[r.source]}</span>
+                        ${isLive ? ' 🔴 直播同款' : ''}
+                    </div>
+                    <div class="res-price">¥${r.product_price?.toFixed(2) || '--'}</div>
+                    <div class="res-meta">
+                        x${r.quantity} · 库存 ${r.product_stock}
+                        · ${new Date(r.created_at).toLocaleDateString('zh-CN')}
+                    </div>
+                    <div class="res-actions">
+                        <a href="product-detail.html?id=${r.product_id}" class="view-btn">查看详情</a>
+                        ${isPending ? `<button class="cancel-btn" onclick="cancelReservation('${r.id}')">取消预约</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function updateStats(reservations) {
+        const counts = { pending: 0, notified: 0, converted: 0, cancelled: 0 };
+        reservations.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+
+        document.getElementById('pendingCount').textContent = counts.pending;
+        document.getElementById('notifiedCount').textContent = counts.notified;
+        document.getElementById('convertedCount').textContent = counts.converted;
+        document.getElementById('tabPending').textContent = counts.pending;
+        document.getElementById('tabNotified').textContent = counts.notified;
+        document.getElementById('tabConverted').textContent = counts.converted;
+        document.getElementById('tabCancelled').textContent = counts.cancelled;
+    }
+
+    function filterByStatus(status) {
+        currentFilter = status;
+        document.querySelectorAll('.tab-chip').forEach(c => c.classList.remove('active'));
+        const target = document.querySelector(`.tab-chip[data-status="${status}"]`);
+        if (target) target.classList.add('active');
+        loadReservations();
+    }
+
+    async function cancelReservation(resId) {
+        if (!confirm('确定取消这个预约吗？')) return;
+
+        const { data, error } = await db.rpc('cancel_reservation', {
+            p_reservation_id: resId,
+            p_user_id: currentUser.id
+        });
+
+        if (error) { showToast('取消失败: ' + error.message); return; }
+        if (!data.success) { showToast(data.error); return; }
+
+        showToast('已取消预约');
+        loadReservations();
+    }
+
+    init();
+    </script>
+</body>
+</html>

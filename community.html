@@ -293,6 +293,65 @@
             text-align: center; padding: 30px; color: var(--text-secondary); font-size: 14px;
         }
 
+        /* Create Post Modal */
+        .create-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 1002;
+            justify-content: center; align-items: flex-end;
+        }
+        .create-modal.show { display: flex; }
+        .create-sheet {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            width: 100%; max-width: 560px;
+            max-height: 85vh;
+            display: flex; flex-direction: column;
+            animation: slideUp 0.3s ease;
+        }
+        .create-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .create-header-title { font-size: 16px; font-weight: 700; }
+        .create-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); }
+        .create-body { padding: 16px 20px; overflow-y: auto; max-height: 50vh; }
+        .create-card-select {
+            background: var(--bg); border-radius: 10px; padding: 12px; margin-bottom: 10px;
+            cursor: pointer; border: 2px solid transparent; transition: all 0.2s;
+        }
+        .create-card-select.selected { border-color: var(--primary); background: var(--primary-light); }
+        .create-card-name { font-size: 14px; font-weight: 700; }
+        .create-card-profit {
+            font-size: 13px; font-weight: 700; margin-top: 4px;
+        }
+        .create-card-profit.pos { color: var(--rise); }
+        .create-card-profit.neg { color: var(--fall); }
+        .create-textarea {
+            width: 100%; min-height: 80px; padding: 12px;
+            border: 1px solid var(--border); border-radius: 10px;
+            font-size: 14px; outline: none; resize: vertical; font-family: inherit;
+        }
+        .create-textarea:focus { border-color: var(--primary); }
+        .create-submit {
+            width: calc(100% - 40px); margin: 0 20px 20px;
+            padding: 14px; background: linear-gradient(135deg, #F5A623, #FF8C00);
+            color: white; border: none; border-radius: 12px; font-size: 15px;
+            font-weight: 700; cursor: pointer;
+        }
+        .create-submit:disabled { opacity: 0.5; }
+
+        /* Profit badge on posts */
+        .profit-badge {
+            background: linear-gradient(135deg, #e74c3c, #ff6b6b);
+            color: white; padding: 2px 10px; border-radius: 10px;
+            font-size: 12px; font-weight: 700; display: inline-flex;
+            align-items: center; gap: 3px;
+        }
+        .profit-badge.neg {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+
         /* Toast animations */
         @keyframes toastIn {
             from { opacity: 0; transform: translateX(-50%) translateY(20px); }
@@ -310,7 +369,8 @@
     <div class="header">
         <div class="header-title">🌍 卡牌社区</div>
         <div class="header-actions">
-            <a href="index.html" class="header-btn">📷 识卡分享</a>
+            <button class="header-btn" onclick="openCreatePost()" style="background:linear-gradient(135deg,#F5A623,#FF8C00);">💎 晒收益</button>
+            <a href="index.html" class="header-btn" style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);">📷 识卡分享</a>
         </div>
     </div>
 
@@ -361,6 +421,21 @@
                 分享估价结果，和大家一起讨论
             </div>
             <a href="index.html" class="empty-btn">去识卡分享</a>
+        </div>
+    </div>
+
+    <!-- Create Post Modal -->
+    <div class="create-modal" id="createModal" onclick="closeCreateModal(event)">
+        <div class="create-sheet">
+            <div class="create-header">
+                <div class="create-header-title">💎 晒我的收益</div>
+                <button class="create-close" onclick="closeCreateModal()">✕</button>
+            </div>
+            <div class="create-body" id="createCardList">
+                <div style="text-align:center;padding:20px;color:var(--text-secondary);">加载中...</div>
+            </div>
+            <textarea class="create-textarea" id="createNote" placeholder="写点什么...（如：这张卡我入手时才花了xx，现在已经涨了这么多！）"></textarea>
+            <button class="create-submit" id="createSubmitBtn" onclick="submitCreatePost()" disabled>选择一张卡牌后发布</button>
         </div>
     </div>
 
@@ -555,6 +630,7 @@
                                 </span>
                             </div>` : ''}
                         </div>
+                        ${profit !== 0 && post.purchase_price ? `<div style="margin-top:4px;"><span class="profit-badge ${isRise ? '' : 'neg'}">${isRise ? '📈' : '📉'} ${isRise ? '+' : ''}${profitPct}%</span></div>` : ''}
                         <div class="post-actions">
                             <button class="post-action ${likedPosts.has(post.id) ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
                                 <span class="icon">${likedPosts.has(post.id) ? '❤️' : '🤍'}</span>
@@ -835,6 +911,121 @@
                 loadPosts();
             });
         });
+
+        // ===== Create Post (Profit Share) =====
+        let selectedCardForPost = null;
+        let userCardsForPost = [];
+
+        async function openCreatePost() {
+            if (!currentUser) { alert('请先登录'); return; }
+            const modal = document.getElementById('createModal');
+            const body = document.getElementById('createCardList');
+            modal.classList.add('show');
+            body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);">加载中...</div>';
+
+            try {
+                const { data: cards } = await db
+                    .from('user_collections')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (!cards || cards.length === 0) {
+                    body.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">你还没有收藏卡牌，先去识卡扫描吧</div>';
+                    return;
+                }
+
+                const names = [...new Set(cards.map(c => c.card_name))];
+                const { data: prices } = await db
+                    .from('card_prices')
+                    .select('card_name, current_price, change_percent')
+                    .eq('market', 'CN')
+                    .in('card_name', names);
+
+                const priceMap = {};
+                if (prices) prices.forEach(p => { priceMap[p.card_name] = p; });
+
+                userCardsForPost = cards.map(c => {
+                    const mp = priceMap[c.card_name];
+                    const curPrice = mp?.current_price || c.current_price || c.purchase_price || 0;
+                    const profit = ((curPrice - (c.purchase_price || 0)) / ((c.purchase_price || 1))) * 100;
+                    return { ...c, currentPrice: curPrice, profitPct: profit, changePct: mp?.change_percent || 0 };
+                }).sort((a, b) => b.profitPct - a.profitPct);
+
+                body.innerHTML = userCardsForPost.map(c => {
+                    const posPct = c.profitPct >= 0 ? '+' : '';
+                    const posClass = c.profitPct >= 0 ? 'pos' : 'neg';
+                    const condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
+                    return '<div class="create-card-select" onclick="selectCardForPost(' + userCardsForPost.indexOf(c) + ', this)" data-idx="' + userCardsForPost.indexOf(c) + '">' +
+                        '<div class="create-card-name">🃏 ' + c.card_name + '</div>' +
+                        '<div style="font-size:11px;color:#999;">' + (c.series || '') + ' · ' + (c.rarity || 'N') + ' · ' + (condLabels[c.condition] || c.condition || 'NM') + '</div>' +
+                        '<div class="create-card-profit ' + posClass + '">💰 入手 ¥' + (c.purchase_price || 0).toLocaleString() + ' → 当前 ¥' + c.currentPrice.toLocaleString() + ' (' + posPct + c.profitPct.toFixed(1) + '%)</div>' +
+                    '</div>';
+                }).join('');
+            } catch (e) {
+                body.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">加载失败：' + e.message + '</div>';
+            }
+        }
+
+        function selectCardForPost(idx, el) {
+            document.querySelectorAll('.create-card-select').forEach(s => s.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedCardForPost = userCardsForPost[idx];
+            document.getElementById('createSubmitBtn').disabled = false;
+            document.getElementById('createSubmitBtn').textContent = '📢 发布收益：' + (selectedCardForPost.profitPct >= 0 ? '+' : '') + selectedCardForPost.profitPct.toFixed(1) + '%';
+        }
+
+        async function submitCreatePost() {
+            if (!selectedCardForPost || !currentUser) return;
+
+            var note = document.getElementById('createNote').value.trim();
+            var card = selectedCardForPost;
+            var isRise = card.profitPct >= 0;
+            var defaultNote = isRise
+                ? '这张「' + card.card_name + '」我赚了 +' + card.profitPct.toFixed(1) + '%，入手价才¥' + (card.purchase_price || 0).toLocaleString() + '，现在市场价已经¥' + card.currentPrice.toLocaleString() + '了！🎉'
+                : '「' + card.card_name + '」持有中，入手价¥' + (card.purchase_price || 0).toLocaleString() + '，当前市价¥' + card.currentPrice.toLocaleString() + '，继续持有等待反弹 💪';
+
+            var btn = document.getElementById('createSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = '发布中...';
+
+            try {
+                var { error } = await db.from('community_posts').insert({
+                    user_id: currentUser.id,
+                    card_name: card.card_name,
+                    series: card.series || '',
+                    rarity: card.rarity || 'N',
+                    card_image: card.card_image || '',
+                    estimated_price: card.currentPrice,
+                    purchase_price: card.purchase_price,
+                    author: (currentUser.user_metadata && currentUser.user_metadata.full_name) || (currentUser.email ? currentUser.email.split('@')[0] : '匿名玩家'),
+                    note: note || defaultNote,
+                    likes: 0,
+                    comments: 0
+                });
+                if (error) throw error;
+
+                closeCreateModal();
+                selectedCardForPost = null;
+                document.getElementById('createNote').value = '';
+                showToast('✅ 收益分享已发布！');
+                loadPosts();
+            } catch (e) {
+                alert('发布失败：' + e.message);
+                btn.disabled = false;
+                btn.textContent = '发布失败，重试';
+            }
+        }
+
+        function closeCreateModal(e) {
+            if (!e || e.target.id === 'createModal' || e.target.classList.contains('create-close')) {
+                document.getElementById('createModal').classList.remove('show');
+                selectedCardForPost = null;
+                document.getElementById('createSubmitBtn').disabled = true;
+                document.getElementById('createSubmitBtn').textContent = '选择一张卡牌后发布';
+            }
+        }
 
         init();
     </script>

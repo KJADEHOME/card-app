@@ -200,6 +200,49 @@
         .rarity-SEC { background: linear-gradient(135deg,#ff6b6b,#feca57); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
         .rarity-PR { background: linear-gradient(135deg,#c084fc,#e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
         .rarity-SSR { background: linear-gradient(135deg,#f97316,#fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; }
+
+        /* ===== Today Change Reminder ===== */
+        .today-reminder {
+            display: none;
+            background: linear-gradient(135deg, #FFF8E1, #FFF3CD);
+            padding: 12px 16px;
+            border-bottom: 1px solid #FFE082;
+            cursor: pointer;
+        }
+        .today-reminder.show { display: flex; align-items: center; justify-content: space-between; }
+        .today-reminder-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+        .today-reminder-icon { font-size: 20px; }
+        .today-reminder-text { font-size: 13px; font-weight: 600; color: #5D4037; }
+        .today-reminder-pct {
+            font-size: 14px; font-weight: 800; padding: 2px 10px;
+            border-radius: 12px;
+        }
+        .today-reminder-pct.up { background: rgba(231,76,60,0.1); color: #e74c3c; }
+        .today-reminder-pct.down { background: rgba(39,174,96,0.1); color: #27ae60; }
+        .today-reminder-arrow { font-size: 14px; color: #999; }
+
+        /* Hot Rising Strip */
+        .hot-rising-strip {
+            background: var(--white);
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .hot-rising-strip::-webkit-scrollbar { display: none; }
+        .hot-rising-label {
+            font-size: 12px; font-weight: 700;
+            white-space: nowrap; color: var(--rise);
+            flex-shrink: 0;
+        }
+        .hot-rising-item {
+            flex-shrink: 0;
+            font-size: 11px; font-weight: 600;
+            white-space: nowrap; cursor: pointer;
+            padding: 2px 10px; border-radius: 10px;
+            background: #FFF5F5; color: var(--rise);
+        }
     </style>
 </head>
 <body>
@@ -244,6 +287,22 @@
             <span class="market-badge" data-i18n="hero_market_cn">🇨🇳 CNY Reference</span>
             <span class="market-badge" data-i18n="hero_market_eu">🇪🇺 Cardmarket EUR</span>
         </div>
+    </div>
+
+    <!-- Today Change Reminder -->
+    <div class="today-reminder" id="todayReminder" onclick="window.location.href='my-assets.html'">
+        <div class="today-reminder-left">
+            <span class="today-reminder-icon">📊</span>
+            <span class="today-reminder-text" id="todayReminderText">你的资产今天有变化</span>
+            <span class="today-reminder-pct" id="todayReminderPct">--</span>
+        </div>
+        <span class="today-reminder-arrow">→</span>
+    </div>
+
+    <!-- Hot Rising Cards -->
+    <div class="hot-rising-strip" id="hotRisingStrip">
+        <span class="hot-rising-label">🔥 今日飙升</span>
+        <span id="hotRisingList" style="display:flex;gap:6px;">加载中...</span>
     </div>
 
     <!-- Game Type Tabs -->
@@ -1261,7 +1320,48 @@
                 if (favData) favData.forEach(f => favorites.add(f.card_id));
             }
             loadListings();
+            loadHotRising();
+            loadTodayReminder();
         })();
+
+        async function loadTodayReminder() {
+            if (!currentUser) return;
+            try {
+                const { data, error } = await db.rpc('get_user_asset_change', { p_user_id: currentUser.id });
+                if (error || !data || !data.success || !data.change) return;
+                const change = data.change;
+                if (change.percent === 0) return;
+
+                const reminder = document.getElementById('todayReminder');
+                const text = document.getElementById('todayReminderText');
+                const pct = document.getElementById('todayReminderPct');
+
+                const isUp = change.percent > 0;
+                reminder.classList.add('show');
+                text.textContent = (isUp ? '📈 ' : '📉 ') + (data.today?.rising_count || 0) + '张卡' + (isUp ? '上涨' : '下跌');
+                pct.textContent = (isUp ? '+' : '') + change.percent.toFixed(2) + '%';
+                pct.className = 'today-reminder-pct ' + (isUp ? 'up' : 'down');
+            } catch (e) {
+                console.warn('Today reminder load error:', e.message);
+            }
+        }
+
+        async function loadHotRising() {
+            try {
+                const { data, error } = await db.rpc('get_hot_rising_cards', { p_limit: 8, p_market: 'CN' });
+                if (error || !data || data.length === 0) {
+                    document.getElementById('hotRisingList').innerHTML = '<span style="color:#999;font-size:11px;">暂无数据</span>';
+                    return;
+                }
+                document.getElementById('hotRisingList').innerHTML = data.map(c => 
+                    `<span class="hot-rising-item" onclick="document.getElementById('searchInput').value='${c.card_name.replace(/'/g, "\\'")}';searchKeyword='${c.card_name.replace(/'/g, "\\'").toLowerCase()}';applyAllFilters();">
+                        ${c.card_name} +${c.change_percent.toFixed(1)}%
+                    </span>`
+                ).join('');
+            } catch (e) {
+                console.warn('Hot rising load error:', e.message);
+            }
+        }
 
         async function loadListings() {
             const list = document.getElementById('cardList');

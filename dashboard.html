@@ -429,6 +429,48 @@
             </div>
         </div>
 
+        <!-- Growth Stats -->
+        <div class="section-title">
+            <span>📊 增长指标</span>
+            <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">实时计算</span>
+        </div>
+        <div class="overview-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">👥 日活DAU</div>
+                <div class="overview-num vol" id="growthDAU">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">📈 资产总量</div>
+                <div class="overview-num rise" id="growthAsset">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">📷 AI识卡次数</div>
+                <div class="overview-num vol" id="growthScans">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">🔄 留存率(D1)</div>
+                <div class="overview-num vol" id="growthRetention">--</div>
+            </div>
+        </div>
+        <div class="overview-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">🌐 月活MAU</div>
+                <div class="overview-num vol" id="growthMAU">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">🆕 今日新增</div>
+                <div class="overview-num vol" id="growthNewUsers">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">💼 持仓用户</div>
+                <div class="overview-num vol" id="growthCollectionUsers">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">🔔 监控用户</div>
+                <div class="overview-num vol" id="growthWatchUsers">--</div>
+            </div>
+        </div>
+
         <!-- Daily Rankings -->
         <div class="section-title">
             <span>🔥 今日涨跌 TOP5</span>
@@ -760,6 +802,7 @@
             renderRankList([], 'fallList', 'fall');
             
             await loadRealData();
+            await loadGrowthStats();
             
             // If no real data loaded, show empty states
             if (demoData.riseList.length === 0 && demoData.fallList.length === 0) {
@@ -767,6 +810,38 @@
                 renderKeywords();
                 renderChart([]);
                 renderVolume([]);
+            }
+        }
+
+        // Load growth stats from RPC
+        async function loadGrowthStats() {
+            try {
+                const { data, error } = await db.rpc('get_daily_growth_stats', { p_days: 7 });
+                if (error || !data || !data.success) {
+                    console.warn('Growth stats not available:', error?.message);
+                    return;
+                }
+
+                const today = data.today;
+                document.getElementById('growthDAU').textContent = (today.dau || 0).toLocaleString();
+                document.getElementById('growthMAU').textContent = (today.mau || 0).toLocaleString();
+                document.getElementById('growthAsset').textContent = '¥' + ((today.total_asset || 0) / 10000).toFixed(1) + '万';
+                document.getElementById('growthScans').textContent = (today.ai_scans || 0).toLocaleString();
+                document.getElementById('growthRetention').textContent = (today.retention_d1 || 0).toFixed(0) + '%';
+                document.getElementById('growthNewUsers').textContent = (today.new_users || 0).toLocaleString();
+                document.getElementById('growthCollectionUsers').textContent = (today.active_collection_users || 0).toLocaleString();
+                document.getElementById('growthWatchUsers').textContent = (today.watchlist_users || 0).toLocaleString();
+
+                // Update volume chart with trend data
+                if (data.trend && data.trend.length > 0) {
+                    demoData.volume7 = data.trend.map(t => t.trades || 0);
+                    renderVolume(demoData.volume7);
+                }
+
+                // Update total trades from growth stats
+                document.getElementById('tradeOrders').textContent = (today.total_trades || 0).toLocaleString();
+            } catch (e) {
+                console.warn('Growth stats load error:', e.message);
             }
         }
 
