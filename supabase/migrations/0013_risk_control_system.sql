@@ -961,10 +961,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================
 -- 六、索引优化
 -- ============================================================
-CREATE INDEX IF NOT EXISTS idx_ai_scan_logs_user_today ON public.ai_scan_logs(user_id, created_at DESC)
-    WHERE created_at::DATE = CURRENT_DATE;
-CREATE INDEX IF NOT EXISTS idx_trade_freq_today ON public.trade_frequency_logs(buyer_id, seller_id, created_at DESC)
-    WHERE created_at::DATE = CURRENT_DATE;
+-- 注意: CURRENT_DATE 是 STABLE 函数，不能用于索引 predicate
+-- 改用普通索引，查询时 WHERE 条件仍可利用时间范围扫描
+CREATE INDEX IF NOT EXISTS idx_ai_scan_logs_user_date ON public.ai_scan_logs(user_id, (created_at::DATE) DESC);
+CREATE INDEX IF NOT EXISTS idx_trade_freq_date ON public.trade_frequency_logs(buyer_id, seller_id, (created_at::DATE) DESC);
 
 COMMENT ON TABLE public.ai_scan_cache IS 'AI识卡结果缓存，7天TTL，同图不重复调用AI';
 COMMENT ON TABLE public.ai_cost_logs IS 'AI调用成本记录，用于成本控制';
