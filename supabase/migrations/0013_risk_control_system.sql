@@ -959,12 +959,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 否则可忽略，缓存表有 UNIQUE 约束会自动覆盖
 
 -- ============================================================
--- 六、索引优化
+-- 六、索引优化（简单B-tree，避免表达式索引）
 -- ============================================================
--- 注意: CURRENT_DATE 是 STABLE 函数，不能用于索引 predicate
--- 改用普通索引，查询时 WHERE 条件仍可利用时间范围扫描
-CREATE INDEX IF NOT EXISTS idx_ai_scan_logs_user_date ON public.ai_scan_logs(user_id, (created_at::DATE) DESC);
-CREATE INDEX IF NOT EXISTS idx_trade_freq_date ON public.trade_frequency_logs(buyer_id, seller_id, (created_at::DATE) DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_scan_logs_user_ts ON public.ai_scan_logs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_trade_freq_ts ON public.trade_frequency_logs(buyer_id, seller_id, created_at DESC);
 
 COMMENT ON TABLE public.ai_scan_cache IS 'AI识卡结果缓存，7天TTL，同图不重复调用AI';
 COMMENT ON TABLE public.ai_cost_logs IS 'AI调用成本记录，用于成本控制';
