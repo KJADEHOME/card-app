@@ -307,7 +307,7 @@
     <!-- Bottom Nav -->
     <div class="nav">
         <a href="index.html" class="nav-item active"><span class="nav-icon">🔍</span><span data-i18n="nav_explore">Explore</span></a>
-        <a href="market.html" class="nav-item"><span class="nav-icon">🛒</span><span>交易</span></a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span><span>市场</span></a>
         <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span data-i18n="nav_dashboard">看板</span></a>
         <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Me</span></a>
     </div>
@@ -346,6 +346,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
@@ -715,16 +716,39 @@
             panel.classList.add('show');
 
             try {
+                // Get user session for risk control headers
+                const { data: { session } } = await db.auth.getSession();
+                const scanHeaders = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7',
+                    'apikey': 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+                };
+                if (session) {
+                    scanHeaders['X-User-Id'] = session.user.id;
+                    scanHeaders['X-Timestamp'] = String(Math.floor(Date.now() / 1000));
+                }
+
                 const response = await fetch(SUPABASE_URL + '/functions/v1/ai-scan', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7',
-                        'apikey': 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
-                    },
+                    headers: scanHeaders,
                     body: JSON.stringify({ image: base64Image })
                 });
                 const result = await response.json();
+
+                // Handle rate limit / risk block responses
+                if (response.status === 429) {
+                    const errMsg = result.error || '请求过于频繁';
+                    if (result.cooldown_remaining) {
+                        throw new Error(`${errMsg}（等待${result.cooldown_remaining}秒）`);
+                    }
+                    if (result.budget_exceeded) {
+                        throw new Error('今日AI识别次数已达上限，请明天再来');
+                    }
+                    throw new Error(errMsg);
+                }
+                if (response.status === 403 && result.risk_blocked) {
+                    throw new Error(result.error || '账号已被限制使用AI识卡功能');
+                }
                 if (!response.ok || result.error) throw new Error(result.error || t('ai_error'));
 
                 const data = result.data || {};
@@ -732,6 +756,12 @@
                 aiDetectedSeries = data.series || t('unknown_series');
                 aiDetectedRarity = data.rarity || 'N';
                 aiPreviewUrl = previewUrl || '';
+                aiDetectedImageHash = data.image_hash || null;
+
+                // Show cache indicator
+                if (data.cached) {
+                    console.log('[AI Scan] Cache hit — no AI call made');
+                }
                 aiDetectedImageHash = data.image_hash || null;
                 const isRare = data.isRare === true;
 
@@ -911,28 +941,40 @@
                 }
                 const userId = session.user.id;
 
-                // Step 2: 图片去重检查（同一用户 + 同一图片哈希）
+                // Step 2: 图片去重检查（同一用户 + 同一图片哈希，24小时内）
                 if (aiDetectedImageHash) {
                     const { data: dupLogs, error: dupErr } = await db
                         .from('ai_scan_logs')
                         .select('id, created_at')
                         .eq('user_id', userId)
                         .eq('image_hash', aiDetectedImageHash)
+                        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
                         .limit(1);
                     
                     if (!dupErr && dupLogs && dupLogs.length > 0) {
-                        alert('⚠️ 该图片已扫描过，请勿重复识卡！\n\n扫描时间：' + new Date(dupLogs[0].created_at).toLocaleString());
+                        alert('⚠️ 该图片24小时内已扫描过，请勿重复识卡！\n\n扫描时间：' + new Date(dupLogs[0].created_at).toLocaleString());
                         return;
                     }
                 }
 
-                // Step 3: 检查每日扫描上限
-                const { data: limitData, error: limitErr } = await db.rpc('check_scan_limit', { p_user_id: userId });
-                if (limitErr) {
-                    console.warn('check_scan_limit error:', limitErr);
-                } else if (limitData && limitData.length > 0 && !limitData[0].can_scan) {
-                    alert(`⚠️ 今日AI识卡已达上限（${limitData[0].daily_limit}次），请明天再来！`);
-                    return;
+                // Step 3: 风控检查 + 每日扫描上限 + 每分钟限频
+                const { data: rateData, error: rateErr } = await db.rpc('check_ai_rate_limit', { p_user_id: userId });
+                if (rateErr) {
+                    console.warn('check_ai_rate_limit error:', rateErr);
+                } else if (rateData && rateData.length > 0) {
+                    const rl = rateData[0];
+                    if (rl.risk_blocked) {
+                        alert('⚠️ ' + rl.error_msg);
+                        return;
+                    }
+                    if (!rl.can_scan) {
+                        if (rl.cooldown_remaining > 0) {
+                            alert(`⏳ 请求过于频繁，请等待 ${rl.cooldown_remaining} 秒后再试`);
+                        } else {
+                            alert(`⚠️ 今日AI识卡已达上限（${rl.daily_limit}次），请明天再来！\n已用：${rl.daily_used}/${rl.daily_limit}`);
+                        }
+                        return;
+                    }
                 }
 
                 // Step 4: 积分检查 & 计算消耗

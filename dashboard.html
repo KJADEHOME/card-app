@@ -409,6 +409,26 @@
             </div>
         </div>
 
+        <!-- Trade Stats Row -->
+        <div class="overview-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">📦 今日成交</div>
+                <div class="overview-num vol" id="tradeOrders">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">💵 今日GMV</div>
+                <div class="overview-num rise" id="tradeGMV">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">🏦 佣金收入</div>
+                <div class="overview-num vol" id="tradeFees">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label" style="font-size:10px;">🛒 在售单数</div>
+                <div class="overview-num vol" id="activeListings">--</div>
+            </div>
+        </div>
+
         <!-- Daily Rankings -->
         <div class="section-title">
             <span>🔥 今日涨跌 TOP5</span>
@@ -474,7 +494,7 @@
     <!-- Bottom Nav -->
     <div class="nav">
         <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
-        <a href="market.html" class="nav-item"><span class="nav-icon">🛒</span>交易</a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span>市场</a>
         <a href="dashboard.html" class="nav-item active"><span class="nav-icon">📊</span>看板</a>
         <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
     </div>
@@ -508,6 +528,13 @@
             document.getElementById('risingChange').textContent = '较昨日 ' + (data.risingChange || '--');
             document.getElementById('fallingChange').textContent = '较昨日 ' + (data.fallingChange || '--');
             document.getElementById('volumeChange').textContent = '较昨日 ' + (data.volumeChange || '--');
+        }
+        
+        function renderTradeStats(data) {
+            document.getElementById('tradeOrders').textContent = (data.today_orders || 0).toLocaleString();
+            document.getElementById('tradeGMV').textContent = '¥' + ((data.today_gmv || 0) / 10000).toFixed(1) + '万';
+            document.getElementById('tradeFees').textContent = '¥' + (data.today_fees || 0).toFixed(0);
+            document.getElementById('activeListings').textContent = (data.active_listings || 0).toLocaleString();
         }
 
         function renderRankList(list, containerId, type) {
@@ -617,6 +644,12 @@
                         volumeChange: overviewData.last_updated ? '更新于' + new Date(overviewData.last_updated).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '--'
                     };
                     renderOverview(ov);
+                }
+
+                // Trade stats
+                const { data: tradeStats } = await db.rpc('get_dashboard_trade_stats');
+                if (tradeStats) {
+                    renderTradeStats(tradeStats);
                 }
 
                 // 2. Rise TOP10 — card_prices sorted by change_percent DESC

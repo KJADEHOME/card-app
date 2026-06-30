@@ -228,7 +228,7 @@
     
     <div class="nav">
         <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
-        <a href="market.html" class="nav-item"><span class="nav-icon">🛒</span><span>交易</span></a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span><span>市场</span></a>
         <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span>看板</span></a>
         <a href="collection.html" class="nav-item active"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
@@ -267,6 +267,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
@@ -594,17 +595,20 @@
                 return;
             }
             
-            const today = new Date().toISOString().split('T')[0];
-            const { error } = await db
-                .from('daily_checkins')
-                .insert([{ user_id: uid, checkin_date: today }]);
+            // Use server-side RPC (prevents client time manipulation)
+            const { data, error } = await db.rpc('daily_signin', { p_user_id: uid });
             
             if (error) {
                 showToast('签到失败：' + error.message);
                 return;
             }
             
-            showToast('✅ 签到成功！积分已到账');
+            if (!data.success) {
+                showToast(data.error || '签到失败');
+                return;
+            }
+            
+            showToast(`✅ 签到成功！+${data.points_awarded}积分（连续${data.streak}天）`);
             await loadUserPoints();
         }
         

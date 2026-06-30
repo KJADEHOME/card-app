@@ -789,18 +789,24 @@ async function doCheckin() {
     btn.disabled = true;
     btn.textContent = '签到中...';
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Use server-side RPC (prevents client time manipulation)
     const { data, error } = await supabaseClient
-        .from('daily_checkins')
-        .insert({ user_id: currentUser.id, checkin_date: today });
+        .rpc('daily_signin', { p_user_id: currentUser.id });
 
     if (error) {
-        if (error.code === '23505') {
+        showToast('签到失败，请重试');
+        btn.disabled = false;
+        btn.textContent = '✅ 签到';
+        return;
+    }
+
+    if (!data.success) {
+        if (data.already_checked) {
             showToast('今天已经签到过啦 ✅');
             btn.textContent = '✅ 已签到';
             btn.classList.add('done');
         } else {
-            showToast('签到失败，请重试');
+            showToast(data.error || '签到失败');
             btn.disabled = false;
             btn.textContent = '✅ 签到';
         }
@@ -814,11 +820,7 @@ async function doCheckin() {
     btn.textContent = '✅ 已签到';
     btn.classList.add('done');
 
-    const streak = userPoints.checkin_streak || 1;
-    let pts = 5;
-    if (streak >= 7) pts = 15;
-    else if (streak >= 3) pts = 8;
-    showToast(`🎉 签到成功！+${pts} 积分\n连续第 ${streak} 天`);
+    showToast(`🎉 签到成功！+${data.points_awarded} 积分\n连续第 ${data.streak} 天`);
 }
 
 // ============ 工具 ============

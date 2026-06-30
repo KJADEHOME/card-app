@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#5B4AE0">
+    <title>交易市场 - 卡域 CardRealm</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#F7F8FC;min-height:100vh;padding-bottom:80px}
+        
+        .header{background:linear-gradient(135deg,#5B4AE0 0%,#7B6CF0 100%);color:white;padding:16px 20px;position:sticky;top:0;z-index:100}
+        .header-top{display:flex;justify-content:space-between;align-items:center}
+        .header-title{font-size:18px;font-weight:700}
+        .header-stats{display:flex;gap:12px;margin-top:8px}
+        .header-stat{font-size:11px;opacity:.85;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:10px}
+        .header-stat strong{font-size:14px}
+        
+        .search-bar{background:white;padding:12px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #eee;position:sticky;top:82px;z-index:99}
+        .search-input{flex:1;padding:10px 14px;border:1.5px solid #E8E8F0;border-radius:12px;font-size:14px;outline:none;background:#FAFAFF}
+        .search-input:focus{border-color:#5B4AE0}
+        .search-btn{padding:10px 16px;background:#5B4AE0;color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+        
+        .filters{background:white;padding:10px 16px;display:flex;gap:8px;overflow-x:auto;border-bottom:1px solid #eee;scrollbar-width:none}
+        .filters::-webkit-scrollbar{display:none}
+        .filter-chip{padding:6px 14px;border-radius:20px;border:1.5px solid #E8E8F0;font-size:12px;white-space:nowrap;cursor:pointer;background:white;flex-shrink:0;transition:all .2s}
+        .filter-chip.active{border-color:#5B4AE0;background:#F5F3FF;color:#5B4AE0;font-weight:600}
+        
+        .sort-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:13px;color:#666;background:white}
+        .sort-options{display:flex;gap:12px}
+        .sort-option{cursor:pointer;transition:color .2s}
+        .sort-option.active{color:#5B4AE0;font-weight:600}
+        
+        .container{max-width:480px;margin:0 auto;padding:8px 16px 16px}
+        
+        .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        .card-item{background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);cursor:pointer;transition:transform .2s}
+        .card-item:active{transform:scale(.97)}
+        .card-img{width:100%;aspect-ratio:3/4;object-fit:cover;background:linear-gradient(135deg,#f0f0f5,#e8e8f0)}
+        .card-body{padding:12px}
+        .card-name{font-size:14px;font-weight:700;color:#1a1a2e;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .card-meta{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+        .tag{font-size:10px;padding:2px 8px;border-radius:6px;background:#F0F0F8;color:#666}
+        .tag.rarity{background:linear-gradient(135deg,#FFF8E1,#FFECB3);color:#D4880F}
+        .tag.nm{background:#E8F5E9;color:#2E7D32}
+        .tag.lp{background:#FFF3E0;color:#E65100}
+        .tag.mp{background:#FFF3E0;color:#BF360C}
+        
+        .card-price-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f5}
+        .card-price{font-size:17px;font-weight:800;color:#E74C3C}
+        .card-price .unit{font-size:11px;font-weight:600}
+        .buy-btn{padding:6px 12px;background:linear-gradient(135deg,#5B4AE0,#7B6CF0);color:white;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .2s}
+        .buy-btn:active{opacity:.8}
+        
+        .empty-state{text-align:center;padding:60px 20px}
+        .empty-state .icon{font-size:48px;margin-bottom:12px}
+        .empty-state .text{font-size:14px;color:#999;margin-bottom:16px}
+        .empty-state .action-btn{padding:10px 24px;background:#5B4AE0;color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer}
+        
+        /* Modal */
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:flex-end;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal-content{background:white;width:100%;max-width:480px;max-height:90vh;border-radius:24px 24px 0 0;overflow-y:auto;animation:slideUp .3s ease}
+        @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        .modal-img{width:100%;aspect-ratio:3/4;object-fit:cover}
+        .modal-body{padding:20px}
+        .modal-name{font-size:20px;font-weight:800;color:#1a1a2e}
+        .modal-series{font-size:14px;color:#888;margin-top:4px}
+        .modal-tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+        .modal-tag{padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600}
+        .modal-tag.rarity{background:linear-gradient(135deg,#FFF8E1,#FFECB3);color:#D4880F}
+        .modal-tag.condition{background:#E8F5E9;color:#2E7D32}
+        
+        .modal-desc{background:#F7F8FC;border-radius:12px;padding:14px;margin-top:16px;font-size:13px;color:#555;line-height:1.6}
+        .modal-desc-label{font-weight:700;color:#333;margin-bottom:6px}
+        
+        .seller-info{display:flex;align-items:center;gap:10px;margin-top:16px;padding:12px;background:#F7F8FC;border-radius:12px}
+        .seller-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#5B4AE0,#7B6CF0);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px}
+        .seller-name{font-size:14px;font-weight:700;color:#333}
+        
+        .fee-breakdown{background:linear-gradient(135deg,#FFF8F0,#FFF0E0);border-radius:12px;padding:14px;margin-top:12px}
+        .fee-line{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+        .fee-line.total{border-top:1px dashed #E8D0B0;padding-top:8px;margin-top:8px;font-weight:700;color:#333}
+        
+        .modal-bottom{position:sticky;bottom:0;background:white;padding:16px 20px 24px;border-top:1px solid #eee;display:flex;align-items:center;gap:16px}
+        .modal-price-info{flex:1}
+        .modal-price-label{font-size:12px;color:#999}
+        .modal-price-value{font-size:28px;font-weight:800;color:#E74C3C}
+        .modal-price-shipping{font-size:12px;color:#666}
+        .modal-buy-btn{padding:14px 32px;background:linear-gradient(135deg,#E74C3C,#C0392B);color:white;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(231,76,60,.35);transition:all .2s}
+        .modal-buy-btn:active{transform:scale(.97)}
+        .modal-buy-btn:disabled{opacity:.5;cursor:not-allowed}
+        
+        .sell-fab{position:fixed;bottom:80px;right:16px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#5B4AE0,#7B6CF0);color:white;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(91,74,224,.4);display:flex;align-items:center;justify-content:center;z-index:90;text-decoration:none}
+        
+        .nav{position:fixed;bottom:0;left:0;right:0;background:white;display:flex;justify-content:space-around;padding:8px 0 16px;box-shadow:0 -2px 20px rgba(0,0,0,.08);z-index:100}
+        .nav-item{text-decoration:none;color:#999;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 12px}
+        .nav-item .nav-icon{font-size:22px}
+        .nav-item.active{color:#5B4AE0}
+        
+        .loading{text-align:center;padding:40px;color:#999}
+        .loading .spinner{width:32px;height:32px;border:3px solid #eee;border-top-color:#5B4AE0;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        
+        .toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:12px 24px;border-radius:12px;font-size:14px;opacity:0;transition:all .3s;z-index:300;pointer-events:none}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(10px)}
+        
+        .purchase-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;display:none;align-items:center;justify-content:center}
+        .purchase-overlay.show{display:flex}
+        .purchase-box{background:white;border-radius:20px;padding:32px 24px;text-align:center;width:300px}
+        .purchase-box .icon{font-size:48px;margin-bottom:12px}
+        .purchase-box .title{font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:8px}
+        .purchase-box .result{font-size:14px;color:#666;line-height:1.6}
+        .purchase-box .close-btn{margin-top:20px;padding:12px 32px;background:#5B4AE0;color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div class="header-title">🛒 交易市场</div>
+            <a href="my-listings.html" style="color:white;font-size:13px;text-decoration:none;opacity:.9">我的挂单 →</a>
+        </div>
+        <div class="header-stats">
+            <span class="header-stat">📋 在售 <strong id="activeCount">-</strong></span>
+            <span class="header-stat">📈 今日成交 <strong id="todayOrders">-</strong></span>
+        </div>
+    </div>
+    
+    <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="搜索卡牌名称、系列...">
+        <button class="search-btn" onclick="doSearch()">搜索</button>
+    </div>
+    
+    <div class="filters" id="filters">
+        <div class="filter-chip active" data-cat="" onclick="filterBy(this)">全部</div>
+        <div class="filter-chip" data-cat="pokemon" onclick="filterBy(this)">宝可梦</div>
+        <div class="filter-chip" data-cat="yugioh" onclick="filterBy(this)">游戏王</div>
+        <div class="filter-chip" data-cat="magic" onclick="filterBy(this)">万智牌</div>
+        <div class="filter-chip" data-cat="onepiece" onclick="filterBy(this)">海贼王</div>
+        <div class="filter-chip" data-cat="lorcana" onclick="filterBy(this)">Lorcana</div>
+    </div>
+    
+    <div class="sort-bar">
+        <span id="resultCount">加载中...</span>
+        <div class="sort-options">
+            <span class="sort-option active" data-sort="newest" onclick="sortBy(this)">最新</span>
+            <span class="sort-option" data-sort="price_asc" onclick="sortBy(this)">价格↑</span>
+            <span class="sort-option" data-sort="price_desc" onclick="sortBy(this)">价格↓</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="loading" id="loadingState"><div class="spinner"></div>加载中...</div>
+        <div class="card-grid" id="cardGrid" style="display:none"></div>
+        <div class="empty-state" id="emptyState" style="display:none">
+            <div class="icon">📭</div>
+            <div class="text">暂无在售卡牌</div>
+            <button class="action-btn" onclick="location.href='sell.html'">去上架一张</button>
+        </div>
+    </div>
+    
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal" onclick="closeModal(event)">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
+    
+    <!-- Nav -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
+        <a href="marketplace.html" class="nav-item active"><span class="nav-icon">🛒</span>市场</a>
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span>看板</a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
+    </div>
+    
+    <a href="sell.html" class="sell-fab" title="发布寄售">+</a>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Purchase result -->
+    <div class="purchase-overlay" id="purchaseOverlay">
+        <div class="purchase-box">
+            <div class="icon" id="purchaseIcon">✅</div>
+            <div class="title" id="purchaseTitle"></div>
+            <div class="result" id="purchaseResult"></div>
+            <button class="close-btn" onclick="closePurchase()">确定</button>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let currentUser = null;
+        let listings = [];
+        let currentCategory = '';
+        let currentSort = 'newest';
+        
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+        
+        async function init() {
+            const { data: { session } } = await db.auth.getSession();
+            currentUser = session?.user || null;
+            await loadStats();
+            await loadListings();
+        }
+        
+        async function loadStats() {
+            const { data } = await db.rpc('get_dashboard_trade_stats');
+            if (data) {
+                document.getElementById('activeCount').textContent = data.active_listings || 0;
+                document.getElementById('todayOrders').textContent = data.today_orders || 0;
+            }
+        }
+        
+        async function loadListings() {
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('cardGrid').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            
+            let query = db.from('consignments').select('*').eq('status', 'active');
+            
+            if (currentCategory) query = query.eq('card_category', currentCategory);
+            
+            const search = document.getElementById('searchInput').value.trim();
+            if (search) query = query.or(`card_name.ilike.%${search}%,series.ilike.%${search}%`);
+            
+            if (currentSort === 'newest') query = query.order('created_at', { ascending: false });
+            else if (currentSort === 'price_asc') query = query.order('asking_price', { ascending: true });
+            else query = query.order('asking_price', { ascending: false });
+            
+            const { data, error } = await query.limit(50);
+            
+            document.getElementById('loadingState').style.display = 'none';
+            
+            if (error) {
+                showToast('加载失败: ' + error.message);
+                return;
+            }
+            
+            listings = data || [];
+            document.getElementById('resultCount').textContent = `共 ${listings.length} 件`;
+            
+            if (listings.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('cardGrid').style.display = 'grid';
+            document.getElementById('cardGrid').innerHTML = listings.map(c => {
+                const condClass = (c.condition || 'NM').toLowerCase();
+                return `
+                <div class="card-item" onclick="openDetail('${c.id}')">
+                    <img class="card-img" src="${c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(c.card_name)}" loading="lazy">
+                    <div class="card-body">
+                        <div class="card-name">${esc(c.card_name)}</div>
+                        <div class="card-meta">
+                            <span class="tag rarity">${esc(c.rarity || 'N')}</span>
+                            <span class="tag ${condClass}">${esc(c.condition || 'NM')}</span>
+                        </div>
+                        <div class="card-price-row">
+                            <div class="card-price"><span class="unit">¥</span>${(c.asking_price || 0).toFixed(2)}</div>
+                            <button class="buy-btn" onclick="event.stopPropagation();buyCard('${c.id}')">购买</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+        
+        function filterBy(el) {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            currentCategory = el.dataset.cat;
+            loadListings();
+        }
+        
+        function sortBy(el) {
+            document.querySelectorAll('.sort-option').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+            currentSort = el.dataset.sort;
+            loadListings();
+        }
+        
+        function doSearch() { loadListings(); }
+        
+        document.getElementById('searchInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') doSearch();
+        });
+        
+        function openDetail(id) {
+            const c = listings.find(x => x.id === id);
+            if (!c) return;
+            const isMine = currentUser && currentUser.id === c.seller_id;
+            
+            document.getElementById('modalContent').innerHTML = `
+                <img class="modal-img" src="${c.card_image || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(c.card_name)}">
+                <div class="modal-body">
+                    <div class="modal-name">${esc(c.card_name)}</div>
+                    <div class="modal-series">${esc(c.series || '未知系列')} · ${esc(c.card_category || '-')}</div>
+                    <div class="modal-tags">
+                        <span class="modal-tag rarity">${esc(c.rarity || 'N')}</span>
+                        <span class="modal-tag condition">品相 ${esc(c.condition || 'NM')}</span>
+                        ${(c.tags || []).map(t => `<span class="modal-tag" style="background:#F0F0F8;color:#666">${esc(t)}</span>`).join('')}
+                    </div>
+                    <div class="modal-desc">
+                        <div class="modal-desc-label">📝 卖家描述</div>
+                        ${c.description || '卖家未填写详细描述'}
+                    </div>
+                    <div class="seller-info">
+                        <div class="seller-avatar">卖</div>
+                        <div><div class="seller-name">卖家 #${(c.seller_id || '').slice(0,8)}</div></div>
+                    </div>
+                    <div class="fee-breakdown">
+                        <div class="fee-line"><span>卡牌价格</span><span>¥${(c.asking_price || 0).toFixed(2)}</span></div>
+                        <div class="fee-line"><span>运费</span><span>${c.shipping_fee > 0 ? '¥' + c.shipping_fee + '（买家付）' : '包邮'}</span></div>
+                        <div class="fee-line"><span>平台服务费 (${c.platform_fee_pct || 8}%)</span><span style="color:#E74C3C">-¥${(c.platform_fee || 0).toFixed(2)}</span></div>
+                        <div class="fee-line total"><span>你需支付</span><span style="color:#E74C3C">¥${((c.asking_price || 0) + (c.shipping_fee || 0)).toFixed(2)}</span></div>
+                    </div>
+                </div>
+                <div class="modal-bottom">
+                    <div class="modal-price-info">
+                        <div class="modal-price-label">售价</div>
+                        <div class="modal-price-value">¥${(c.asking_price || 0).toFixed(2)}</div>
+                        <div class="modal-price-shipping">${c.shipping_fee > 0 ? '含运费 ¥' + c.shipping_fee : '包邮'}</div>
+                    </div>
+                    <button class="modal-buy-btn" onclick="buyCard('${c.id}')" ${isMine ? 'disabled' : ''}>
+                        ${isMine ? '自己的商品' : '立即购买'}
+                    </button>
+                </div>
+            `;
+            document.getElementById('detailModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeModal(e) {
+            if (e.target === e.currentTarget || e.target.id === 'detailModal') {
+                document.getElementById('detailModal').classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+        
+        async function buyCard(consignmentId) {
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            
+            const c = listings.find(x => x.id === consignmentId);
+            if (!c) return;
+            
+            const total = (c.asking_price || 0) + (c.shipping_fee || 0);
+            if (!confirm(`确认购买 "${c.card_name}"？\n\n支付金额：¥${total.toFixed(2)}\n\n将从你的钱包余额中扣除`)) return;
+            
+            showToast('交易处理中...');
+            
+            // Generate idempotency key (prevents duplicate orders on double-click)
+            const idempotencyKey = `buy_${currentUser.id}_${consignmentId}_${Date.now()}`;
+            
+            const { data, error } = await db.rpc('purchase_consignment_safe', {
+                p_buyer_id: currentUser.id,
+                p_consignment_id: consignmentId,
+                p_idempotency_key: idempotencyKey,
+                p_ip_address: null
+            });
+            
+            if (error) {
+                showToast('交易失败: ' + error.message);
+                return;
+            }
+            
+            if (!data.success) {
+                document.getElementById('purchaseIcon').textContent = '❌';
+                document.getElementById('purchaseTitle').textContent = '购买失败';
+                document.getElementById('purchaseResult').innerHTML = esc(data.error);
+                document.getElementById('purchaseOverlay').classList.add('show');
+                return;
+            }
+            
+            document.getElementById('detailModal').classList.remove('show');
+            document.body.style.overflow = '';
+            
+            document.getElementById('purchaseIcon').textContent = '🎉';
+            document.getElementById('purchaseTitle').textContent = '购买成功！';
+            document.getElementById('purchaseResult').innerHTML = 
+                `<strong>${esc(data.card_name)}</strong><br>
+                 订单号: ${data.order_no}<br>
+                 支付: ¥${data.total_amount.toFixed(2)}<br>
+                 已加入你的资产`;
+            document.getElementById('purchaseOverlay').classList.add('show');
+            
+            loadListings();
+            loadStats();
+        }
+        
+        function closePurchase() {
+            document.getElementById('purchaseOverlay').classList.remove('show');
+        }
+        
+        init();
+    </script>
+</body>
+</html>

@@ -108,6 +108,21 @@
             font-size: 14px; opacity: 0; transition: all 0.3s; z-index: 300; pointer-events: none;
         }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        
+        /* 库存选择器 */
+        .collection-picker{background:linear-gradient(135deg,#E8F5E9,#C8E6C9);border-radius:14px;padding:14px;margin-bottom:16px;cursor:pointer;transition:all .2s}
+        .collection-picker:hover{background:linear-gradient(135deg,#C8E6C9,#A5D6A7)}
+        .collection-picker .title{font-size:14px;font-weight:700;color:#2E7D32;margin-bottom:4px}
+        .collection-picker .hint{font-size:12px;color:#388E3C}
+        .collection-list{display:flex;gap:8px;overflow-x:auto;padding:8px 0;scrollbar-width:thin}
+        .collection-card{flex-shrink:0;width:100px;background:white;border-radius:12px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all .2s}
+        .collection-card:hover,.collection-card.selected{border-color:#5B4AE0;box-shadow:0 2px 12px rgba(91,74,224,.2)}
+        .collection-card .thumb{width:100%;aspect-ratio:3/4;object-fit:cover;background:#f5f5f5}
+        .collection-card .info{padding:8px}
+        .collection-card .name{font-size:11px;font-weight:600;color:#333;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .collection-card .qty{font-size:10px;color:#999;margin-top:2px}
+        .selected-indicator{text-align:center;font-size:12px;color:#5B4AE0;font-weight:600;margin-top:8px;display:none}
+        .selected-indicator.show{display:block}
     </style>
 </head>
 <body>
@@ -117,6 +132,17 @@
     </div>
     
     <div class="container">
+        <!-- 从我的资产上架 -->
+        <div class="section">
+            <div class="section-title"><span class="icon">📦</span> 从我的资产上架 <span style="font-size:12px;color:#999;font-weight:400;">（推荐）</span></div>
+            <div class="collection-picker" id="collectionPicker" onclick="loadMyCollection()">
+                <div class="title">🃏 点击选择我的卡牌</div>
+                <div class="hint">从你的资产中选择一张卡牌上架，自动冻结库存</div>
+            </div>
+            <div class="collection-list" id="collectionList" style="display:none"></div>
+            <div class="selected-indicator" id="selectedIndicator"><span id="selectedCardName">未选择</span> · <a href="javascript:clearSelection()" style="color:#E74C3C">清除</a></div>
+        </div>
+        
         <!-- 卡牌照片 -->
         <div class="section">
             <div class="section-title"><span class="icon">📸</span> 卡牌照片 <span style="font-size:12px;color:#999;font-weight:400;">（正面清晰照片，建议自然光）</span></div>
@@ -272,8 +298,8 @@
     <!-- Nav -->
     <div class="nav">
         <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span>探索</a>
-        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span>看板</a>
-        <a href="community.html" class="nav-item"><span class="nav-icon">🌍</span>社区</a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span>市场</a>
+        <a href="my-listings.html" class="nav-item"><span class="nav-icon">📋</span>挂单</a>
         <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
     </div>
     
@@ -294,6 +320,7 @@
         
         let selectedCondition = 'NM';
         let uploadedPhotoUrl = '';
+        let selectedCollectionId = null;  // 从库存选择的卡牌ID
         const PLATFORM_FEE_PCT = 8;
         
         function showToast(msg) {
@@ -301,6 +328,96 @@
             t.textContent = msg;
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 2500);
+        }
+        
+        async function loadMyCollection() {
+            const { data: { session } } = await db.auth.getSession();
+            if (!session) {
+                showToast('请先登录');
+                setTimeout(() => location.href = 'index.html', 1500);
+                return;
+            }
+            
+            showToast('加载资产中...');
+            
+            const { data, error } = await db.rpc('get_listable_collections', { p_user_id: session.user.id });
+            
+            if (error) {
+                showToast('加载失败: ' + error.message);
+                return;
+            }
+            
+            if (!data || data.length === 0) {
+                showToast('你的资产中没有可上架的卡牌');
+                return;
+            }
+            
+            const listEl = document.getElementById('collectionList');
+            listEl.innerHTML = data.map(c => `
+                <div class="collection-card" onclick="selectCollection('${c.collection_id}', '${escAttr(c.card_name)}', '${escAttr(c.series || '')}', '${escAttr(c.rarity || 'N')}', '${escAttr(c.card_category || 'pokemon')}', '${escAttr(c.condition || 'NM')}', '${escAttr(c.card_image || '')}', ${c.current_price || 0})">
+                    <img class="thumb" src="${c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${escAttr(c.card_name)}">
+                    <div class="info">
+                        <div class="name">${esc(c.card_name)}</div>
+                        <div class="qty">可上架 ${c.available_qty}/${c.total_qty}</div>
+                    </div>
+                </div>
+            `).join('');
+            listEl.style.display = 'flex';
+            document.getElementById('collectionPicker').style.display = 'none';
+        }
+        
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+        
+        function escAttr(s) {
+            return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+        
+        function selectCollection(id, name, series, rarity, category, condition, image, price) {
+            selectedCollectionId = id;
+            
+            // 自动填充表单
+            document.getElementById('cardName').value = name;
+            document.getElementById('cardSeries').value = series;
+            document.getElementById('cardRarity').value = rarity;
+            document.getElementById('cardCategory').value = category;
+            document.querySelectorAll('.condition-option').forEach(o => {
+                o.classList.toggle('selected', o.dataset.value === condition);
+            });
+            selectedCondition = condition;
+            
+            // 建议定价
+            if (price > 0) {
+                const suggestedPrice = Math.round(price * 1.1); // 建议溢价10%
+                document.getElementById('askingPrice').value = suggestedPrice;
+                updateFeePreview();
+            }
+            
+            // 显示图片
+            if (image) {
+                uploadedPhotoUrl = image;
+                document.getElementById('photoUpload').innerHTML = `<img src="${image}" alt="卡牌照片">`;
+                document.getElementById('photoUpload').classList.add('has-photo');
+            }
+            
+            // 更新选择指示器
+            document.getElementById('selectedCardName').textContent = name;
+            document.getElementById('selectedIndicator').classList.add('show');
+            document.getElementById('collectionList').style.display = 'none';
+            document.getElementById('collectionPicker').style.display = 'none';
+            
+            showToast('已选择: ' + name);
+        }
+        
+        function clearSelection() {
+            selectedCollectionId = null;
+            document.getElementById('selectedIndicator').classList.remove('show');
+            document.getElementById('collectionPicker').style.display = 'block';
+            document.getElementById('collectionList').style.display = 'none';
+            showToast('已清除选择');
         }
         
         function handlePhotoUpload(e) {
@@ -345,24 +462,51 @@
         }
         
         async function submitConsignment() {
-            const name = document.getElementById('cardName').value.trim();
-            const price = parseFloat(document.getElementById('askingPrice').value);
-            
-            if (!name) { showToast('请填写卡牌名称'); return; }
-            if (!price || price <= 0) { showToast('请填写售价'); return; }
-            if (!uploadedPhotoUrl) { showToast('请上传卡牌照片'); return; }
-            
             const { data: { session } } = await db.auth.getSession();
             if (!session) {
                 showToast('请先登录');
-                setTimeout(() => location.href = 'login.html', 1500);
+                setTimeout(() => location.href = 'index.html', 1500);
                 return;
             }
+            
+            const price = parseFloat(document.getElementById('askingPrice').value);
+            if (!price || price <= 0) { showToast('请填写售价'); return; }
+            
+            const shipping = parseInt(document.getElementById('shippingFee').value) || 0;
+            const description = document.getElementById('cardDescription').value.trim();
+            const tags = Array.from(document.querySelectorAll('.tag-chip.selected')).map(t => t.textContent);
             
             document.getElementById('loadingOverlay').classList.add('show');
             
             try {
-                // Upload photo to Supabase Storage
+                // 方式一：从库存上架（调用RPC）
+                if (selectedCollectionId) {
+                    const { data, error } = await db.rpc('create_consignment_from_collection', {
+                        p_user_id: session.user.id,
+                        p_collection_id: selectedCollectionId,
+                        p_asking_price: price,
+                        p_shipping_fee: shipping,
+                        p_description: description,
+                        p_tags: tags
+                    });
+                    
+                    if (error) throw error;
+                    
+                    if (!data || !data.success) {
+                        throw new Error(data?.error || '上架失败');
+                    }
+                    
+                    showToast('✅ 寄售发布成功！手续费 ¥' + (data.platform_fee || 0).toFixed(2));
+                    setTimeout(() => location.href = 'my-listings.html', 1500);
+                    return;
+                }
+                
+                // 方式二：手动上架（原有逻辑）
+                const name = document.getElementById('cardName').value.trim();
+                if (!name) { showToast('请填写卡牌名称'); return; }
+                if (!uploadedPhotoUrl) { showToast('请上传卡牌照片'); return; }
+                
+                // Upload photo
                 const photoFile = document.getElementById('cardPhoto').files[0];
                 let cardImageUrl = uploadedPhotoUrl;
                 
@@ -378,8 +522,6 @@
                     cardImageUrl = publicUrl;
                 }
                 
-                const tags = Array.from(document.querySelectorAll('.tag-chip.selected')).map(t => t.textContent);
-                
                 const { data, error } = await db.from('consignments').insert([{
                     seller_id: session.user.id,
                     card_name: name,
@@ -392,8 +534,8 @@
                     asking_price: price,
                     currency: 'CNY',
                     platform_fee_pct: PLATFORM_FEE_PCT,
-                    shipping_fee: parseInt(document.getElementById('shippingFee').value) || 0,
-                    description: document.getElementById('cardDescription').value.trim(),
+                    shipping_fee: shipping,
+                    description: description,
                     tags: tags,
                     status: 'active'
                 }]).select();
@@ -401,7 +543,7 @@
                 if (error) throw error;
                 
                 showToast('✅ 寄售发布成功！');
-                setTimeout(() => location.href = 'market.html', 1500);
+                setTimeout(() => location.href = 'marketplace.html', 1500);
             } catch (err) {
                 console.error(err);
                 showToast('发布失败：' + (err.message || '请重试'));
