@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 商品详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding-bottom: 100px; }
+        .header { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); padding: 12px 15px; display: flex; align-items: center; gap: 12px; }
+        .back { color: white; font-size: 22px; text-decoration: none; }
+        .header-title { color: white; font-size: 17px; font-weight: bold; }
+        .hero-img { width: 100%; height: 280px; background: linear-gradient(135deg, #f0f0f0, #e8e8e8); background-size: cover; background-position: center; }
+        .section { background: white; margin: 12px 15px; border-radius: 12px; padding: 16px; }
+        .product-name { font-size: 18px; font-weight: bold; color: #333; line-height: 1.4; }
+        .product-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+        .product-tag { font-size: 11px; padding: 3px 10px; border-radius: 10px; background: #f0f0f0; color: #666; }
+        .product-tag.live { background: #ff2d55; color: white; }
+        .price-box { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; }
+        .current-price { font-size: 28px; font-weight: bold; color: #ff3b30; }
+        .current-price::before { content: '¥'; font-size: 18px; }
+        .original-price { font-size: 15px; color: #999; text-decoration: line-through; }
+        .discount-tag { font-size: 12px; padding: 3px 8px; border-radius: 4px; background: #ff3b30; color: white; }
+        .meta-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #f0f0f0; }
+        .meta-label { font-size: 14px; color: #666; }
+        .meta-value { font-size: 14px; color: #333; font-weight: 500; }
+        .meta-value.warn { color: #ff3b30; }
+        .section-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .desc-text { font-size: 14px; color: #666; line-height: 1.8; white-space: pre-wrap; }
+
+        /* 数量选择 */
+        .qty-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+        .qty-control { display: flex; align-items: center; gap: 8px; }
+        .qty-btn { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #e0e0e0; background: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #333; }
+        .qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .qty-num { font-size: 18px; font-weight: bold; min-width: 28px; text-align: center; }
+
+        /* 底部购买栏 */
+        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); z-index: 100; }
+        .total-display { font-size: 12px; color: #999; }
+        .total-amount { font-size: 22px; font-weight: bold; color: #ff3b30; }
+        .total-amount::before { content: '¥'; font-size: 15px; }
+        .buy-btn { padding: 14px 36px; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; border: none; border-radius: 25px; font-size: 17px; font-weight: bold; cursor: pointer; }
+        .buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .buy-btn:active:not(:disabled) { transform: scale(0.97); }
+
+        /* Modal */
+        .modal-mask { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+        .modal-mask.show { display: flex; }
+        .modal-box { background: white; border-radius: 16px; padding: 24px; width: 85%; max-width: 340px; text-align: center; }
+        .modal-icon { font-size: 50px; margin-bottom: 12px; }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+        .modal-desc { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.5; }
+        .modal-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .modal-btn-secondary { width: 100%; padding: 14px; background: #f0f0f0; color: #666; border: none; border-radius: 12px; font-size: 16px; margin-top: 8px; cursor: pointer; }
+
+        .loading { text-align: center; padding: 80px 20px; color: #999; }
+        .spinner { width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #f7931e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: white; padding: 10px 24px; border-radius: 20px; font-size: 13px; z-index: 210; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="shop.html" class="back">←</a>
+        <div class="header-title">商品详情</div>
+    </div>
+
+    <div class="hero-img" id="heroImg"></div>
+
+    <div class="section">
+        <div class="product-name" id="productName"></div>
+        <div class="product-tags" id="productTags"></div>
+        <div class="price-box">
+            <span class="current-price" id="currentPrice">--</span>
+            <span class="original-price" id="originalPrice" style="display:none;"></span>
+            <span class="discount-tag" id="discountTag" style="display:none;"></span>
+        </div>
+    </div>
+
+    <div class="section" id="metaSection">
+        <div class="meta-row"><span class="meta-label">库存</span><span class="meta-value" id="stockVal">--</span></div>
+        <div class="meta-row"><span class="meta-label">已售</span><span class="meta-value" id="soldVal">--</span></div>
+        <div class="meta-row"><span class="meta-label">类别</span><span class="meta-value" id="catVal">--</span></div>
+        <div class="qty-row">
+            <span class="meta-label">购买数量</span>
+            <div class="qty-control">
+                <button class="qty-btn" id="qtyMinus" onclick="changeQty(-1)">−</button>
+                <span class="qty-num" id="qtyNum">1</span>
+                <button class="qty-btn" id="qtyPlus" onclick="changeQty(1)">+</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="descSection" style="display:none;">
+        <div class="section-title">📋 商品描述</div>
+        <div class="desc-text" id="descText"></div>
+    </div>
+
+    <div class="bottom-bar">
+        <div class="total-display">合计 <span class="total-amount" id="totalAmount">--</span></div>
+        <button class="buy-btn" id="buyBtn" onclick="buyNow()">立即购买</button>
+    </div>
+
+    <!-- 购买结果弹窗 -->
+    <div class="modal-mask" id="resultModal">
+        <div class="modal-box">
+            <div class="modal-icon" id="modalIcon">🎉</div>
+            <div class="modal-title" id="modalTitle">购买成功！</div>
+            <div class="modal-desc" id="modalDesc"></div>
+            <button class="modal-btn" onclick="closeModal()">查看我的订单</button>
+            <button class="modal-btn-secondary" onclick="closeModalAndBack()">继续逛逛</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+    const db = window.supabase.createClient(
+        'https://xybpcsmjjcnkjwfsuder.supabase.co',
+        'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+    );
+
+    let product = null;
+    let quantity = 1;
+    let currentUser = null;
+
+    function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+    async function init() {
+        const params = new URLSearchParams(location.search);
+        const productId = params.get('id');
+        if (!productId) { location.href = 'shop.html'; return; }
+
+        const { data: { user } } = await db.auth.getUser();
+        currentUser = user;
+
+        const { data, error } = await db.from('products').select('*').eq('id', productId).single();
+        if (error || !data) {
+            document.body.innerHTML = '<div class="loading">商品不存在或已下架<br><a href="shop.html">返回商城</a></div>';
+            return;
+        }
+        product = data;
+        renderProduct();
+    }
+
+    function renderProduct() {
+        document.getElementById('heroImg').style.backgroundImage = `url('${esc(product.image_url)}')`;
+        document.getElementById('productName').textContent = product.title;
+
+        // 标签
+        const tags = [];
+        if (product.source === 'tiktok') tags.push('<span class="product-tag live">🔴 直播同款</span>');
+        if (product.tags) product.tags.forEach(t => { tags.push(`<span class="product-tag">${esc(t)}</span>`); });
+        document.getElementById('productTags').innerHTML = tags.join('');
+
+        // 价格
+        document.getElementById('currentPrice').textContent = product.price.toFixed(2);
+        if (product.original_price && product.original_price > product.price) {
+            const orig = document.getElementById('originalPrice');
+            orig.textContent = '¥' + product.original_price.toFixed(2);
+            orig.style.display = '';
+            const discPct = Math.round((1 - product.price / product.original_price) * 100);
+            document.getElementById('discountTag').textContent = `-${discPct}%`;
+            document.getElementById('discountTag').style.display = '';
+        }
+
+        // 元数据
+        document.getElementById('stockVal').textContent = product.stock;
+        document.getElementById('stockVal').className = 'meta-value' + (product.stock <= 5 ? ' warn' : '');
+        document.getElementById('soldVal').textContent = product.sold_count || 0;
+        const catMap = { card:'卡牌', pack:'卡包', merch:'周边', supply:'配件', live:'直播' };
+        document.getElementById('catVal').textContent = catMap[product.category] || product.category;
+
+        // 描述
+        if (product.description) {
+            document.getElementById('descSection').style.display = '';
+            document.getElementById('descText').textContent = product.description;
+        }
+
+        updateTotal();
+        updateQtyBtns();
+    }
+
+    function changeQty(delta) {
+        let q = quantity + delta;
+        if (q < 1 || q > product.stock) return;
+        quantity = q;
+        document.getElementById('qtyNum').textContent = quantity;
+        updateTotal();
+        updateQtyBtns();
+    }
+
+    function updateQtyBtns() {
+        document.getElementById('qtyMinus').disabled = quantity <= 1;
+        document.getElementById('qtyPlus').disabled = quantity >= product.stock;
+    }
+
+    function updateTotal() {
+        const total = product.price * quantity;
+        document.getElementById('totalAmount').textContent = total.toFixed(2);
+        document.getElementById('buyBtn').disabled = product.stock === 0;
+        if (product.stock === 0) { document.getElementById('buyBtn').textContent = '已售罄'; }
+        else { document.getElementById('buyBtn').textContent = '立即购买'; }
+    }
+
+    async function buyNow() {
+        if (!currentUser) { showToast('请先登录'); setTimeout(() => location.href = 'login.html', 1200); return; }
+
+        document.getElementById('buyBtn').disabled = true;
+        document.getElementById('buyBtn').textContent = '处理中...';
+
+        const idempotencyKey = `${currentUser.id}_${product.id}_${Date.now()}`;
+
+        const { data, error } = await db.rpc('create_shop_order', {
+            p_user_id: currentUser.id,
+            p_product_id: product.id,
+            p_quantity: quantity,
+            p_currency: 'CNY',
+            p_source: 'shop',
+            p_idempotency_key: idempotencyKey
+        });
+
+        if (error) {
+            showToast('下单失败: ' + error.message);
+            document.getElementById('buyBtn').disabled = false;
+            document.getElementById('buyBtn').textContent = '立即购买';
+            return;
+        }
+
+        if (!data.success) {
+            showToast(data.error || '下单失败');
+            document.getElementById('buyBtn').disabled = false;
+            document.getElementById('buyBtn').textContent = '立即购买';
+            return;
+        }
+
+        // 自动支付
+        const { error: payErr } = await db.rpc('pay_shop_order', {
+            p_order_id: data.order_id,
+            p_user_id: currentUser.id
+        });
+
+        if (payErr) {
+            console.warn('自动支付失败（订单已创建）:', payErr);
+        }
+
+        // 显示结果
+        document.getElementById('modalIcon').textContent = '🎉';
+        document.getElementById('modalTitle').textContent = '购买成功！';
+        document.getElementById('modalDesc').innerHTML =
+            `订单号: <strong>${esc(data.order_no)}</strong><br>
+             商品: ${esc(product.title)} x ${quantity}<br>
+             实付: <strong>¥${data.total_amount.toFixed(2)}</strong>`;
+        document.getElementById('resultModal').classList.add('show');
+
+        // 刷新库存
+        const { data: fresh } = await db.from('products').select('stock,sold_count').eq('id', product.id).single();
+        if (fresh) {
+            product.stock = fresh.stock;
+            product.sold_count = fresh.sold_count;
+            renderProduct();
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('resultModal').classList.remove('show');
+        location.href = 'my-orders.html';
+    }
+
+    function closeModalAndBack() {
+        document.getElementById('resultModal').classList.remove('show');
+        location.href = 'shop.html';
+    }
+
+    init();
+    </script>
+</body>
+</html>

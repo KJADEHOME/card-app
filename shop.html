@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 官方商城</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); padding: 15px 15px 12px; position: sticky; top: 0; z-index: 100; }
+        .header-top { display: flex; align-items: center; justify-content: space-between; }
+        .header-title { color: white; font-size: 20px; font-weight: bold; }
+        .header-actions { display: flex; gap: 12px; }
+        .header-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
+        .search-bar { margin-top: 10px; display: flex; gap: 8px; }
+        .search-input { flex: 1; padding: 10px 14px; border: none; border-radius: 22px; font-size: 14px; outline: none; background: rgba(255,255,255,0.9); }
+        .search-icon-btn { background: rgba(255,255,255,0.3); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+
+        /* 直播专区 */
+        .live-banner { margin: 12px 15px; background: linear-gradient(135deg, #ff2d55 0%, #ff3b30 50%, #ff6b6b 100%); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; position: relative; overflow: hidden; }
+        .live-banner::before { content: ''; position: absolute; top: -10px; right: 20px; width: 60px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.3); opacity: 0.2; } }
+        .live-dot { width: 12px; height: 12px; background: white; border-radius: 50%; animation: blink 1s infinite; flex-shrink: 0; }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .live-info { flex: 1; }
+        .live-label { color: rgba(255,255,255,0.8); font-size: 12px; }
+        .live-text { color: white; font-size: 15px; font-weight: bold; }
+        .live-count { color: rgba(255,255,255,0.8); font-size: 12px; }
+
+        /* 分类标签 */
+        .category-bar { padding: 0 15px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+        .category-bar::-webkit-scrollbar { display: none; }
+        .cat-chip { padding: 8px 18px; border-radius: 20px; font-size: 13px; white-space: nowrap; cursor: pointer; border: 1.5px solid #e0e0e0; background: white; color: #666; transition: all 0.2s; }
+        .cat-chip.active { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; border-color: transparent; font-weight: bold; }
+        .cat-chip .badge { display: inline-block; background: rgba(255,255,255,0.3); padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-left: 4px; }
+
+        /* 商品网格 */
+        .product-grid { padding: 12px 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .product-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); cursor: pointer; transition: transform 0.2s; }
+        .product-card:active { transform: scale(0.97); }
+        .product-img { width: 100%; height: 170px; background: linear-gradient(135deg, #f0f0f0, #e8e8e8); background-size: cover; background-position: center; position: relative; }
+        .product-tag { position: absolute; top: 8px; left: 8px; background: #ff2d55; color: white; font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 500; }
+        .product-tag.live { background: #ff2d55; }
+        .product-tag.hot { background: #f7931e; }
+        .product-tag.new { background: #34c759; }
+        .product-info { padding: 10px 12px 12px; }
+        .product-name { font-size: 13px; font-weight: 600; color: #333; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 6px; }
+        .product-price-row { display: flex; align-items: baseline; gap: 6px; }
+        .product-price { font-size: 17px; font-weight: bold; color: #ff3b30; }
+        .product-price::before { content: '¥'; font-size: 13px; }
+        .product-original { font-size: 12px; color: #999; text-decoration: line-through; }
+        .product-stock { font-size: 11px; color: #999; margin-top: 4px; }
+        .product-sold { font-size: 11px; color: #ff6b35; margin-top: 2px; }
+
+        /* 加载与空态 */
+        .loading { text-align: center; padding: 60px 20px; color: #999; }
+        .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #f7931e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: white; padding: 10px 24px; border-radius: 20px; font-size: 13px; z-index: 200; opacity: 0; transition: all 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* 底部导航 */
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); border-top: 0.5px solid #eee; z-index: 100; }
+        .nav-item { text-decoration: none; color: #999; font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
+        .nav-item.active { color: #f7931e; font-weight: bold; }
+        .nav-icon { font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div class="header-title">官方商城</div>
+            <div class="header-actions">
+                <a href="my-orders.html" class="header-btn">我的订单</a>
+            </div>
+        </div>
+        <div class="search-bar">
+            <input class="search-input" id="searchInput" placeholder="搜索卡包、周边、配件..." onkeydown="if(event.key==='Enter')search()">
+            <button class="search-icon-btn" onclick="search()">🔍</button>
+        </div>
+    </div>
+
+    <!-- 直播专区 -->
+    <div class="live-banner" id="liveBanner" onclick="filterCategory('live')">
+        <div class="live-dot"></div>
+        <div class="live-info">
+            <div class="live-label">🔴 直播中</div>
+            <div class="live-text">抖音直播同款专区</div>
+            <div class="live-count" id="liveCount">正在加载...</div>
+        </div>
+        <span style="color:white;font-size:20px;">→</span>
+    </div>
+
+    <!-- 分类标签 -->
+    <div class="category-bar" id="categoryBar">
+        <div class="cat-chip active" onclick="filterCategory('all')">全部</div>
+        <div class="cat-chip" onclick="filterCategory('pack')">📦 卡包</div>
+        <div class="cat-chip" onclick="filterCategory('merch')">🎁 周边</div>
+        <div class="cat-chip" onclick="filterCategory('supply')">🛠 配件</div>
+        <div class="cat-chip" onclick="filterCategory('live')">🔴 直播同款</div>
+    </div>
+
+    <!-- 商品列表 -->
+    <div class="product-grid" id="productGrid">
+        <div class="loading"><div class="spinner"></div><div>加载商品中...</div></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 底部导航 -->
+    <div class="nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span>探索</span></a>
+        <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span>看板</span></a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🏪</span><span>市场</span></a>
+        <a href="shop.html" class="nav-item active"><span class="nav-icon">🛍</span><span>商城</span></a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>我的</span></a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+    const db = window.supabase.createClient(
+        'https://xybpcsmjjcnkjwfsuder.supabase.co',
+        'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+    );
+
+    let currentCategory = 'all';
+    let currentSearch = '';
+    let currentUser = null;
+
+    function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    async function init() {
+        const { data: { user } } = await db.auth.getUser();
+        currentUser = user;
+        loadProducts();
+        loadLiveCount();
+    }
+
+    async function loadLiveCount() {
+        const { data } = await db.from('products')
+            .select('id', { count: 'exact', head: true })
+            .eq('source', 'tiktok').eq('status', 'active');
+        const count = data !== null ? (Array.isArray(data) ? data.length : 0) : 0;
+        document.getElementById('liveCount').textContent = count > 0 ? `${count} 款商品` : '暂无直播商品';
+    }
+
+    function filterCategory(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+        document.querySelector(`.cat-chip[onclick*="${cat}"]`)?.classList.add('active');
+        if (cat === 'all') { document.querySelector('.cat-chip:first-child').classList.add('active'); }
+        loadProducts();
+    }
+
+    function search() {
+        currentSearch = document.getElementById('searchInput').value.trim();
+        loadProducts();
+    }
+
+    async function loadProducts() {
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
+
+        let query = db.from('products').select('*', { count: 'exact' }).eq('status', 'active');
+
+        if (currentCategory === 'all') {
+            // show all except explicitly hidden
+        } else if (currentCategory === 'live') {
+            query = query.eq('source', 'tiktok');
+        } else {
+            query = query.eq('category', currentCategory);
+        }
+
+        if (currentSearch) {
+            query = query.ilike('title', `%${currentSearch}%`);
+        }
+
+        query = query.order('sort_order').order('created_at', { ascending: false });
+
+        const { data, error } = await query;
+
+        if (error) {
+            grid.innerHTML = '<div class="empty"><div class="empty-icon">❌</div>加载失败，请刷新重试</div>';
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            grid.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>暂无商品</div>';
+            return;
+        }
+
+        grid.innerHTML = data.map(p => {
+            let tagHtml = '';
+            if (p.source === 'tiktok') tagHtml = '<div class="product-tag live">直播同款</div>';
+            else if (p.tags && p.tags.includes('热门')) tagHtml = '<div class="product-tag hot">热门</div>';
+            else if (p.tags && p.tags.includes('新系列')) tagHtml = '<div class="product-tag new">新品</div>';
+
+            const stockText = p.stock > 0 ? `库存 ${p.stock}` : '已售罄';
+            const stockClass = p.stock === 0 ? 'style="color:#ff3b30;"' : '';
+            const soldText = p.sold_count > 0 ? `已售 ${p.sold_count}` : '';
+
+            return `
+            <div class="product-card" onclick="goDetail('${p.id}')">
+                <div class="product-img" style="background-image:url('${esc(p.image_url) || ''}')">
+                    ${tagHtml}
+                </div>
+                <div class="product-info">
+                    <div class="product-name">${esc(p.title)}</div>
+                    <div class="product-price-row">
+                        <span class="product-price">${p.price.toFixed(2)}</span>
+                        ${p.original_price ? `<span class="product-original">¥${p.original_price.toFixed(2)}</span>` : ''}
+                    </div>
+                    <div class="product-stock" ${stockClass}>${stockText}</div>
+                    ${soldText ? `<div class="product-sold">🔥 ${soldText}</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function goDetail(productId) {
+        location.href = `product-detail.html?id=${encodeURIComponent(productId)}`;
+    }
+
+    init();
+    </script>
+</body>
+</html>

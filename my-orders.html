@@ -50,9 +50,14 @@
         <div class="tab active" onclick="switchRole('buyer')">我购买的</div>
         <div class="tab" onclick="switchRole('seller')">我卖出的</div>
     </div>
+    <div class="tabs" id="sourceTabs" style="margin-top:0;">
+        <div class="tab active" onclick="switchSource('all')">全部订单</div>
+        <div class="tab" onclick="switchSource('shop')">商城订单</div>
+        <div class="tab" onclick="switchSource('marketplace')">市场订单</div>
+    </div>
     <div class="tabs" id="statusTabs" style="margin-top:0;">
         <div class="tab active" onclick="switchStatus('all')">全部</div>
-        <div class="tab" onclick="switchStatus('pending_payment')">待付款</div>
+        <div class="tab" onclick="switchStatus('pending')">待付款</div>
         <div class="tab" onclick="switchStatus('paid')">待发货</div>
         <div class="tab" onclick="switchStatus('shipped')">待收货</div>
         <div class="tab" onclick="switchStatus('completed')">已完成</div>
@@ -66,10 +71,11 @@
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         let currentRole = 'buyer';
         let currentStatus = 'all';
+        let currentSource = 'all';
         let currentUser = null;
 
         const STATUS_TEXT = {
-            pending_payment: '待付款', paid: '待发货', shipped: '运输中',
+            pending: '待付款', paid: '待发货', shipped: '运输中',
             completed: '已完成', cancelled: '已取消', refunded: '已退款'
         };
 
@@ -87,6 +93,13 @@
             loadOrders();
         }
 
+        function switchSource(source) {
+            currentSource = source;
+            document.querySelectorAll('#sourceTabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadOrders();
+        }
+
         function switchStatus(status) {
             currentStatus = status;
             document.querySelectorAll('#statusTabs .tab').forEach(t => t.classList.remove('active'));
@@ -99,35 +112,85 @@
             list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
             var field = currentRole === 'buyer' ? 'buyer_id' : 'seller_id';
-            var query = db.from('orders').select('*').eq(field, currentUser.id).order('created_at', { ascending: false }).limit(50);
+            var query = db.from('orders')
+                .select('*, products(title, image_url, description), consignments(card_name, card_image, card_series, card_rarity)')
+                .eq(field, currentUser.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
             if (currentStatus !== 'all') query = query.eq('status', currentStatus);
+            if (currentSource === 'shop') query = query.eq('order_source', 'shop');
+            else if (currentSource === 'marketplace') query = query.or('order_source.eq.marketplace,order_source.is.null');
 
             const { data, error } = await query;
-            if (error) { list.innerHTML = '<div class="empty">加载失败</div>'; return; }
+            if (error) { list.innerHTML = '<div class="empty"><div class="empty-icon">❌</div>加载失败</div>'; return; }
             if (!data || data.length === 0) { list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>暂无订单</div>'; return; }
 
             list.innerHTML = data.map(function(o) {
-                var bgStyle = o.card_image_url ? 'background-image: url(' + o.card_image_url + '); background-size: cover; background-position: center;' : '';
+                // 判断订单来源：有 product_id 的是商城订单
+                var isShop = o.order_source === 'shop' || (o.product_id && !o.consignment_id);
+                var prod = o.products || {};
+                var cons = o.consignments || {};
+
+                var name = isShop ? (prod.title || '商城商品') : (cons.card_name || o.card_name || '卡牌');
+                var imgUrl = isShop ? (prod.image_url || '') : (cons.card_image || o.card_image_url || '');
+                var meta = isShop ? (prod.description || '').substring(0, 30) : ((cons.card_series || '') + ' · ' + (cons.card_rarity || ''));
+                var bgStyle = imgUrl ? 'background-image: url(' + imgUrl + '); background-size: cover; background-position: center;' : '';
+                var orderSourceLabel = isShop ? '<span style="background:#f7931e;color:white;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">商城</span>' : '<span style="background:#667eea;color:white;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">市场</span>';
+
                 var btns = '';
-                if (currentRole === 'buyer') {
-                    if (o.status === 'pending_payment') btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();payOrder(\'' + o.id + '\')">去付款</button><button class="order-btn order-btn-danger" onclick="event.stopPropagation();cancelOrder(\'' + o.id + '\')">取消</button>';
-                    else if (o.status === 'shipped') btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();confirmReceive(\'' + o.id + '\')">确认收货</button>';
-                } else {
-                    if (o.status === 'paid') btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();window.location.href=\'order-detail.html?id=' + o.id + '\'">去发货</button>';
+                if (currentRole === 'buyer' && o.status === 'pending') {
+                    btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();payOrder(\'' + o.id + '\')">去付款</button><button class="order-btn order-btn-danger" onclick="event.stopPropagation();cancelShopOrder(\'' + o.id + '\')">取消</button>';
+                } else if (currentRole === 'buyer' && o.status === 'shipped') {
+                    btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();confirmReceive(\'' + o.id + '\')">确认收货</button>';
+                } else if (currentRole === 'seller' && o.status === 'paid') {
+                    btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();window.location.href=\'order-detail.html?id=' + o.id + '\'">去发货</button>';
                 }
-                return '<div class="order-card" onclick="window.location.href=\'order-detail.html?id=' + o.id + '\'">' +
-                    '<div class="order-header"><span class="order-no">' + o.order_no + '</span><span class="order-status status-' + o.status + '">' + STATUS_TEXT[o.status] + '</span></div>' +
-                    '<div class="order-body"><div class="order-thumb" style="' + bgStyle + '">' + (o.card_image_url ? '' : o.card_name.substring(0,2)) + '</div>' +
-                    '<div class="order-info"><div><div class="order-name">' + o.card_name + '</div><div class="order-meta">' + o.card_series + ' · ' + o.card_rarity + '</div></div><div class="order-price">¥' + o.total_amount + '</div></div></div>' +
+
+                var detailLink = isShop ? '#' : 'order-detail.html?id=' + o.id;
+                var clickHandler = isShop ? '' : ' onclick="window.location.href=\'order-detail.html?id=' + o.id + '\'"';
+
+                return '<div class="order-card"' + clickHandler + '>' +
+                    '<div class="order-header"><span class="order-no">' + (o.order_no || '') + orderSourceLabel + '</span><span class="order-status status-' + o.status + '">' + (STATUS_TEXT[o.status] || o.status) + '</span></div>' +
+                    '<div class="order-body"><div class="order-thumb" style="' + bgStyle + '">' + (imgUrl ? '' : (name || '').substring(0,2)) + '</div>' +
+                    '<div class="order-info"><div><div class="order-name">' + (name || '') + '</div><div class="order-meta">' + (meta || '') + '</div></div><div class="order-price">¥' + (o.total_amount || 0) + '</div></div></div>' +
                     (btns ? '<div class="order-footer">' + btns + '</div>' : '') +
                     '</div>';
             }).join('');
         }
 
+        async function cancelShopOrder(id) {
+            if (!confirm('确定取消订单？')) return;
+            var o = await db.from('orders').select('product_id, quantity, status').eq('id', id).single();
+            if (!o.data || o.data.status !== 'pending') { alert('无法取消'); return; }
+
+            // 释放库存
+            if (o.data.product_id) {
+                await db.rpc('release_shop_order_stock', { p_order_id: id, p_product_id: o.data.product_id, p_quantity: o.data.quantity });
+            }
+
+            await db.from('orders').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id);
+            loadOrders();
+        }
+
         async function payOrder(id) {
             var o = await db.from('orders').select('*').eq('id', id).single();
             if (!o.data) return;
+            var isShop = o.data.order_source === 'shop' || o.data.product_id;
 
+            if (isShop) {
+                // 商城订单：直接调用 pay_shop_order RPC
+                var { data: payData, error: payErr } = await db.rpc('pay_shop_order', {
+                    p_order_id: id,
+                    p_user_id: currentUser.id
+                });
+                if (payErr) { alert('支付失败: ' + payErr.message); return; }
+                if (!payData.success) { alert(payData.error); return; }
+                loadOrders();
+                return;
+            }
+
+            // 原有市场订单支付逻辑
             // 1. 检查钱包余额
             var walletResult = await db.from('wallets').select('*').eq('user_id', currentUser.id).single();
             if (!walletResult.data) {
