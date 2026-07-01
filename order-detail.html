@@ -2,287 +2,317 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡域 - 订单详情</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>订单详情 - 卡域 Card Realm</title>
     <style>
+        :root {
+            --primary: #5B4AE0;
+            --primary-light: #F0EDFF;
+            --bg: #f5f5f5;
+            --white: #fff;
+            --text: #1a1a1a;
+            --text-secondary: #888;
+            --border: #eee;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --radius: 12px;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 90px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
-        .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
-        .header-title { color: white; font-size: 18px; font-weight: bold; }
-        .section { background: white; margin: 12px 15px; border-radius: 12px; padding: 16px; }
-        .section-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-        .status-banner { background: white; margin: 12px 15px; border-radius: 12px; padding: 20px; text-align: center; }
-        .status-icon { font-size: 44px; margin-bottom: 8px; }
-        .status-text { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 4px; }
-        .status-desc { font-size: 13px; color: #999; }
-        .status-steps { display: flex; justify-content: space-between; margin-top: 20px; position: relative; padding: 0 10px; }
-        .status-steps::before { content: ''; position: absolute; top: 15px; left: 30px; right: 30px; height: 2px; background: #e0e0e0; }
-        .step { text-align: center; position: relative; z-index: 1; flex: 1; }
-        .step-dot { width: 32px; height: 32px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; font-size: 14px; color: #999; }
-        .step.active .step-dot { background: #667eea; color: white; }
-        .step.done .step-dot { background: #4caf50; color: white; }
-        .step-label { font-size: 11px; color: #999; }
-        .step.active .step-label, .step.done .step-label { color: #333; font-weight: 500; }
-        .order-meta { display: flex; justify-content: space-between; font-size: 13px; color: #999; }
-        .card-row { display: flex; gap: 12px; }
-        .card-thumb { width: 70px; height: 93px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; font-weight: bold; }
-        .card-detail { flex: 1; }
-        .card-name { font-size: 14px; font-weight: bold; color: #333; }
-        .card-meta { font-size: 12px; color: #999; margin-top: 3px; }
-        .card-price { font-size: 16px; font-weight: bold; color: #667eea; margin-top: 6px; }
-        .address-box { display: flex; align-items: flex-start; gap: 10px; }
-        .address-icon { font-size: 20px; margin-top: 2px; }
-        .address-info { flex: 1; }
-        .address-name { font-weight: bold; font-size: 14px; }
-        .address-phone { font-size: 13px; color: #666; margin-left: 10px; }
-        .address-text { font-size: 13px; color: #666; margin-top: 4px; line-height: 1.5; }
-        .fee-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #666; }
-        .fee-row.total { border-top: 1px solid #eee; padding-top: 10px; margin-top: 4px; font-size: 15px; font-weight: bold; color: #333; }
-        .fee-row.total .amount { color: #f44336; }
-        .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 15px; display: flex; gap: 10px; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); }
-        .btn-action { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; text-align: center; }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-success { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; }
-        .btn-danger { background: #fff; color: #f44336; border: 1.5px solid #f44336; }
-        .btn-gray { background: #f0f0f0; color: #999; }
-        .loading { text-align: center; padding: 80px 20px; color: #999; }
-        .loading .spinner { width: 40px; height: 40px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .modal-mask { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
-        .modal-mask.show { display: flex; align-items: center; justify-content: center; }
-        .modal-box { background: white; border-radius: 16px; padding: 24px; width: 85%; max-width: 340px; }
-        .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; }
-        .modal-input { width: 100%; padding: 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 12px; }
-        .modal-input:focus { border-color: #667eea; }
-        .modal-btns { display: flex; gap: 10px; margin-top: 10px; }
-        .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
-        .modal-cancel { background: #f0f0f0; color: #666; }
-        .modal-confirm { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; }
-        .toast { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.75); color: white; padding: 16px 28px; border-radius: 12px; font-size: 15px; z-index: 999; text-align: center; }
-        .toast.show { display: block; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg); padding-bottom: 80px;
+            -webkit-tap-highlight-color: transparent; color: var(--text);
+        }
+        .header {
+            background: var(--white); padding: 12px 16px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+            position: sticky; top: 0; z-index: 50;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .back { font-size: 20px; text-decoration: none; color: var(--text); }
+        .header-title { font-size: 17px; font-weight: 700; }
+
+        .content { max-width: 560px; margin: 0 auto; padding: 16px; }
+
+        /* ===== Status Timeline ===== */
+        .status-timeline {
+            background: var(--white); border-radius: var(--radius);
+            padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow);
+        }
+        .status-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+        .timeline { position: relative; padding-left: 30px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 10px; top: 8px; bottom: 8px;
+            width: 2px; background: var(--border);
+        }
+        .timeline-item { position: relative; padding-bottom: 20px; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-dot {
+            position: absolute; left: -25px; top: 8px;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: var(--border); border: 2px solid white;
+        }
+        .timeline-item.active .timeline-dot { background: var(--primary); }
+        .timeline-item.done .timeline-dot { background: #4caf50; }
+        .timeline-time { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
+        .timeline-text { font-size: 14px; font-weight: 500; }
+
+        /* ===== Order Info ===== */
+        .info-card {
+            background: var(--white); border-radius: var(--radius);
+            padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow);
+        }
+        .info-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+        .info-label { color: var(--text-secondary); }
+        .info-value { font-weight: 500; }
+
+        /* ===== Tracking ===== */
+        .tracking-card {
+            background: var(--white); border-radius: var(--radius);
+            padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow);
+        }
+        .tracking-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .tracking-no { font-size: 13px; color: var(--text-secondary); }
+        .tracking-list { max-height: 300px; overflow-y: auto; }
+        .tracking-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+        .tracking-time { font-size: 12px; color: var(--text-secondary); white-space: nowrap; min-width: 80px; }
+        .tracking-desc { font-size: 13px; flex: 1; }
+
+        /* ===== Actions ===== */
+        .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .btn { padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; color: var(--primary); border: 1px solid var(--primary); }
+
+        .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .empty { text-align: center; padding: 40px; color: var(--text-secondary); }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="javascript:history.back()" class="back">←</a>
+        <a href="my-orders.html" class="back">‹</a>
         <div class="header-title">订单详情</div>
     </div>
-    <div id="pageContent"><div class="loading"><div class="spinner"></div>加载中...</div></div>
-    <div class="modal-mask" id="shipModal">
-        <div class="modal-box">
-            <div class="modal-title">📦 填写物流信息</div>
-            <input type="text" class="modal-input" id="shipCompany" placeholder="快递公司（如：顺丰、中通）">
-            <input type="text" class="modal-input" id="shipTrackingNo" placeholder="快递单号">
-            <div class="modal-btns">
-                <button class="modal-cancel" onclick="closeShipModal()">取消</button>
-                <button class="modal-confirm" onclick="confirmShip()">确认发货</button>
-            </div>
-        </div>
+
+    <div class="content" id="content">
+        <div class="loading">加载中...</div>
     </div>
-    <div class="bottom-bar" id="bottomBar" style="display: none;"></div>
-    <div class="toast" id="toast"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
-        const urlParams = new URLSearchParams(window.location.search);
-        const orderId = urlParams.get('id');
-        let order = null;
-        let currentUser = null;
-        let isBuyer = false;
-        let isSeller = false;
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
         const STATUS_MAP = {
-            pending_payment: { icon: '💳', text: '等待付款', desc: '请尽快完成付款', buyerStep: 0 },
-            paid: { icon: '💰', text: '已付款', desc: '等待卖家发货', buyerStep: 1, sellerStep: 0 },
-            shipped: { icon: '🚚', text: '已发货', desc: '商品运输中', buyerStep: 2, sellerStep: 1 },
-            completed: { icon: '✅', text: '已完成', desc: '交易完成', buyerStep: 3, sellerStep: 2 },
-            cancelled: { icon: '❌', text: '已取消', desc: '订单已取消' },
-            refunded: { icon: '↩️', text: '已退款', desc: '退款已完成' }
+            'pending': { text: '待支付', icon: '⏳' },
+            'paid': { text: '已支付', icon: '✅' },
+            'shipped': { text: '已发货', icon: '🚚' },
+            'delivered': { text: '已送达', icon: '📦' },
+            'completed': { text: '已完成', icon: '🎉' },
+            'cancelled': { text: '已取消', icon: '❌' },
+            'refund_requested': { text: '退款申请中', icon: '💰' },
+            'refunded': { text: '已退款', icon: '💰' },
+            'disputed': { text: '争议中', icon: '⚠️' }
         };
 
+        let orderId = null;
+        let order = null;
+
         async function init() {
-            if (!orderId) { document.getElementById('pageContent').innerHTML = '<div class="loading">订单不存在</div>'; return; }
+            const params = new URLSearchParams(window.location.search);
+            orderId = params.get('id');
+            if (!orderId) { showError('订单ID缺失'); return; }
+
             const { data: { user } } = await db.auth.getUser();
-            currentUser = user;
-            const { data, error } = await db.from('orders').select('*').eq('id', orderId).single();
-            if (error || !data) { document.getElementById('pageContent').innerHTML = '<div class="loading">订单不存在</div>'; return; }
+            if (!user) { window.location.href = 'login.html'; return; }
+
+            loadOrder();
+        }
+
+        async function loadOrder() {
+            const { data, error } = await db
+                .from('orders')
+                .select(`
+                    *,
+                    consignments(*),
+                    products(*)
+                `)
+                .eq('id', orderId)
+                .single();
+
+            if (error || !data) { showError('订单不存在'); return; }
+
             order = data;
-            isBuyer = currentUser && currentUser.id === data.buyer_id;
-            isSeller = currentUser && currentUser.id === data.seller_id;
-            renderOrder(data);
+            renderOrder();
+            if (order.tracking_no) loadTracking();
         }
 
-        function renderOrder(o) {
-            var status = STATUS_MAP[o.status] || STATUS_MAP.pending_payment;
-            var step = isBuyer ? (status.buyerStep || -1) : (status.sellerStep || -1);
-            var bgStyle = o.card_image_url ? 'background-image: url(' + o.card_image_url + '); background-size: cover; background-position: center;' : '';
-            var stepsHtml = '';
-            if (step >= 0) {
-                var steps = isBuyer ? ['付款','等待发货','确认收货','完成'] : ['收款','发货','等待确认','完成'];
-                stepsHtml = '<div class="status-steps">' + steps.map(function(s, i) {
-                    var cls = i < step ? 'done' : (i === step ? 'active' : '');
-                    var icon = i < step ? '✓' : (i + 1);
-                    return '<div class="step ' + cls + '"><div class="step-dot">' + icon + '</div><div class="step-label">' + s + '</div></div>';
-                }).join('') + '</div>';
+        function renderOrder() {
+            const status = STATUS_MAP[order.status] || { text: order.status, icon: '📋' };
+            const item = order.consignments || order.products;
+            const itemName = order.consignments?.card_name || order.products?.name || '商品';
+            const itemImage = order.consignments?.image_url || order.products?.image_url || '';
+
+            let html = '';
+
+            // Status Timeline
+            html += `
+                <div class="status-timeline">
+                    <div class="status-title">${status.icon} ${status.text}</div>
+                    <div class="timeline">
+                        <div class="timeline-item ${order.status !== 'cancelled' && order.status !== 'refunded' ? 'active' : ''}">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">${formatTime(order.created_at)}</div>
+                            <div class="timeline-text">订单创建</div>
+                        </div>
+                        ${order.status === 'paid' || order.status === 'shipped' || order.status === 'delivered' || order.status === 'completed' ? `
+                        <div class="timeline-item done">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">${formatTime(order.paid_at)}</div>
+                            <div class="timeline-text">支付完成</div>
+                        </div>
+                        ` : ''}
+                        ${order.status === 'shipped' || order.status === 'delivered' || order.status === 'completed' ? `
+                        <div class="timeline-item done">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">${formatTime(order.shipped_at)}</div>
+                            <div class="timeline-text">卖家已发货</div>
+                        </div>
+                        ` : ''}
+                        ${order.status === 'delivered' || order.status === 'completed' ? `
+                        <div class="timeline-item done">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">${formatTime(order.delivered_at)}</div>
+                            <div class="timeline-text">已送达</div>
+                        </div>
+                        ` : ''}
+                        ${order.status === 'completed' ? `
+                        <div class="timeline-item done">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">${formatTime(order.completed_at)}</div>
+                            <div class="timeline-text">交易完成</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            // Order Info
+            html += `
+                <div class="info-card">
+                    <div class="info-title">📦 商品信息</div>
+                    <div style="display:flex;gap:12px;margin-bottom:12px;">
+                        <div style="width:60px;height:60px;background:#f5f5f5;border-radius:8px;background-image:url(${itemImage});background-size:cover;background-position:center;flex-shrink:0;"></div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${itemName}</div>
+                            <div style="color:#888;font-size:13px;">单价: ¥${order.unit_price?.toFixed(2) || order.total_amount.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div class="info-row"><span class="info-label">订单编号</span><span class="info-value">${order.order_no}</span></div>
+                    <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">${new Date(order.created_at).toLocaleString('zh-CN')}</span></div>
+                </div>
+            `;
+
+            // Shipping Info
+            if (order.tracking_no) {
+                html += `
+                    <div class="tracking-card" id="trackingCard">
+                        <div class="tracking-title">
+                            <span>🚚 物流信息</span>
+                        </div>
+                        <div class="info-row"><span class="info-label">快递公司</span><span class="info-value">${order.shipping_carrier || '未知'}</span></div>
+                        <div class="info-row"><span class="info-label">快递单号</span><span class="info-value">${order.tracking_no}</span></div>
+                        <div id="trackingList" style="margin-top:12px;">
+                            <div class="loading" style="padding:20px;">加载物流轨迹中...</div>
+                        </div>
+                    </div>
+                `;
             }
-            var actionsHtml = '';
-            if (isBuyer) {
-                if (o.status === 'pending_payment') actionsHtml = '<button class="btn-action btn-primary" onclick="payOrder()">立即付款 ¥' + o.total_amount + '</button><button class="btn-action btn-danger" onclick="cancelOrder()">取消订单</button>';
-                else if (o.status === 'shipped') actionsHtml = '<button class="btn-action btn-success" onclick="confirmReceive()">确认收货</button>';
-                else if (o.status === 'completed') actionsHtml = '<button class="btn-action btn-primary" onclick="goOrders()">查看评价</button>';
-            } else if (isSeller) {
-                if (o.status === 'paid') actionsHtml = '<button class="btn-action btn-primary" onclick="openShipModal()">确认发货</button>';
-                else if (o.status === 'completed') actionsHtml = '<button class="btn-action btn-gray">交易完成</button>';
-            }
-            document.getElementById('pageContent').innerHTML = '<div class="status-banner"><div class="status-icon">' + status.icon + '</div><div class="status-text">' + status.text + '</div><div class="status-desc">' + status.desc + '</div>' + stepsHtml + '</div><div class="section"><div class="section-title">📋 订单信息</div><div class="order-meta"><span>订单号：' + o.order_no + '</span></div><div class="order-meta"><span>创建时间：' + formatTime(o.created_at) + '</span></div>' + (o.payment_at ? '<div class="order-meta"><span>付款时间：' + formatTime(o.payment_at) + '</span></div>' : '') + (o.shipped_at ? '<div class="order-meta"><span>发货时间：' + formatTime(o.shipped_at) + '</span></div>' : '') + (o.completed_at ? '<div class="order-meta"><span>完成时间：' + formatTime(o.completed_at) + '</span></div>' : '') + '</div><div class="section"><div class="section-title">📦 商品信息</div><div class="card-row"><div class="card-thumb" style="' + bgStyle + '">' + (o.card_image_url ? '' : o.card_name.substring(0,2)) + '</div><div class="card-detail"><div class="card-name">' + o.card_name + '</div><div class="card-meta">' + o.card_series + ' · ' + o.card_rarity + '</div><div class="card-price">¥' + o.card_price + '</div></div></div></div><div class="section"><div class="section-title">📍 收货信息</div><div class="address-box"><div class="address-icon">📍</div><div class="address-info"><div><span class="address-name">' + (o.receiver_name||'') + '</span><span class="address-phone">' + (o.receiver_phone||'') + '</span></div><div class="address-text">' + (o.receiver_address||'') + '</div></div></div></div>' + (o.tracking_no ? '<div class="section"><div class="section-title">🚚 物流信息</div><div style="font-size:14px;color:#333;">' + o.shipping_company + '：' + o.tracking_no + '</div></div>' : '') + (o.buyer_remark ? '<div class="section"><div class="section-title">💬 买家备注</div><div style="font-size:14px;color:#666;">' + o.buyer_remark + '</div></div>' : '') + '<div class="section"><div class="section-title">💰 费用明细</div><div class="fee-row"><span>商品金额</span><span>¥' + o.card_amount + '</span></div><div class="fee-row"><span>运费</span><span>¥' + o.shipping_fee + '</span></div><div class="fee-row total"><span>实付金额</span><span class="amount">¥' + o.total_amount + '</span></div></div>';
-            if (actionsHtml) { document.getElementById('bottomBar').innerHTML = actionsHtml; document.getElementById('bottomBar').style.display = 'flex'; }
+
+            // Amount Info
+            html += `
+                <div class="info-card">
+                    <div class="info-title">💰 金额明细</div>
+                    <div class="info-row"><span class="info-label">商品总价</span><span class="info-value">¥${order.total_amount.toFixed(2)}</span></div>
+                    <div class="info-row"><span class="info-label">运费</span><span class="info-value">¥0.00</span></div>
+                    <div class="info-row" style="border-top:1px solid #eee;padding-top:12px;margin-top:8px;">
+                        <span class="info-label" style="font-weight:700;">实付金额</span>
+                        <span class="info-value" style="color:#5B4AE0;font-size:18px;font-weight:700;">¥${order.total_amount.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('content').innerHTML = html;
         }
 
-        function formatTime(t) { return t ? new Date(t).toLocaleString('zh-CN') : ''; }
+        // 加载物流轨迹（使用快递100免费API）
+        async function loadTracking() {
+            if (!order.tracking_no || !order.shipping_carrier) return;
 
-        function showToast(msg, duration) {
-            duration = duration || 1500;
-            var t = document.getElementById('toast');
-            t.textContent = msg;
-            t.classList.add('show');
-            setTimeout(function() { t.classList.remove('show'); }, duration);
-        }
-
-        async function payOrder() {
-            // 1. 检查余额
-            var walletResult = await db.from('wallets').select('*').eq('user_id', currentUser.id).single();
-            if (!walletResult.data) {
-                alert('请先开通钱包');
-                window.location.href = 'wallet.html';
-                return;
-            }
-            var walletData = walletResult.data;
-            var balance = parseFloat(walletData.balance);
-            var total = parseFloat(order.total_amount);
-
-            if (balance < total) {
-                var needRecharge = (total - balance).toFixed(2);
-                if (!confirm('余额不足！当前余额 ¥' + balance.toFixed(2) + '，还需充值 ¥' + needRecharge + '。\n\n前往充值？')) return;
-                window.location.href = 'wallet.html';
-                return;
-            }
-
-            if (!confirm('确认从钱包支付 ¥' + total.toFixed(2) + '？\n当前余额 ¥' + balance.toFixed(2))) return;
-
-            var btn = document.querySelector('.btn-primary');
-            btn.disabled = true; btn.textContent = '支付中...';
+            // 快递100免费查询（无需API key，直接爬取公开页面）
+            // 注意：这只是示例，实际需要后端代理或官方API
+            const carrierCode = getCarrierCode(order.shipping_carrier);
+            
             try {
-                // 2. 扣减余额
-                var newBalance = balance - total;
-                var newExpense = parseFloat(walletData.total_expense) + total;
-                var updateWallet = await db.from('wallets').update({
-                    balance: newBalance,
-                    total_expense: newExpense
-                }).eq('id', walletData.id);
-                if (updateWallet.error) throw updateWallet.error;
-
-                // 3. 写入交易记录
-                await db.from('wallet_transactions').insert([{
-                    wallet_id: walletData.id,
-                    order_id: orderId,
-                    type: 'payment',
-                    amount: total,
-                    balance_after: newBalance,
-                    description: '购买「' + order.card_name + '」'
-                }]);
-
-                // 4. 更新订单状态
-                var { error } = await db.from('orders').update({
-                    status: 'paid',
-                    payment_at: new Date().toISOString(),
-                    payment_no: 'PAY' + Date.now(),
-                    payment_method: 'balance'
-                }).eq('id', orderId);
-                if (error) throw error;
-
-                // 5. 通知卖家
-                await db.from('notifications').insert([{
-                    user_id: order.seller_id,
-                    title: '买家已付款',
-                    content: '订单 ' + order.order_no + ' 已付款 ¥' + total.toFixed(2) + '，请尽快发货',
-                    type: 'order',
-                    related_id: orderId
-                }]);
-
-                showToast('支付成功！已扣款 ¥' + total.toFixed(2));
-                init();
-            } catch (err) {
-                alert('支付失败: ' + (err.message || '请重试'));
-                btn.disabled = false; btn.textContent = '立即付款 ¥' + order.total_amount;
+                // 使用快递100的公共查询接口（免费，但有限制）
+                const url = `https://www.kuaidi100.com/query?type=${carrierCode}&postid=${order.tracking_no}&temp=${Math.random()}`;
+                
+                // 由于跨域问题，实际需要通过后端或CORS代理
+                // 这里只显示单号和快递公司，并提供链接
+                showTrackingFallback();
+            } catch (e) {
+                showTrackingFallback();
             }
         }
 
-        async function cancelOrder() {
-            if (!confirm('确定取消此订单？')) return;
-            try {
-                var { error } = await db.from('orders').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', orderId);
-                if (error) throw error;
-                await db.from('market_listings').update({ status: 'active' }).eq('id', order.listing_id);
-                await db.from('notifications').insert([{ user_id: order.seller_id, title: '订单已取消', content: '订单 ' + order.order_no + ' 已被买家取消', type: 'order', related_id: orderId }]);
-                alert('订单已取消'); init();
-            } catch (err) { alert('操作失败'); }
+        // 显示备用方案（链接到快递公司官网）
+        function showTrackingFallback() {
+            const links = {
+                '顺丰': `https://www.sf-express.com/we/weisite/order/detail?nu=${order.tracking_no}`,
+                '中通': `https://www.zto.com/kuaidi?num=${order.tracking_no}`,
+                '圆通': `https://www.yto.net.cn/waybill/trace/${order.tracking_no}`,
+                '韵达': `https://www.yundaexc.com/zhixin/waybill?waybillNo=${order.tracking_no}`,
+                '申通': `https://www.sto.cn/query?num=${order.tracking_no}`,
+                '百世': `https://www.800best.com/express/track?no=${order.tracking_no}`,
+                '京东': `https://waybill.jd.com/waybillDetail?waybillCode=${order.tracking_no}`
+            };
+
+            const carrier = order.shipping_carrier || '';
+            const link = links[carrier] || `https://www.kuaidi100.com/chaxun?nu=${order.tracking_no}`;
+
+            document.getElementById('trackingList').innerHTML = `
+                <div style="text-align:center;padding:20px;">
+                    <div style="color:#888;font-size:13px;margin-bottom:12px;">点击查看完整物流轨迹</div>
+                    <a href="${link}" target="_blank" style="display:inline-block;padding:10px 20px;background:var(--primary);color:white;border-radius:20px;text-decoration:none;font-size:14px;">
+                        查看物流详情 ›
+                    </a>
+                </div>
+            `;
         }
 
-        function openShipModal() { document.getElementById('shipModal').classList.add('show'); }
-        function closeShipModal() { document.getElementById('shipModal').classList.remove('show'); }
-
-        async function confirmShip() {
-            var company = document.getElementById('shipCompany').value.trim();
-            var trackingNo = document.getElementById('shipTrackingNo').value.trim();
-            if (!company || !trackingNo) { alert('请填写完整的物流信息'); return; }
-            try {
-                var { error } = await db.from('orders').update({ status: 'shipped', shipping_company: company, tracking_no: trackingNo, shipped_at: new Date().toISOString() }).eq('id', orderId);
-                if (error) throw error;
-                await db.from('notifications').insert([{ user_id: order.buyer_id, title: '商品已发货', content: '订单 ' + order.order_no + ' 已发货，快递：' + company + ' ' + trackingNo, type: 'order', related_id: orderId }]);
-                closeShipModal(); alert('发货成功！'); init();
-            } catch (err) { alert('发货失败'); }
+        // 获取快递公司代码（快递100）
+        function getCarrierCode(carrier) {
+            const map = {
+                '顺丰': 'sf',
+                '中通': 'zhongtong',
+                '圆通': 'yuantong',
+                '韵达': 'yunda',
+                '申通': 'shentong',
+                '百世': 'huitongkuaidi',
+                '京东': 'jd'
+            };
+            return map[carrier] || 'auto';
         }
 
-        async function confirmReceive() {
-            if (!confirm('确认已收到商品？确认后款项将转入卖家账户。')) return;
-            try {
-                var { error } = await db.from('orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', orderId);
-                if (error) throw error;
-                await db.from('market_listings').update({ status: 'sold' }).eq('id', order.listing_id);
-
-                // 款项转入卖家钱包
-                try {
-                    var sellerWalletResult = await db.from('wallets').select('*').eq('user_id', order.seller_id).single();
-                    if (sellerWalletResult.data) {
-                        var sw = sellerWalletResult.data;
-                        var newBalance = parseFloat(sw.balance) + parseFloat(order.seller_amount);
-                        await db.from('wallets').update({
-                            balance: newBalance,
-                            total_income: parseFloat(sw.total_income) + parseFloat(order.seller_amount)
-                        }).eq('id', sw.id);
-                        await db.from('wallet_transactions').insert([{
-                            wallet_id: sw.id,
-                            order_id: orderId,
-                            type: 'income',
-                            amount: parseFloat(order.seller_amount),
-                            balance_after: newBalance,
-                            description: '出售「' + order.card_name + '」收入'
-                        }]);
-                    }
-                } catch (walletErr) {
-                    console.error('卖家钱包入账失败:', walletErr);
-                }
-
-                await db.from('notifications').insert([
-                    { user_id: order.seller_id, title: '交易完成', content: '订单 ' + order.order_no + ' 已完成，¥' + order.seller_amount + ' 已到账', type: 'order', related_id: orderId },
-                    { user_id: order.buyer_id, title: '交易完成', content: '订单 ' + order.order_no + ' 已完成', type: 'order', related_id: orderId }
-                ]);
-                showToast('确认收货成功！交易完成');
-                init();
-            } catch (err) { alert('操作失败'); }
+        function formatTime(ts) {
+            if (!ts) return '--';
+            return new Date(ts).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
         }
 
-        function goOrders() { window.location.href = 'my-orders.html'; }
+        function showError(msg) {
+            document.getElementById('content').innerHTML = `<div class="empty">${msg}</div>`;
+        }
+
         init();
     </script>
 </body>
