@@ -1,5 +1,6 @@
-// ai-scan Edge Function v3 — Fault Tolerance Edition
-// Features: Gemini API, 3-level classification (TCG/NON_TCG/UNKNOWN), confidence scoring
+// ai-scan Edge Function v4 — Fallback-First Edition
+// Core principle: AI failure is NEVER a dead end.
+// Returns status: "success" | "partial" | "failed" so frontend always has a path.
 // Pure JavaScript (no TypeScript imports) — runs on Deno
 "use strict";
 
@@ -129,7 +130,27 @@ Deno.serve(async (req) => {
     // Compute image hash
     const imageHash = await computeImageHash(image);
     if (!imageHash) {
-      return jsonResponse({ success: false, error: "无法计算图片指纹" }, 500);
+      // Even hash failure should not block the user — return a fallback response
+      console.error("[ai-scan] Hash computation failed, returning fallback");
+      return jsonResponse({
+        success: true,
+        data: {
+          card_type: "ERROR",
+          status: "failed",
+          confidence: 0,
+          card_name: "",
+          game: "",
+          suggested_cards: [],
+          reason: "图片指纹计算失败，请手动录入卡牌信息",
+          image_hash: null,
+          cached: false,
+          // backward compat
+          name: "unknown",
+          series: "unknown",
+          rarity: "N",
+          isRare: false,
+        }
+      });
     }
 
     // ============================================================
@@ -143,6 +164,7 @@ Deno.serve(async (req) => {
           success: true,
           data: {
             ...cacheResult.data,
+            status: "success",
             image_hash: imageHash,
             cached: true,
             cached_at: cacheResult.cached_at,
@@ -194,18 +216,16 @@ Deno.serve(async (req) => {
     // ============================================================
     // Step 4: Clean and prepare image for Gemini
     // ============================================================
-    // Strip data:image prefix if present, Gemini needs raw base64
     let cleanBase64 = image;
     if (image.includes(",")) {
       cleanBase64 = image.split(",")[1] || image;
     }
-    // Detect MIME type
     let mimeType = "image/jpeg";
     if (image.startsWith("data:image/png")) mimeType = "image/png";
     else if (image.startsWith("data:image/webp")) mimeType = "image/webp";
 
     // ============================================================
-    // Step 5: Call Gemini API
+    // Step 5: Call Gemini API (with fallback on failure)
     // ============================================================
     console.log("[ai-scan] Calling Gemini API...");
 
@@ -235,22 +255,32 @@ Deno.serve(async (req) => {
       }
     };
 
-    const geminiRes = await fetch(GEMINI_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiReq),
-    });
+    let geminiData = null;
+    let aiError = null;
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("[ai-scan] Gemini API error:", geminiRes.status, errText);
-      throw new Error("Gemini API error " + geminiRes.status + ": " + errText.substring(0, 200));
+    try {
+      const geminiRes = await fetch(GEMINI_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(geminiReq),
+      });
+
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text();
+        console.error("[ai-scan] Gemini API error:", geminiRes.status, errText);
+        aiError = "Gemini API error " + geminiRes.status + ": " + errText.substring(0, 200);
+      } else {
+        geminiData = await geminiRes.json();
+        console.log("[ai-scan] Gemini response received");
+      }
+    } catch (fetchErr) {
+      console.error("[ai-scan] Gemini fetch failed:", fetchErr.message);
+      aiError = fetchErr.message;
     }
 
-    const geminiData = await geminiRes.json();
-    console.log("[ai-scan] Gemini response received");
-
-    // Parse Gemini structured output
+    // ============================================================
+    // Step 6: Parse Gemini response (or use fallback on failure)
+    // ============================================================
     let classification = {
       type: "UNKNOWN",
       confidence: 0.0,
@@ -260,38 +290,62 @@ Deno.serve(async (req) => {
       reason: "AI未能识别此卡牌"
     };
 
-    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (rawText) {
-      try {
-        const parsed = JSON.parse(rawText);
-        if (parsed.type && ["TCG", "NON_TCG", "UNKNOWN"].includes(parsed.type)) {
-          classification = {
-            type: parsed.type,
-            confidence: Number(parsed.confidence) || 0,
-            card_name: String(parsed.card_name || "").trim(),
-            game: String(parsed.game || "").trim(),
-            suggested_cards: Array.isArray(parsed.suggested_cards) ? parsed.suggested_cards.slice(0, 3) : [],
-            reason: String(parsed.reason || "无").trim()
-          };
-        }
-      } catch (parseErr) {
-        console.error("[ai-scan] JSON parse error, raw:", rawText.substring(0, 200));
-        // Fallback: try extracting JSON from text
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.type && ["TCG", "NON_TCG", "UNKNOWN"].includes(parsed.type)) {
-              classification.type = parsed.type;
-              classification.confidence = Number(parsed.confidence) || 0;
-              classification.card_name = String(parsed.card_name || "").trim();
-              classification.game = String(parsed.game || "").trim();
-              classification.suggested_cards = Array.isArray(parsed.suggested_cards) ? parsed.suggested_cards.slice(0, 3) : [];
-              classification.reason = String(parsed.reason || "无").trim();
+    let aiStatus = "failed"; // default to failed — upgrade if we get good data
+
+    if (geminiData) {
+      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (rawText) {
+        try {
+          const parsed = JSON.parse(rawText);
+          if (parsed.type && ["TCG", "NON_TCG", "UNKNOWN"].includes(parsed.type)) {
+            classification = {
+              type: parsed.type,
+              confidence: Number(parsed.confidence) || 0,
+              card_name: String(parsed.card_name || "").trim(),
+              game: String(parsed.game || "").trim(),
+              suggested_cards: Array.isArray(parsed.suggested_cards) ? parsed.suggested_cards.slice(0, 3) : [],
+              reason: String(parsed.reason || "无").trim()
+            };
+            // Determine status based on classification quality
+            if (classification.type === "TCG" && classification.confidence >= 0.5) {
+              aiStatus = "success";
+            } else if (classification.type === "NON_TCG" || (classification.type === "TCG" && classification.confidence < 0.5)) {
+              aiStatus = "partial";
+            } else {
+              aiStatus = "failed";
             }
-          } catch (e2) { /* use fallback */ }
+          }
+        } catch (parseErr) {
+          console.error("[ai-scan] JSON parse error, raw:", rawText.substring(0, 200));
+          // Fallback: try extracting JSON from text
+          const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (parsed.type && ["TCG", "NON_TCG", "UNKNOWN"].includes(parsed.type)) {
+                classification.type = parsed.type;
+                classification.confidence = Number(parsed.confidence) || 0;
+                classification.card_name = String(parsed.card_name || "").trim();
+                classification.game = String(parsed.game || "").trim();
+                classification.suggested_cards = Array.isArray(parsed.suggested_cards) ? parsed.suggested_cards.slice(0, 3) : [];
+                classification.reason = String(parsed.reason || "无").trim();
+                if (classification.type === "TCG" && classification.confidence >= 0.5) {
+                  aiStatus = "success";
+                } else if (classification.type === "NON_TCG") {
+                  aiStatus = "partial";
+                } else {
+                  aiStatus = "failed";
+                }
+              }
+            } catch (e2) { /* use default failed status */ }
+          }
         }
       }
+    } else {
+      // Gemini API failed entirely — set ERROR type so frontend shows manual entry
+      classification.type = "ERROR";
+      classification.reason = aiError ? "AI识别失败：" + aiError.substring(0, 100) + "。请手动录入卡牌信息。" : "AI服务暂时不可用，请手动录入卡牌信息。";
+      aiStatus = "failed";
     }
 
     // Cap and sanitize
@@ -299,14 +353,14 @@ Deno.serve(async (req) => {
     classification.card_name = classification.card_name.substring(0, 100);
     classification.game = classification.game.substring(0, 50);
 
-    console.log(`[ai-scan] Classification: type=${classification.type}, confidence=${classification.confidence}, name="${classification.card_name}", game="${classification.game}"`);
+    console.log(`[ai-scan] Classification: type=${classification.type}, status=${aiStatus}, confidence=${classification.confidence}, name="${classification.card_name}", game="${classification.game}"`);
 
     // Token usage for cost tracking
-    const inputTokens = geminiData.usageMetadata?.promptTokenCount || 0;
-    const outputTokens = geminiData.usageMetadata?.candidatesTokenCount || 0;
+    const inputTokens = geminiData?.usageMetadata?.promptTokenCount || 0;
+    const outputTokens = geminiData?.usageMetadata?.candidatesTokenCount || 0;
 
     // ============================================================
-    // Step 6: Cache & Log (only for TCG with good confidence)
+    // Step 7: Cache & Log (only for TCG with good confidence)
     // ============================================================
     if (userId && SB_SERVICE_KEY) {
       const isCacheable = classification.type === "TCG" && classification.confidence >= 0.7;
@@ -324,7 +378,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Log AI cost
+      // Log AI cost (even for failures — useful for debugging)
       await callRPC("record_ai_cost", {
         p_user_id: userId,
         p_cost_cny: ESTIMATED_COST_CNY,
@@ -341,10 +395,15 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // Step 7: Build response
+    // Step 8: Build response — ALWAYS returns 200 with a status field
+    // The frontend uses `status` to decide which UI path to show:
+    //   "success" → auto-recognized TCG, show result + collect
+    //   "partial" → NON_TCG or low-confidence TCG, show confirmation form
+    //   "failed"  → AI error or UNKNOWN, show manual entry form
     // ============================================================
     const responseData = {
-      card_type: classification.type,
+      card_type: classification.type,       // TCG | NON_TCG | UNKNOWN | ERROR
+      status: aiStatus,                      // success | partial | failed
       confidence: classification.confidence,
       card_name: classification.card_name,
       game: classification.game,
@@ -359,14 +418,36 @@ Deno.serve(async (req) => {
       cached: false,
     };
 
+    // ALWAYS return 200 — the AI "failed" but the request "succeeded"
+    // The frontend will never see a 500 for AI failures.
     return jsonResponse({
       success: true,
       data: responseData
     });
 
   } catch (error) {
+    // Last-resort catch — even here we return a usable response
     const msg = error.message || "scan failed";
     console.error("[ai-scan] Fatal error:", msg);
-    return jsonResponse({ success: false, error: msg }, 500);
+
+    // Return 200 with ERROR type so frontend can offer manual entry
+    return jsonResponse({
+      success: true,
+      data: {
+        card_type: "ERROR",
+        status: "failed",
+        confidence: 0,
+        card_name: "",
+        game: "",
+        suggested_cards: [],
+        reason: "AI服务异常：" + msg.substring(0, 100) + "。请手动录入卡牌信息。",
+        image_hash: null,
+        cached: false,
+        name: "unknown",
+        series: "unknown",
+        rarity: "N",
+        isRare: false,
+      }
+    });
   }
 });

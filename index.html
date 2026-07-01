@@ -587,6 +587,10 @@
         let aiPreviewUrl = '';
         let aiDetectedImageHash = null;     // SHA256 for dedup
         let aiDetectedConfidence = 0;       // AI confidence 0~1
+        let aiScanStatus = 'success';       // success | partial | failed
+        let aiCardType = '';                // TCG | NON_TCG | UNKNOWN | ERROR
+        let aiSuggestedCards = [];          // AI suggested card names
+        let aiScanReason = '';              // AI classification reason
         let cameraStream = null;
         let facingMode = 'environment';
 
@@ -860,22 +864,34 @@
 
                 const data = result.data || {};
                 const cardType = data.card_type || 'UNKNOWN';
+                // Support both v3 (no status field) and v4 (with status field)
+                // v3 fallback: infer status from card_type and confidence
+                const scanStatus = data.status || (cardType === 'TCG' && (data.confidence || 0) >= 0.5 ? 'success' : cardType === 'NON_TCG' ? 'partial' : 'failed');
                 aiDetectedImageHash = data.image_hash || null;
                 aiPreviewUrl = previewUrl || '';
+                aiCardType = cardType;
+                aiScanStatus = scanStatus;
+                aiSuggestedCards = data.suggested_cards || [];
+                aiScanReason = data.reason || '';
+                aiDetectedConfidence = data.confidence || 0;
 
                 if (data.cached) {
                     console.log('[AI Scan] Cache hit');
                 }
 
                 // ============================================================
-                // Branch by card type
+                // Branch by status (not just card_type)
+                // success  → TCG auto-recognized
+                // partial  → NON_TCG or low-confidence TCG, needs confirmation
+                // failed   → AI error or UNKNOWN, needs manual entry
                 // ============================================================
-                if (cardType === 'TCG') {
+                if (scanStatus === 'success' && cardType === 'TCG') {
                     // ——— TCG: auto-recognized, existing flow ———
                     aiDetectedName = data.card_name || data.name || 'Unknown';
                     aiDetectedSeries = data.game || data.series || 'Unknown';
                     aiDetectedRarity = data.rarity || 'N';
                     aiDetectedConfidence = data.confidence || 0;
+                    aiSuggestedCards = data.suggested_cards || [];
 
                     const confPct = (aiDetectedConfidence * 100).toFixed(0);
                     const confClass = aiDetectedConfidence > 0.8 ? 'high' : aiDetectedConfidence > 0.5 ? 'mid' : 'low';
@@ -917,21 +933,35 @@
                         </div>`;
                     fetchCardPrice(aiDetectedName, aiDetectedSeries);
 
-                } else if (cardType === 'NON_TCG') {
-                    // ——— NON_TCG: need manual confirmation ———
+                } else if (scanStatus === 'partial' || cardType === 'NON_TCG') {
+                    // ——— PARTIAL: NON_TCG or low-confidence — needs manual confirmation ———
                     renderNonTcgResult(data, previewUrl, content);
                 } else {
-                    // ——— UNKNOWN: completely unrecognized ———
+                    // ——— FAILED: AI error, UNKNOWN, or ERROR — manual entry form ———
                     renderUnknownResult(data, previewUrl, content);
                 }
             } catch (error) {
                 console.error('AI scan error:', error);
+                // Even on network/server errors — offer manual entry as fallback
+                aiScanStatus = 'failed';
+                aiCardType = 'ERROR';
+                aiScanReason = error.message || 'AI服务暂时不可用';
+                pendingScanData = {
+                    type: 'ERROR',
+                    image_hash: null,
+                    preview_url: previewUrl || '',
+                    reason: aiScanReason
+                };
                 content.innerHTML = `
                     <div class="ai-result-handle"></div>
                     <div style="text-align:center;padding:20px;">
-                        <div style="font-size:48px;margin-bottom:12px;">😕</div>
-                        <div style="font-weight:600;margin-bottom:8px;">${t('ai_fail')}${escHTML(error.message)}</div>
-                        <button class="ai-action-btn primary" onclick="retakePhoto()" style="margin-top:12px;">${t('ai_retry_btn')}</button>
+                        <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+                        <div style="font-weight:600;margin-bottom:8px;">AI识别暂时不可用</div>
+                        <div style="font-size:12px;color:#999;margin-bottom:16px;">${escHTML(error.message)}</div>
+                        <div style="display:flex;gap:8px;justify-content:center;">
+                            <button class="ai-action-btn secondary" onclick="retakePhoto()">📷 重新拍摄</button>
+                            <button class="ai-action-btn primary" style="background:linear-gradient(135deg,#F5A623,#FF8C00);color:white;" onclick="renderManualEntryForm()">✍️ 手动录入</button>
+                        </div>
                     </div>`;
             }
         }
@@ -1040,229 +1070,189 @@
             document.getElementById('aiResultPanel').classList.remove('show');
         }
 
-        // ===== 完整闭环: AI扫描 → 去重检查 → 积分扣费 → Storage上传 → DB写入 =====
+        // ===== 统一入库函数：AI成功/部分成功/失败 三条路径共用 =====
+        // 调用 complete_card_entry RPC 原子操作，确保 user_collections 永远有数据
+        async function uploadImageToStorage(previewUrl, userId) {
+            if (!previewUrl) return null;
+            try {
+                const base64Data = previewUrl.includes('base64,')
+                    ? previewUrl.split('base64,')[1]
+                    : previewUrl;
+                const byteStr = atob(base64Data);
+                const ab = new ArrayBuffer(byteStr.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+                const blob = new Blob([ab], { type: 'image/jpeg' });
+                const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+                const { data: uploadData, error: uploadErr } = await db.storage
+                    .from('card-scans')
+                    .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
+                if (!uploadErr && uploadData) {
+                    const { data: urlData } = db.storage.from('card-scans').getPublicUrl(fileName);
+                    if (urlData && urlData.publicUrl) return urlData.publicUrl;
+                }
+            } catch (e) { console.warn('[Storage] upload failed:', e.message); }
+            return previewUrl; // fallback to base64
+        }
+
+        // 统一入库 — TCG自动收藏
         async function addToCollection() {
             const price = prompt(`将「${aiDetectedName}」加入收藏夹\n\n请输入入手价（元）：`, '');
             if (price === null) return;
             const purchasePrice = parseFloat(price);
-            if (isNaN(purchasePrice) || purchasePrice <= 0) {
-                alert('请输入有效的价格');
-                return;
-            }
+            if (isNaN(purchasePrice) || purchasePrice <= 0) { alert('请输入有效的价格'); return; }
 
-            // 显示 loading toast
             showToast('⏳ 正在添加...');
-
             try {
-                // Step 1: 登录检查
                 const { data: { session } } = await db.auth.getSession();
-                if (!session) {
-                    alert('请先登录后再添加收藏');
-                    return;
-                }
-                const userId = session.user.id;
+                if (!session) { alert('请先登录后再添加收藏'); return; }
 
-                // Step 2: 图片去重检查（同一用户 + 同一图片哈希，24小时内）
-                if (aiDetectedImageHash) {
-                    const { data: dupLogs, error: dupErr } = await db
-                        .from('ai_scan_logs')
-                        .select('id, created_at')
-                        .eq('user_id', userId)
-                        .eq('image_hash', aiDetectedImageHash)
-                        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-                        .limit(1);
-                    
-                    if (!dupErr && dupLogs && dupLogs.length > 0) {
-                        alert('⚠️ 该图片24小时内已扫描过，请勿重复识卡！\n\n扫描时间：' + new Date(dupLogs[0].created_at).toLocaleString());
-                        return;
-                    }
-                }
+                const storageUrl = await uploadImageToStorage(aiPreviewUrl, session.user.id);
 
-                // Step 3: 风控检查 + 每日扫描上限 + 每分钟限频
-                const { data: rateData, error: rateErr } = await db.rpc('check_ai_rate_limit', { p_user_id: userId });
-                if (rateErr) {
-                    console.warn('check_ai_rate_limit error:', rateErr);
-                } else if (rateData && rateData.length > 0) {
-                    const rl = rateData[0];
-                    if (rl.risk_blocked) {
-                        alert('⚠️ ' + rl.error_msg);
-                        return;
-                    }
-                    if (!rl.can_scan) {
-                        if (rl.cooldown_remaining > 0) {
-                            alert(`⏳ 请求过于频繁，请等待 ${rl.cooldown_remaining} 秒后再试`);
-                        } else {
-                            alert(`⚠️ 今日AI识卡已达上限（${rl.daily_limit}次），请明天再来！\n已用：${rl.daily_used}/${rl.daily_limit}`);
-                        }
-                        return;
-                    }
-                }
+                const { data: result, error } = await db.rpc('complete_card_entry', {
+                    p_user_id: session.user.id,
+                    p_card_name: aiDetectedName,
+                    p_series: aiDetectedSeries,
+                    p_rarity: aiDetectedRarity || 'N',
+                    p_card_image: storageUrl,
+                    p_purchase_price: purchasePrice,
+                    p_current_price: aiDetectedPrice || purchasePrice,
+                    p_card_category: matchGame(aiDetectedSeries),
+                    p_source: 'AI_SCAN',
+                    p_scan_type: aiPreviewUrl ? 'upload' : 'camera',
+                    p_image_hash: aiDetectedImageHash,
+                    p_card_type: aiCardType,
+                    p_game: aiDetectedSeries,
+                    p_confidence: aiDetectedConfidence,
+                    p_suggested_cards: aiSuggestedCards,
+                    p_ai_reason: aiScanReason,
+                    p_ai_failed: false
+                });
 
-                // Step 4: 积分检查 & 计算消耗
-                const SCAN_BASE_COST = 10; // 基础消耗10积分
-                let pointsCost = SCAN_BASE_COST;
-                let pointsDiscounted = 0;
+                if (error) throw new Error('入库失败：' + error.message);
+                const r = Array.isArray(result) ? result[0] : result;
+                if (!r?.success) throw new Error(r?.error || '入库失败');
 
-                const { data: ptsData, error: ptsErr } = await db
-                    .from('user_points')
-                    .select('current_points, level')
-                    .eq('user_id', userId)
-                    .single();
-
-                if (!ptsErr && ptsData) {
-                    if (ptsData.current_points < SCAN_BASE_COST) {
-                        alert(`⚠️ 积分不足！\n\n当前积分：${ptsData.current_points}\n需要积分：${SCAN_BASE_COST}\n\n请去「个人中心」签到获取积分`);
-                        return;
-                    }
-
-                    // 等级折扣
-                    const { data: lvlData } = await db
-                        .from('level_config')
-                        .select('scan_discount_pct')
-                        .eq('level', ptsData.level || 1)
-                        .single();
-                    
-                    if (lvlData && lvlData.scan_discount_pct > 0) {
-                        pointsDiscounted = Math.floor(SCAN_BASE_COST * lvlData.scan_discount_pct / 100);
-                        pointsCost = SCAN_BASE_COST - pointsDiscounted;
-                    }
-                }
-
-                console.log(`[addToCollection] points: cost=${pointsCost}, discounted=${pointsDiscounted}, base=${SCAN_BASE_COST}`);
-
-                // Step 5: 上传图片到 Supabase Storage（代替 base64 存库）
-                let storageUrl = aiPreviewUrl; // fallback 用 base64
-                try {
-                    const base64Data = aiPreviewUrl.includes('base64,') 
-                        ? aiPreviewUrl.split('base64,')[1] 
-                        : aiPreviewUrl;
-                    const byteStr = atob(base64Data);
-                    const ab = new ArrayBuffer(byteStr.length);
-                    const ia = new Uint8Array(ab);
-                    for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
-                    const blob = new Blob([ab], { type: 'image/jpeg' });
-                    const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
-                    
-                    const { data: uploadData, error: uploadErr } = await db.storage
-                        .from('card-scans')
-                        .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false });
-                    
-                    if (!uploadErr && uploadData) {
-                        const { data: urlData } = db.storage.from('card-scans').getPublicUrl(fileName);
-                        if (urlData && urlData.publicUrl) storageUrl = urlData.publicUrl;
-                        console.log('[addToCollection] uploaded to Storage:', storageUrl);
-                    } else {
-                        console.warn('[addToCollection] Storage upload failed, using base64 fallback:', uploadErr?.message);
-                    }
-                } catch (storageErr) {
-                    console.warn('[addToCollection] Storage error, using base64 fallback:', storageErr.message);
-                }
-
-                // Step 6: 写入 user_collections
-                const { data: collData, error: collErr } = await db.from('user_collections').insert([{
-                    user_id: userId,
-                    card_name: aiDetectedName,
-                    card_name_en: aiDetectedName,
-                    series: aiDetectedSeries,
-                    rarity: aiDetectedRarity,
-                    card_image: storageUrl,
-                    purchase_price: purchasePrice,
-                    purchase_currency: 'CNY',
-                    current_price: aiDetectedPrice || purchasePrice,
-                    current_currency: 'CNY',
-                    purchase_date: new Date().toISOString().split('T')[0],
-                    condition: 'NM',
-                    quantity: 1,
-                    source: 'AI_SCAN'
-                }]).select('id').single();
-
-                if (collErr) throw new Error('收藏写入失败：' + collErr.message);
-                const collectionId = collData?.id;
-
-                // Step 6b: Upsert card_prices（供市场涨跌榜使用）
-                if (aiDetectedPrice > 0) {
-                    const { error: priceErr } = await db.from('card_prices').upsert({
-                        card_name: aiDetectedName,
-                        series: aiDetectedSeries,
-                        rarity: aiDetectedRarity,
-                        card_category: matchGame(aiDetectedSeries),
-                        current_price: aiDetectedPrice,
-                        previous_price: null,
-                        change_percent: 0,
-                        market: 'CN',
-                        currency: 'CNY',
-                        data_source: 'tcgdex',
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'card_name, series, rarity, market' });
-                    if (priceErr) console.warn('[addToCollection] card_prices upsert warning:', priceErr.message);
-                }
-
-                // Step 7: 写入 scan_history
-                const { data: scanData, error: scanErr } = await db.from('scan_history').insert([{
-                    user_id: userId,
-                    card_name: aiDetectedName,
-                    card_name_en: aiDetectedName,
-                    card_image: storageUrl,
-                    series: aiDetectedSeries,
-                    rarity: aiDetectedRarity,
-                    estimated_price: aiDetectedPrice,
-                    estimated_currency: 'CNY',
-                    ai_confidence: 0.85,
-                    scan_type: aiPreviewUrl ? 'upload' : 'camera',
-                    image_hash: aiDetectedImageHash,
-                    collection_id: collectionId
-                }]).select('id').single();
-
-                if (scanErr) console.warn('[addToCollection] scan_history write warning:', scanErr.message);
-                const scanHistoryId = scanData?.id;
-
-                // Step 8: 写入 ai_scan_logs（防刷记录）
-                const { error: logErr } = await db.from('ai_scan_logs').insert([{
-                    user_id: userId,
-                    image_hash: aiDetectedImageHash || ('nohash_' + Date.now()),
-                    card_name: aiDetectedName,
-                    series: aiDetectedSeries,
-                    rarity: aiDetectedRarity,
-                    collection_id: collectionId,
-                    scan_history_id: scanHistoryId,
-                    points_cost: pointsCost,
-                    points_discounted: pointsDiscounted,
-                    points_base: SCAN_BASE_COST
-                }]);
-
-                if (logErr) console.warn('[addToCollection] ai_scan_logs write warning:', logErr.message);
-
-                // Step 9: 扣除积分（使用 RPC 原子操作）
-                if (pointsCost > 0) {
-                    const { data: deductOk, error: deductErr } = await db.rpc('deduct_scan_points', {
-                        p_user_id: userId,
-                        p_points: pointsCost,
-                        p_card_name: aiDetectedName,
-                        p_scan_log_id: collectionId
-                    });
-
-                    if (deductErr || !deductOk) {
-                        console.warn('[addToCollection] Points deduction warning:', deductErr?.message || 'rpc returned false');
-                    } else {
-                        console.log(`[addToCollection] Points deducted: ${pointsCost}`);
-                    }
-                }
-
-                // Step 10: 刷新积分显示
                 loadPointsForScan();
-
-                // Step 11: 成功提示
-                const costMsg = pointsCost > 0 ? `\n消耗积分：${pointsCost}${pointsDiscounted > 0 ? '（等级减免' + pointsDiscounted + '）' : ''}` : '';
+                const costMsg = r.points_cost > 0 ? `\n消耗积分：${r.points_cost}${r.points_discounted > 0 ? '（等级减免' + r.points_discounted + '）' : ''}` : '';
                 showToast('✅ 已加入卡册！' + costMsg);
-                
-                setTimeout(() => {
-                    document.getElementById('aiResultPanel').classList.remove('show');
-                }, 800);
-
+                setTimeout(() => document.getElementById('aiResultPanel').classList.remove('show'), 800);
             } catch (err) {
                 console.error('[addToCollection] Error:', err);
                 alert('添加失败：' + (err.message || '未知错误'));
             }
+        }
+
+        // 统一入库 — NON_TCG 人工确认
+        async function confirmNonTcgCard() {
+            const name = document.getElementById('confirmCardName')?.value?.trim();
+            const game = document.getElementById('confirmGame')?.value?.trim();
+            if (!name) { showToast('请输入卡牌名称'); return; }
+            if (!game) { showToast('请输入游戏/系列'); return; }
+
+            const priceStr = prompt(`确认将「${name} (${game})」加入资产\n\n请输入入手价（元）:`, '0');
+            if (priceStr === null) return;
+            const price = parseFloat(priceStr) || 0;
+
+            showToast('⏳ 正在添加...');
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) { alert('请先登录'); return; }
+
+                const storageUrl = await uploadImageToStorage(aiPreviewUrl, session.user.id);
+
+                const { data: result, error } = await db.rpc('complete_card_entry', {
+                    p_user_id: session.user.id,
+                    p_card_name: name,
+                    p_series: game,
+                    p_rarity: 'N',
+                    p_card_image: storageUrl,
+                    p_purchase_price: price,
+                    p_current_price: price,
+                    p_card_category: matchGame(game),
+                    p_source: 'AI_SCAN',
+                    p_scan_type: aiPreviewUrl ? 'upload' : 'camera',
+                    p_image_hash: aiDetectedImageHash,
+                    p_card_type: aiCardType || 'NON_TCG',
+                    p_game: pendingScanData?.game || game,
+                    p_confidence: pendingScanData?.confidence || 0,
+                    p_suggested_cards: pendingScanData?.suggested_cards || [],
+                    p_ai_reason: pendingScanData?.reason || '',
+                    p_ai_failed: false
+                });
+
+                if (error) throw new Error('入库失败：' + error.message);
+                const r = Array.isArray(result) ? result[0] : result;
+                if (!r?.success) throw new Error(r?.error || '入库失败');
+
+                showToast('✅ 已加入资产！');
+                document.getElementById('aiResultPanel').classList.remove('show');
+                pendingScanData = null;
+            } catch (e) {
+                console.error('Confirm error:', e);
+                showToast('❌ 添加失败: ' + e.message);
+            }
+        }
+
+        // 统一入库 — UNKNOWN/ERROR 手动录入
+        async function submitManualCard() {
+            const name = document.getElementById('manualCardName')?.value?.trim();
+            const game = document.getElementById('manualGame')?.value?.trim();
+            const rarity = document.getElementById('manualRarity')?.value || 'N';
+            const price = parseFloat(document.getElementById('manualPrice')?.value) || 0;
+
+            if (!name) { showToast('请输入卡牌名称'); return; }
+            if (!game) { showToast('请输入游戏/系列'); return; }
+
+            showToast('⏳ 正在录入...');
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) { alert('请先登录'); return; }
+
+                const storageUrl = await uploadImageToStorage(aiPreviewUrl, session.user.id);
+
+                // AI失败时手动录入：source=FALLBACK, 不扣积分
+                const isAiFailed = (aiScanStatus === 'failed' || aiCardType === 'ERROR' || aiCardType === 'UNKNOWN');
+
+                const { data: result, error } = await db.rpc('complete_card_entry', {
+                    p_user_id: session.user.id,
+                    p_card_name: name,
+                    p_series: game,
+                    p_rarity: rarity,
+                    p_card_image: storageUrl,
+                    p_purchase_price: price,
+                    p_current_price: price,
+                    p_card_category: matchGame(game),
+                    p_source: isAiFailed ? 'FALLBACK' : 'MANUAL',
+                    p_scan_type: aiPreviewUrl ? 'upload' : 'camera',
+                    p_image_hash: aiDetectedImageHash,
+                    p_card_type: aiCardType || 'UNKNOWN',
+                    p_game: game,
+                    p_confidence: aiDetectedConfidence || 0,
+                    p_suggested_cards: aiSuggestedCards || [],
+                    p_ai_reason: aiScanReason || '',
+                    p_ai_failed: isAiFailed  // AI失败时不扣积分
+                });
+
+                if (error) throw new Error('录入失败：' + error.message);
+                const r = Array.isArray(result) ? result[0] : result;
+                if (!r?.success) throw new Error(r?.error || '录入失败');
+
+                showToast('✅ 卡牌已录入！');
+                document.getElementById('aiResultPanel').classList.remove('show');
+                pendingScanData = null;
+            } catch (e) {
+                console.error('Manual submit error:', e);
+                showToast('❌ 录入失败: ' + e.message);
+            }
+        }
+
+        // 从错误面板手动调用手动录入表单
+        function renderManualEntryForm() {
+            const content = document.getElementById('aiPanelContent');
+            renderUnknownResult({
+                reason: aiScanReason || 'AI服务暂时不可用，请手动录入卡牌信息'
+            }, aiPreviewUrl, content);
         }
 
         async function shareToCommunity() {
@@ -1286,7 +1276,7 @@
                     rarity: aiDetectedRarity,
                     estimated_price: aiDetectedPrice,
                     estimated_currency: 'CNY',
-                    ai_confidence: 0.85,
+                    ai_confidence: aiDetectedConfidence || 0.85,
                     scan_type: 'camera',
                     image_hash: aiDetectedImageHash
                 }]);
@@ -1395,83 +1385,15 @@
             showToast('已填充: ' + name);
         }
 
-        async function confirmNonTcgCard() {
-            const name = document.getElementById('confirmCardName')?.value?.trim();
-            const game = document.getElementById('confirmGame')?.value?.trim();
-            if (!name) { showToast('请输入卡牌名称'); return; }
-            if (!game) { showToast('请输入游戏/系列'); return; }
-
-            const priceStr = prompt(`确认将「${name} (${game})」加入资产\n\n请输入入手价（元）:`, '0');
-            if (priceStr === null) return;
-            const price = parseFloat(priceStr) || 0;
-
-            showToast('⏳ 正在添加...');
-
-            try {
-                const { data: { session } } = await db.auth.getSession();
-                if (!session) { alert('请先登录'); return; }
-
-                // 先写入 pending_card_confirmations
-                const { data: pending } = await db
-                    .from('pending_card_confirmations')
-                    .insert({
-                        user_id: session.user.id,
-                        image_hash: pendingScanData?.image_hash || null,
-                        ai_type: 'NON_TCG',
-                        ai_card_name: pendingScanData?.card_name || '',
-                        ai_game: pendingScanData?.game || '',
-                        ai_confidence: pendingScanData?.confidence || 0,
-                        ai_suggested_cards: pendingScanData?.suggested_cards || [],
-                        ai_reason: pendingScanData?.reason || '',
-                        status: 'confirmed',
-                        confirmed_name: name,
-                        confirmed_game: game,
-                        confirmed_price: price,
-                        confirmed_at: new Date().toISOString()
-                    })
-                    .select('id')
-                    .single();
-
-                const pendingId = pending?.id;
-
-                // 使用 RPC 原子确认并入库
-                const { data: resolved, error } = await db.rpc('resolve_pending_confirmation', {
-                    p_pending_id: pendingId,
-                    p_confirmed_name: name,
-                    p_confirmed_game: game,
-                    p_confirmed_rarity: 'N',
-                    p_confirmed_price: price,
-                    p_image_url: aiPreviewUrl || null
-                });
-
-                if (error || !resolved?.success) {
-                    // 回退：直接 insert user_collections
-                    await db.from('user_collections').insert({
-                        user_id: session.user.id,
-                        card_name: name,
-                        series: game,
-                        rarity: 'N',
-                        purchase_price: price,
-                        source: 'MANUAL',
-                        card_image: aiPreviewUrl || null,
-                        quantity: 1
-                    });
-                }
-
-                showToast('✅ 已加入资产！');
-                document.getElementById('aiResultPanel').classList.remove('show');
-                pendingScanData = null;
-            } catch (e) {
-                console.error('Confirm error:', e);
-                showToast('❌ 添加失败: ' + e.message);
-            }
-        }
-
         function renderUnknownResult(data, previewUrl, content) {
             const reason = data.reason || 'AI无法识别此图片中的卡牌';
+            const isError = aiCardType === 'ERROR' || aiScanStatus === 'failed';
+            const icon = isError ? '⚠️' : '🤔';
+            const title = isError ? 'AI识别失败' : '无法识别';
+            const subtitle = isError ? '请手动录入卡牌信息' : '';
 
             pendingScanData = {
-                type: 'UNKNOWN',
+                type: isError ? 'ERROR' : 'UNKNOWN',
                 image_hash: aiDetectedImageHash,
                 preview_url: aiPreviewUrl,
                 reason: reason
@@ -1480,9 +1402,10 @@
             content.innerHTML = `
                 <div class="ai-result-handle"></div>
                 <div style="text-align:center;padding:16px;">
-                    <div style="font-size:48px;margin-bottom:8px;">🤔</div>
-                    <div style="font-weight:600;font-size:16px;margin-bottom:4px;">无法识别</div>
+                    <div style="font-size:48px;margin-bottom:8px;">${icon}</div>
+                    <div style="font-weight:600;font-size:16px;margin-bottom:4px;">${title}</div>
                     <div style="font-size:12px;color:#999;margin-bottom:12px;">${escHTML(reason)}</div>
+                    ${subtitle ? `<div style="font-size:13px;color:#5B4AE0;font-weight:600;margin-bottom:8px;">${subtitle}</div>` : ''}
                 </div>
                 <div class="confirm-section">
                     <div class="confirm-label">📝 手动输入卡牌信息</div>
@@ -1504,63 +1427,6 @@
                     <button class="ai-action-btn secondary" onclick="retakePhoto()">📷 重新拍照</button>
                     <button class="ai-action-btn primary" onclick="submitManualCard()">✅ 手动录入</button>
                 </div>`;
-        }
-
-        async function submitManualCard() {
-            const name = document.getElementById('manualCardName')?.value?.trim();
-            const game = document.getElementById('manualGame')?.value?.trim();
-            const rarity = document.getElementById('manualRarity')?.value || 'N';
-            const price = parseFloat(document.getElementById('manualPrice')?.value) || 0;
-
-            if (!name) { showToast('请输入卡牌名称'); return; }
-            if (!game) { showToast('请输入游戏/系列'); return; }
-
-            showToast('⏳ 正在录入...');
-
-            try {
-                const { data: { session } } = await db.auth.getSession();
-                if (!session) { alert('请先登录'); return; }
-
-                // 写入 pending_card_confirmations + user_collections
-                const { data: pending } = await db
-                    .from('pending_card_confirmations')
-                    .insert({
-                        user_id: session.user.id,
-                        image_hash: pendingScanData?.image_hash || null,
-                        ai_type: 'UNKNOWN',
-                        ai_card_name: '',
-                        ai_game: '',
-                        ai_confidence: 0,
-                        ai_reason: pendingScanData?.reason || '',
-                        status: 'confirmed',
-                        confirmed_name: name,
-                        confirmed_game: game,
-                        confirmed_rarity: rarity,
-                        confirmed_price: price,
-                        confirmed_at: new Date().toISOString()
-                    })
-                    .select('id')
-                    .single();
-
-                // 直接写入 user_collections
-                await db.from('user_collections').insert({
-                    user_id: session.user.id,
-                    card_name: name,
-                    series: game,
-                    rarity: rarity,
-                    purchase_price: price,
-                    source: 'MANUAL',
-                    card_image: aiPreviewUrl || null,
-                    quantity: 1
-                });
-
-                showToast('✅ 卡牌已录入！');
-                document.getElementById('aiResultPanel').classList.remove('show');
-                pendingScanData = null;
-            } catch (e) {
-                console.error('Manual submit error:', e);
-                showToast('❌ 录入失败: ' + e.message);
-            }
         }
 
         function dismissResult() {
