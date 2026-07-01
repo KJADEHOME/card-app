@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>订单管理 - 卡域管理后台</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .header-title { color: white; font-size: 18px; font-weight: bold; }
         .header-back { color: white; text-decoration: none; font-size: 14px; }
-        .content { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .content { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
         
         /* Filters */
         .filters { background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
@@ -29,7 +29,7 @@
         .badge-completed { background: #e8f5e9; color: #4caf50; }
         .badge-cancelled { background: #ffebee; color: #f44336; }
         .badge-refunded { background: #f3e5f5; color: #7b1fa2; }
-        .btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 2px; }
         .btn-view { background: #e3f2fd; color: #1976d2; }
         .btn-intervene { background: #fff3e0; color: #f57c00; }
         
@@ -40,6 +40,33 @@
         .pagination { display: flex; justify-content: center; gap: 10px; padding: 20px; }
         .page-btn { padding: 8px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; }
         .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 16px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; justify-content: flex-end; }
+        
+        /* Order Detail */
+        .order-section { margin-bottom: 20px; }
+        .order-section h3 { font-size: 16px; margin-bottom: 12px; color: #333; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f8f8f8; }
+        .info-label { color: #666; font-size: 14px; }
+        .info-value { color: #333; font-size: 14px; font-weight: 500; }
+        
+        .status-timeline { display: flex; gap: 10px; margin: 20px 0; }
+        .status-step { flex: 1; text-align: center; padding: 10px; border-radius: 8px; font-size: 12px; }
+        .status-step.active { background: #e8f5e9; color: #4caf50; font-weight: 600; }
+        .status-step.inactive { background: #f5f5f5; color: #999; }
+        
+        .intervention-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-danger { background: #ffebee; color: #f44336; border: 1px solid #ffcdd2; }
+        .btn-warning { background: #fff3e0; color: #f57c00; border: 1px solid #ffe0b2; }
+        .btn-success { background: #e8f5e9; color: #4caf50; border: 1px solid #c8e6c9; }
     </style>
 </head>
 <body>
@@ -87,12 +114,30 @@
         <div class="pagination" id="pagination"></div>
     </div>
 
+    <!-- Order Detail Modal -->
+    <div class="modal-overlay" id="orderModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">订单详情</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Order detail content -->
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <!-- Action buttons -->
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         let currentPage = 1;
         const PAGE_SIZE = 20;
+        let currentOrderId = null;
+        let currentOrderStatus = null;
 
         async function init() {
             const { data: { user } } = await db.auth.getUser();
@@ -192,13 +237,303 @@
             loadOrders();
         }
 
-        function viewOrder(orderId) {
-            window.open(`order-detail.html?id=${orderId}`, '_blank');
+        async function viewOrder(orderId) {
+            currentOrderId = orderId;
+            
+            // Load order detail
+            const { data: order, error } = await db
+                .from('orders')
+                .select(`
+                    *,
+                    buyer:profiles!orders_buyer_id_fkey(*),
+                    seller:profiles!orders_seller_id_fkey(*),
+                    consignments(*)
+                `)
+                .eq('id', orderId)
+                .single();
+
+            if (error || !order) {
+                alert('获取订单详情失败');
+                return;
+            }
+
+            currentOrderStatus = order.status;
+
+            // Render order detail
+            const statusTimeline = getStatusTimeline(order.status);
+            
+            document.getElementById('modalBody').innerHTML = `
+                <div class="order-section">
+                    <h3>订单信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">订单编号</span>
+                        <span class="info-value">${order.order_no}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">创建时间</span>
+                        <span class="info-value">${new Date(order.created_at).toLocaleString('zh-CN')}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">当前状态</span>
+                        <span class="info-value">${getStatusText(order.status)}</span>
+                    </div>
+                    ${order.shipping_company ? `
+                    <div class="info-row">
+                        <span class="info-label">物流信息</span>
+                        <span class="info-value">${order.shipping_company} - ${order.tracking_no || '无'}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="order-section">
+                    <h3>状态流程</h3>
+                    <div class="status-timeline">
+                        ${statusTimeline.map(s => `
+                            <div class="status-step ${s.active ? 'active' : 'inactive'}">${s.text}</div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="order-section">
+                    <h3>买家信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">用户名</span>
+                        <span class="info-value">${order.buyer?.username || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">邮箱</span>
+                        <span class="info-value">${order.buyer?.email || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="order-section">
+                    <h3>卖家信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">用户名</span>
+                        <span class="info-value">${order.seller?.username || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">邮箱</span>
+                        <span class="info-value">${order.seller?.email || '-'}</span>
+                    </div>
+                </div>
+
+                <div class="order-section">
+                    <h3>商品信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">商品名称</span>
+                        <span class="info-value">${order.consignments?.card_name || '商品'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">金额</span>
+                        <span class="info-value">¥${order.total_amount.toFixed(2)}</span>
+                    </div>
+                    ${order.platform_fee ? `
+                    <div class="info-row">
+                        <span class="info-label">平台佣金</span>
+                        <span class="info-value">¥${order.platform_fee.toFixed(2)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                ${order.dispute_reason ? `
+                <div class="order-section">
+                    <h3>争议信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">争议原因</span>
+                        <span class="info-value">${order.dispute_reason}</span>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+
+            // Render footer buttons based on order status
+            renderOrderActions(order);
+
+            document.getElementById('orderModal').classList.add('active');
         }
 
-        function intervenOrder(orderId) {
-            // TODO: Create intervention modal
-            alert('订单介入功能开发中\n订单ID: ' + orderId);
+        function getStatusTimeline(currentStatus) {
+            const steps = [
+                { key: 'paid', text: '已支付' },
+                { key: 'shipped', text: '已发货' },
+                { key: 'delivered', text: '已送达' },
+                { key: 'completed', text: '已完成' }
+            ];
+
+            const statusOrder = ['pending', 'paid', 'shipped', 'delivered', 'completed'];
+            const currentIndex = statusOrder.indexOf(currentStatus);
+
+            return steps.map(s => ({
+                ...s,
+                active: statusOrder.indexOf(s.key) <= currentIndex
+            }));
+        }
+
+        function getStatusText(status) {
+            const map = {
+                'pending': '待支付',
+                'paid': '已支付',
+                'shipped': '已发货',
+                'delivered': '已送达',
+                'completed': '已完成',
+                'cancelled': '已取消',
+                'refund_requested': '退款申请中',
+                'refunded': '已退款',
+                'disputed': '争议中'
+            };
+            return map[status] || status;
+        }
+
+        function renderOrderActions(order) {
+            let html = '';
+
+            if (order.status === 'disputed') {
+                html += `<button class="btn-sm btn-success" onclick="resolveDispute('${order.id}', 'buyer')">支持买家</button>`;
+                html += `<button class="btn-sm btn-success" onclick="resolveDispute('${order.id}', 'seller')">支持卖家</button>`;
+                html += `<button class="btn-sm btn-warning" onclick="resolveDispute('${order.id}', 'compromise')">折中方案</button>`;
+            }
+
+            if (['pending', 'paid'].includes(order.status)) {
+                html += `<button class="btn-sm btn-danger" onclick="cancelOrder('${order.id}')">取消订单</button>`;
+            }
+
+            if (order.status === 'refund_requested') {
+                html += `<button class="btn-sm btn-success" onclick="processRefund('${order.id}', 'approve')">同意退款</button>`;
+                html += `<button class="btn-sm btn-danger" onclick="processRefund('${order.id}', 'reject')">拒绝退款</button>`;
+            }
+
+            html += `<button class="btn-sm" style="background:#999;color:white;" onclick="closeModal()">关闭</button>`;
+
+            document.getElementById('modalFooter').innerHTML = html;
+        }
+
+        function closeModal() {
+            document.getElementById('orderModal').classList.remove('active');
+            currentOrderId = null;
+            currentOrderStatus = null;
+        }
+
+        async function intervenOrder(orderId) {
+            // Directly open order detail modal
+            await viewOrder(orderId);
+        }
+
+        async function resolveDispute(orderId, resolution) {
+            const note = prompt('请输入处理备注：');
+            if (note === null) return;
+
+            if (!confirm(`确认${resolution === 'buyer' ? '支持买家' : resolution === 'seller' ? '支持卖家' : '折中方案'}？`)) return;
+
+            // TODO: Create RPC for dispute resolution
+            // For now, just update the order status
+            const { error } = await db
+                .from('orders')
+                .update({ 
+                    status: resolution === 'buyer' ? 'refunded' : 'completed',
+                    dispute_resolution: resolution,
+                    dispute_resolved_at: new Date().toISOString(),
+                    dispute_resolved_by: (await db.auth.getUser()).data.user.id
+                })
+                .eq('id', orderId);
+
+            if (error) {
+                alert('处理失败：' + error.message);
+                return;
+            }
+
+            alert('争议已处理');
+            
+            // Send notification to both parties
+            await sendNotification(orderId, 'dispute_resolved');
+            
+            closeModal();
+            loadOrders();
+        }
+
+        async function cancelOrder(orderId) {
+            const reason = prompt('请输入取消原因：');
+            if (reason === null) return;
+
+            if (!confirm('确认取消该订单？')) return;
+
+            const { error } = await db
+                .from('orders')
+                .update({ 
+                    status: 'cancelled',
+                    cancel_reason: reason,
+                    cancelled_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (error) {
+                alert('取消失败：' + error.message);
+                return;
+            }
+
+            alert('订单已取消');
+            closeModal();
+            loadOrders();
+        }
+
+        async function processRefund(orderId, action) {
+            if (!confirm(`${action === 'approve' ? '同意' : '拒绝'}退款申请？`)) return;
+
+            const { error } = await db
+                .from('orders')
+                .update({ 
+                    status: action === 'approve' ? 'refunded' : 'paid',
+                    refund_processed_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (error) {
+                alert('处理失败：' + error.message);
+                return;
+            }
+
+            alert(`退款已${action === 'approve' ? '同意' : '拒绝'}`);
+            
+            // Send notification
+            await sendNotification(orderId, action === 'approve' ? 'refund_approved' : 'refund_rejected');
+            
+            closeModal();
+            loadOrders();
+        }
+
+        async function sendNotification(orderId, type) {
+            // Get order info
+            const { data: order } = await db
+                .from('orders')
+                .select('buyer_id, seller_id')
+                .eq('id', orderId)
+                .single();
+
+            if (!order) return;
+
+            const messages = {
+                'dispute_resolved': '您的订单争议已处理，请查看详情。',
+                'refund_approved': '您的退款申请已通过，款项将尽快退回。',
+                'refund_rejected': '您的退款申请被拒绝，请联系客服。'
+            };
+
+            // Send to buyer
+            await db.from('notifications').insert({
+                user_id: order.buyer_id,
+                type: type,
+                title: '订单通知',
+                content: messages[type] || '您的订单有更新',
+                related_id: orderId
+            });
+
+            // Send to seller
+            await db.from('notifications').insert({
+                user_id: order.seller_id,
+                type: type,
+                title: '订单通知',
+                content: messages[type] || '您的订单有更新',
+                related_id: orderId
+            });
         }
 
         init();
