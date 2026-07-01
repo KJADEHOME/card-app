@@ -312,13 +312,25 @@
                 return;
             }
 
-            const { data, error } = await db.rpc('do_checkin');
-            if (error) { showToast('签到失败：' + error.message); return; }
+            // 直接插入 daily_checkins 表，触发器会自动处理积分
+            const { data, error } = await db.from('daily_checkins')
+                .insert([{ user_id: user.id }])
+                .select();
+            
+            if (error) {
+                if (error.message.includes('unique constraint')) {
+                    showToast('今天已经签到过了！');
+                    document.getElementById('checkinCard').classList.add('done');
+                } else {
+                    showToast('签到失败：' + error.message);
+                }
+                return;
+            }
 
             document.getElementById('checkinCard').classList.add('done');
             document.getElementById('checkinBtn').textContent = '已签到 ✓';
-            document.getElementById('checkinDesc').textContent = `获得 ${data?.points || 10} 积分！`;
-            showToast(`🎉 签到成功！获得 ${data?.points || 10} 积分`);
+            document.getElementById('checkinDesc').textContent = '获得 10 积分！';
+            showToast('🎉 签到成功！获得 10 积分');
             
             setTimeout(() => loadStats(), 1000);
         }
