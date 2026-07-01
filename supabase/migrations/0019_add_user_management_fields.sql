@@ -17,8 +17,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- 检查操作者是否为管理员（简化版：检查 email）
-    IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND email LIKE '%admin%') THEN
+    -- 检查操作者是否为管理员（简化版：检查 auth.users 的 email）
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND email LIKE '%admin%') THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -44,8 +44,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- 检查操作者是否为管理员
-    IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND email LIKE '%admin%') THEN
+    -- 检查操作者是否为管理员（简化版：检查 auth.users 的 email）
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND email LIKE '%admin%') THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
