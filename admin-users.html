@@ -10,7 +10,7 @@
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .header-title { color: white; font-size: 18px; font-weight: bold; }
         .header-back { color: white; text-decoration: none; font-size: 14px; }
-        .content { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        .content { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
         
         /* Search */
         .search-bar { background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
@@ -27,9 +27,10 @@
         .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
         .badge-active { background: #e8f5e9; color: #4caf50; }
         .badge-disabled { background: #ffebee; color: #f44336; }
-        .btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; margin: 2px; }
         .btn-view { background: #e3f2fd; color: #1976d2; }
         .btn-disable { background: #ffebee; color: #f44336; }
+        .btn-enable { background: #e8f5e9; color: #4caf50; }
         
         .loading { text-align: center; padding: 40px; color: #666; }
         .empty { text-align: center; padding: 40px; color: #999; }
@@ -38,6 +39,26 @@
         .pagination { display: flex; justify-content: center; gap: 10px; padding: 20px; }
         .page-btn { padding: 8px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; }
         .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; justify-content: flex-end; }
+        
+        /* User Detail */
+        .user-info-section { margin-bottom: 20px; }
+        .user-info-section h3 { font-size: 16px; margin-bottom: 12px; color: #333; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f8f8f8; }
+        .info-label { color: #666; font-size: 14px; }
+        .info-value { color: #333; font-size: 14px; font-weight: 500; }
+        
+        .status-active { color: #4caf50; font-weight: 600; }
+        .status-disabled { color: #f44336; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -58,20 +79,38 @@
                 <thead>
                     <tr>
                         <th>用户</th>
+                        <th>状态</th>
                         <th>等级</th>
                         <th>积分</th>
                         <th>订单数</th>
+                        <th>卡牌数</th>
                         <th>注册时间</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="userTable">
-                    <tr><td colspan="6" class="loading">加载中...</td></tr>
+                    <tr><td colspan="8" class="loading">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
 
         <div class="pagination" id="pagination"></div>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">用户详情</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- User detail content -->
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <!-- Action buttons -->
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -80,6 +119,7 @@
 
         let currentPage = 1;
         const PAGE_SIZE = 20;
+        let currentUserId = null;
 
         async function init() {
             const { data: { user } } = await db.auth.getUser();
@@ -106,12 +146,12 @@
             const { data, error, count } = await query;
 
             if (error) { 
-                document.getElementById('userTable').innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
+                document.getElementById('userTable').innerHTML = '<tr><td colspan="8" class="empty">加载失败</td></tr>';
                 return; 
             }
 
             if (!data || data.length === 0) {
-                document.getElementById('userTable').innerHTML = '<tr><td colspan="6" class="empty">暂无用户</td></tr>';
+                document.getElementById('userTable').innerHTML = '<tr><td colspan="8" class="empty">暂无用户</td></tr>';
                 return;
             }
 
@@ -126,12 +166,23 @@
                             </div>
                         </div>
                     </td>
+                    <td>
+                        ${u.is_disabled ? 
+                            '<span class="badge badge-disabled">已禁用</span>' : 
+                            '<span class="badge badge-active">正常</span>'
+                        }
+                    </td>
                     <td>Lv.${u.level || 1}</td>
                     <td>${u.points || 0}</td>
                     <td>${u.order_count || 0}</td>
+                    <td>${u.card_count || 0}</td>
                     <td>${new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
                     <td>
                         <button class="btn-sm btn-view" onclick="viewUser('${u.id}')">查看</button>
+                        ${u.is_disabled ? 
+                            `<button class="btn-sm btn-enable" onclick="enableUser('${u.id}')">启用</button>` : 
+                            `<button class="btn-sm btn-disable" onclick="disableUser('${u.id}')">禁用</button>`
+                        }
                     </td>
                 </tr>
             `).join('');
@@ -168,9 +219,176 @@
             loadUsers();
         }
 
-        function viewUser(userId) {
-            // TODO: Create user detail modal or page
-            alert('用户详情功能开发中\n用户ID: ' + userId);
+        async function viewUser(userId) {
+            currentUserId = userId;
+            const { data: user, error } = await db
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (error || !user) {
+                alert('获取用户信息失败');
+                return;
+            }
+
+            // Load user's recent orders
+            const { data: orders } = await db
+                .from('orders')
+                .select('*')
+                .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+                .order('created_at', { ascending: false })
+                .limit(5);
+
+            // Load user's wallet
+            const { data: wallet } = await db
+                .from('wallets')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
+
+            // Render modal
+            document.getElementById('modalBody').innerHTML = `
+                <div class="user-info-section">
+                    <h3>基本信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">用户名</span>
+                        <span class="info-value">${user.username || '未设置'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">邮箱</span>
+                        <span class="info-value">${user.email || '未绑定'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">手机</span>
+                        <span class="info-value">${user.phone || '未绑定'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">状态</span>
+                        <span class="info-value">${user.is_disabled ? '<span class="status-disabled">已禁用</span>' : '<span class="status-active">正常</span>'}</span>
+                    </div>
+                    ${user.is_disabled ? `
+                    <div class="info-row">
+                        <span class="info-label">禁用原因</span>
+                        <span class="info-value">${user.disabled_reason || '无'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">禁用时间</span>
+                        <span class="info-value">${user.disabled_at ? new Date(user.disabled_at).toLocaleString('zh-CN') : '-'}</span>
+                    </div>
+                    ` : ''}
+                    <div class="info-row">
+                        <span class="info-label">注册时间</span>
+                        <span class="info-value">${new Date(user.created_at).toLocaleString('zh-CN')}</span>
+                    </div>
+                </div>
+
+                <div class="user-info-section">
+                    <h3>资产信息</h3>
+                    <div class="info-row">
+                        <span class="info-label">钱包余额</span>
+                        <span class="info-value">¥${wallet ? wallet.balance : '0.00'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">积分</span>
+                        <span class="info-value">${user.points || 0}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">等级</span>
+                        <span class="info-value">Lv.${user.level || 1}</span>
+                    </div>
+                </div>
+
+                <div class="user-info-section">
+                    <h3>最近订单 (${orders ? orders.length : 0})</h3>
+                    ${orders && orders.length > 0 ? orders.map(o => `
+                        <div class="info-row">
+                            <span class="info-label">${o.id.substring(0, 8)}...</span>
+                            <span class="info-value">¥${o.total_amount} (${o.status})</span>
+                        </div>
+                    `).join('') : '<div style="color:#999;font-size:14px;">暂无订单</div>'}
+                </div>
+            `;
+
+            // Render footer buttons
+            document.getElementById('modalFooter').innerHTML = `
+                ${user.is_disabled ? 
+                    `<button class="btn-sm btn-enable" onclick="enableUser('${userId}')">启用用户</button>` : 
+                    `<button class="btn-sm btn-disable" onclick="disableUser('${userId}')">禁用用户</button>`
+                }
+                <button class="btn-sm btn-view" onclick="resetPassword('${user.email}')">重置密码</button>
+                <button class="btn-sm" style="background:#999;color:white;" onclick="closeModal()">关闭</button>
+            `;
+
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('userModal').classList.remove('active');
+            currentUserId = null;
+        }
+
+        async function disableUser(userId) {
+            const reason = prompt('请输入禁用原因：');
+            if (reason === null) return; // User cancelled
+
+            if (!reason.trim()) {
+                alert('禁用原因不能为空');
+                return;
+            }
+
+            if (!confirm(`确认禁用该用户？\n原因：${reason}`)) return;
+
+            const { error } = await db.rpc('admin_disable_user', {
+                p_user_id: userId,
+                p_reason: reason
+            });
+
+            if (error) {
+                alert('禁用失败：' + error.message);
+                return;
+            }
+
+            alert('用户已禁用');
+            closeModal();
+            loadUsers();
+        }
+
+        async function enableUser(userId) {
+            if (!confirm('确认启用该用户？')) return;
+
+            const { error } = await db.rpc('admin_enable_user', {
+                p_user_id: userId
+            });
+
+            if (error) {
+                alert('启用失败：' + error.message);
+                return;
+            }
+
+            alert('用户已启用');
+            closeModal();
+            loadUsers();
+        }
+
+        async function resetPassword(email) {
+            if (!email) {
+                alert('该用户未绑定邮箱，无法重置密码');
+                return;
+            }
+
+            if (!confirm(`确认发送密码重置邮件到 ${email}？`)) return;
+
+            const { error } = await db.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://cardrealm.top/reset-password.html'
+            });
+
+            if (error) {
+                alert('发送失败：' + error.message);
+                return;
+            }
+
+            alert('密码重置邮件已发送！');
         }
 
         init();
