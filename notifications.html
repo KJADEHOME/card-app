@@ -3,14 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>娑堟伅涓績 - 鍗″煙 Card Realm</title>
-    <meta name="description" content="鏌ョ湅浣犵殑閫氱煡鍜屾秷鎭?>
-    <link rel="manifest" href="manifest.json">
+    <title>消息通知 - 卡域 Card Realm</title>
     <style>
         :root {
             --primary: #5B4AE0;
             --primary-light: #F0EDFF;
-            --primary-dark: #4438B0;
             --bg: #f5f5f5;
             --white: #fff;
             --text: #1a1a1a;
@@ -44,7 +41,7 @@
             align-items: flex-start; cursor: pointer; transition: all 0.2s;
         }
         .notif-item:active { transform: scale(0.98); }
-        .notif-item.unread { border-left: 3px solid var(--primary); }
+        .notif-item.unread { border-left: 3px solid var(--primary); background: #f8f6ff; }
         .notif-icon {
             width: 40px; height: 40px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -69,42 +66,28 @@
         .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
         .empty-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
 
-        .nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: var(--white); display: flex;
-            justify-content: space-around; align-items: center;
-            padding: 8px 0 env(safe-area-inset-bottom, 8px) 0;
-            box-shadow: 0 -1px 0 rgba(0,0,0,0.06); z-index: 50;
+        .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .loading .spinner {
+            width: 30px; height: 30px; border: 3px solid #eee;
+            border-top: 3px solid var(--primary); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
         }
-        .nav-item {
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
-            text-decoration: none; color: var(--text-secondary); font-size: 11px;
-            padding: 4px 12px; border-radius: 12px; transition: all 0.2s;
-        }
-        .nav-icon { font-size: 22px; }
-        .nav-item.active { color: var(--primary); font-weight: 600; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="header-title">馃敂 娑堟伅涓績</div>
-        <button class="header-action" onclick="markAllRead()">鍏ㄩ儴宸茶</button>
+        <div class="header-title">? 消息通知</div>
+        <button class="header-action" onclick="markAllRead()">全部已读</button>
     </div>
 
     <div class="content">
         <div id="notifList"></div>
         <div class="empty-state" id="emptyState" style="display:none;">
-            <div class="empty-icon">馃敂</div>
-            <div class="empty-title">娌℃湁鏂版秷鎭?/div>
-            <div class="empty-desc">璁㈠崟銆佽瘎璁恒�佺偣璧炵瓑閫氱煡浼氭樉绀哄湪杩欓噷</div>
+            <div class="empty-icon">?</div>
+            <div class="empty-title">暂无通知</div>
+            <div class="empty-desc">系统通知和交易提醒会显示在这里</div>
         </div>
-    </div>
-
-    <div class="nav">
-        <a href="index.html" class="nav-item"><span class="nav-icon">馃攳</span>鎺㈢储</a>
-        <a href="marketplace.html" class="nav-item"><span class="nav-icon">馃洅</span>甯傚満</a>
-        <a href="dashboard.html" class="nav-item"><span class="nav-icon">馃搳</span>鐪嬫澘</a>
-        <a href="profile.html" class="nav-item"><span class="nav-icon">馃懁</span>鎴戠殑</a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -113,30 +96,42 @@
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         const TYPE_ICONS = {
-            order: { icon: '馃摝', cls: 'order' },
-            comment: { icon: '馃挰', cls: 'comment' },
-            like: { icon: '鉂わ笍', cls: 'like' },
-            follow: { icon: '馃懁', cls: 'follow' },
-            system: { icon: '馃摙', cls: 'system' },
-            trade: { icon: '馃挵', cls: 'order' },
-            promo: { icon: '馃巵', cls: 'system' }
+            order: { icon: '?', cls: 'order' },
+            comment: { icon: '?', cls: 'comment' },
+            like: { icon: '??', cls: 'like' },
+            follow: { icon: '?', cls: 'follow' },
+            system: { icon: '?', cls: 'system' },
+            trade: { icon: '?', cls: 'order' },
+            promo: { icon: '?', cls: 'system' },
+            refund: { icon: '?', cls: 'order' },
+            dispute: { icon: '??', cls: 'system' }
         };
+
+        let currentUserId = null;
+        let pollInterval = null;
 
         async function init() {
             const { data: { session } } = await db.auth.getSession();
             if (!session) {
-                document.getElementById('notifList').innerHTML = '<div class="empty-state"><div class="empty-title">璇峰厛鐧诲綍</div></div>';
+                document.getElementById('notifList').innerHTML = '<div class="empty-state"><div class="empty-title">请先登录</div></div>';
                 return;
             }
-            loadNotifications(session.user.id);
+            currentUserId = session.user.id;
+            loadNotifications(true);
+            startPolling();
         }
 
-        async function loadNotifications(userId) {
+        // 加载通知
+        async function loadNotifications(showLoading = false) {
+            if (showLoading) {
+                document.getElementById('notifList').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+            }
+
             try {
                 const { data, error } = await db
                     .from('notifications')
                     .select('*')
-                    .eq('user_id', userId)
+                    .eq('user_id', currentUserId)
                     .order('created_at', { ascending: false })
                     .limit(50);
 
@@ -144,9 +139,11 @@
 
                 if (!data || data.length === 0) {
                     document.getElementById('emptyState').style.display = 'block';
+                    document.getElementById('notifList').innerHTML = '';
                     return;
                 }
 
+                document.getElementById('emptyState').style.display = 'none';
                 const list = document.getElementById('notifList');
                 list.innerHTML = data.map(n => {
                     const typeInfo = TYPE_ICONS[n.type] || TYPE_ICONS.system;
@@ -164,37 +161,66 @@
                 }).join('');
             } catch (e) {
                 console.error('Load notifications error:', e);
-                document.getElementById('notifList').innerHTML = '<div class="empty-state"><div class="empty-title">鍔犺浇澶辫触</div></div>';
+                if (showLoading) {
+                    document.getElementById('notifList').innerHTML = '<div class="empty-state"><div class="empty-title">加载失败</div></div>';
+                }
             }
         }
 
+        // 点击通知
         async function handleNotif(id, url) {
             try {
                 await db.from('notifications').update({ is_read: true }).eq('id', id);
                 if (url) window.location.href = url;
-                else loadNotifications((await db.auth.getSession()).data.session.user.id);
+                else loadNotifications(false);
             } catch (e) { console.error(e); }
         }
 
+        // 全部已读
         async function markAllRead() {
+            if (!confirm('确定将所有通知标记为已读？')) return;
             try {
-                const { data: { session } } = await db.auth.getSession();
-                if (!session) return;
-                await db.from('notifications').update({ is_read: true }).eq('user_id', session.user.id).eq('is_read', false);
-                loadNotifications(session.user.id);
+                await db.from('notifications').update({ is_read: true }).eq('user_id', currentUserId).eq('is_read', false);
+                loadNotifications(false);
+                showToast('已全部标记为已读');
             } catch (e) { console.error(e); }
         }
 
+        // 实时轮询（每30秒）
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(() => {
+                if (currentUserId) {
+                    loadNotifications(false);
+                }
+            }, 30000);
+        }
+
+        // 格式化时间
         function formatTime(ts) {
-            if (!ts) return '鍒氬垰';
+            if (!ts) return '刚刚';
             const d = new Date(ts);
             const now = new Date();
             const diff = (now - d) / 1000;
-            if (diff < 60) return '鍒氬垰';
-            if (diff < 3600) return Math.floor(diff / 60) + '鍒嗛挓鍓?;
-            if (diff < 86400) return Math.floor(diff / 3600) + '灏忔椂鍓?;
-            if (diff < 604800) return Math.floor(diff / 86400) + '澶╁墠';
-            return (d.getMonth() + 1) + '鏈? + d.getDate() + '鏃?;
+            if (diff < 60) return '刚刚';
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+            if (diff < 604800) return Math.floor(diff / 86400) + '天前';
+            return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+        }
+
+        // Toast 提示
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'toast';
+                t.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:10px 20px;border-radius:20px;font-size:14px;z-index:9999;transition:all 0.3s;opacity:0;';
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            t.style.opacity = '1';
+            setTimeout(() => t.style.opacity = '0', 2500);
         }
 
         init();

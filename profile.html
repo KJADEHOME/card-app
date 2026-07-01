@@ -71,6 +71,17 @@
         .nav-item.active { color: #5B4AE0; }
         .nav-icon { font-size: 24px; margin-bottom: 2px; }
 
+        /* ===== Header Actions ===== */
+        .header-actions { display: flex; gap: 10px; }
+        .header-action-btn { position: relative; font-size: 20px; text-decoration: none; color: inherit; }
+        .notif-badge {
+            position: absolute; top: -6px; right: -10px;
+            background: #f44336; color: white; font-size: 10px;
+            min-width: 16px; height: 16px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; padding: 0 4px;
+        }
+
         /* ===== Toast ===== */
         .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #333; color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; opacity: 0; transition: all 0.3s; z-index: 300; pointer-events: none; }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -83,7 +94,10 @@
             <div class="header-title">个人中心</div>
             <div class="header-actions">
                 <a href="settings.html" class="header-action-btn" title="设置">⚙️</a>
-                <a href="notifications.html" class="header-action-btn" title="消息">🔔</a>
+                <a href="notifications.html" class="header-action-btn" title="消息">
+                    🔔
+                    <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                </a>
             </div>
         </div>
         <div class="profile-card">
@@ -241,6 +255,7 @@
             await loadStats();
             await checkCheckinStatus();
             await loadBadges();
+            startBadgePolling();
         }
 
         // ===== Load User Data =====
@@ -352,6 +367,24 @@
                 document.getElementById('listingBadge').style.display = 'block';
                 document.getElementById('listingBadge').textContent = lc > 99 ? '99+' : lc;
             }
+
+            // Notification badge (header)
+            const { count: nc } = await db.from('notifications').select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id).eq('is_read', false);
+            if (nc > 0) {
+                const badge = document.getElementById('notifBadge');
+                badge.style.display = 'flex';
+                badge.textContent = nc > 99 ? '99+' : nc;
+            }
+        }
+
+        // 实时刷新角标（每30秒）
+        let badgeInterval = null;
+        function startBadgePolling() {
+            if (badgeInterval) clearInterval(badgeInterval);
+            badgeInterval = setInterval(() => {
+                if (user) loadBadges();
+            }, 30000);
         }
 
         // ===== Change Avatar =====
