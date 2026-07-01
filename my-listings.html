@@ -85,16 +85,16 @@
     <div class="tabs">
         <div class="tab active" data-status="active" onclick="switchTab(this)">在售<span class="badge" id="badgeActive">0</span></div>
         <div class="tab" data-status="sold" onclick="switchTab(this)">已售<span class="badge" id="badgeSold">0</span></div>
-        <div class="tab" data-status="cancelled" onclick="switchTab(this)">已取�?span class="badge" id="badgeCancelled">0</span></div>
+        <div class="tab" data-status="cancelled" onclick="switchTab(this)">已取消<span class="badge" id="badgeCancelled">0</span></div>
     </div>
     
     <div class="container">
-        <div class="loading" id="loadingState"><div class="spinner"></div>加载�?..</div>
+        <div class="loading" id="loadingState"><div class="spinner"></div>加载中...</div>
         <div id="listContainer" style="display:none"></div>
         <div class="empty-state" id="emptyState" style="display:none">
             <div class="icon">📭</div>
             <div class="text" id="emptyText">暂无挂单</div>
-            <button class="action-btn" onclick="location.href='sell.html'">去上架一�?/button>
+            <button class="action-btn" onclick="location.href='sell.html'">去上架一张</button>
         </div>
     </div>
     
@@ -198,7 +198,7 @@
                 document.getElementById('emptyText').textContent = {
                     active: '暂无在售挂单',
                     sold: '暂无已售记录',
-                    cancelled: '暂无已取消记�?
+                    cancelled: '暂无已取消记录'
                 }[currentTab] || '暂无记录';
                 return;
             }
@@ -206,7 +206,7 @@
             empty.style.display = 'none';
             container.style.display = 'block';
             container.innerHTML = filtered.map(c => {
-                const statusMap = { active: '在售', sold: '已售', cancelled: '已取�? };
+                const statusMap = { active: '在售', sold: '已售', cancelled: '已取消' };
                 const statusClassMap = { active: 'status-active', sold: 'status-sold', cancelled: 'status-cancelled' };
                 
                 let actions = '';
@@ -245,9 +245,9 @@
         }
         
         async function cancelListing(consignmentId) {
-            if (!confirm('确定要取消这个挂单吗？库存将自动恢复�?)) return;
+            if (!confirm('确定要取消这个挂单吗？库存将自动恢复。')) return;
             
-            showToast('取消�?..');
+            showToast('取消中...');
             
             const { data, error } = await db.rpc('cancel_consignment', {
                 p_user_id: currentUser.id,
@@ -264,7 +264,7 @@
                 return;
             }
             
-            showToast('�?已取�?);
+            showToast('✅ 已取消');
             loadData();
         }
         

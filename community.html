@@ -369,14 +369,14 @@
     <div class="header">
         <div class="header-title">🌍 卡牌社区</div>
         <div class="header-actions">
-            <button class="header-btn" onclick="openCreatePost()" style="background:linear-gradient(135deg,#F5A623,#FF8C00);">💎 晒收�?/button>
+            <button class="header-btn" onclick="openCreatePost()" style="background:linear-gradient(135deg,#F5A623,#FF8C00);">💎 晒收益</button>
             <a href="index.html" class="header-btn" style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);">📷 识卡分享</a>
         </div>
     </div>
 
     <!-- Tabs -->
     <div class="tabs">
-        <div class="tab active" data-tab="feed">动�?/div>
+        <div class="tab active" data-tab="feed">动态</div>
         <div class="tab" data-tab="trending">🔥 热门</div>
         <div class="tab" data-tab="mine">我的</div>
     </div>
@@ -384,27 +384,27 @@
     <div class="content">
         <!-- Trending Banner -->
         <div class="trending-banner" id="trendingBanner">
-            <div class="trending-title">🔥 大家都在�?/div>
+            <div class="trending-title">🔥 大家都在扫</div>
             <div class="trending-list" id="trendingList">
                 <div class="trending-item">
                     <div class="trending-rank">1</div>
-                    <div class="trending-name">皮卡�?ex</div>
-                    <div class="trending-count">128�?/div>
+                    <div class="trending-name">皮卡丘 ex</div>
+                    <div class="trending-count">128次</div>
                 </div>
                 <div class="trending-item">
                     <div class="trending-rank">2</div>
-                    <div class="trending-name">喷火�?ex</div>
-                    <div class="trending-count">96�?/div>
+                    <div class="trending-name">喷火龙 ex</div>
+                    <div class="trending-count">96次</div>
                 </div>
                 <div class="trending-item">
                     <div class="trending-rank">3</div>
                     <div class="trending-name">伊布 SAR</div>
-                    <div class="trending-count">84�?/div>
+                    <div class="trending-count">84次</div>
                 </div>
                 <div class="trending-item">
                     <div class="trending-rank">4</div>
                     <div class="trending-name">超梦 UR</div>
-                    <div class="trending-count">72�?/div>
+                    <div class="trending-count">72次</div>
                 </div>
             </div>
         </div>
@@ -415,11 +415,12 @@
         <!-- Empty State -->
         <div class="empty-state" id="emptyState" style="display:none;">
             <div class="empty-icon">📸</div>
-            <div class="empty-title">还没有分�?/div>
+            <div class="empty-title">还没有分享</div>
             <div class="empty-desc">
-                �?AI 扫描你的第一张卡�?br>
-                分享估价结果，和大家一起讨�?            </div>
-            <a href="index.html" class="empty-btn">去识卡分�?/a>
+                用 AI 扫描你的第一张卡牌<br>
+                分享估价结果，和大家一起讨论
+            </div>
+            <a href="index.html" class="empty-btn">去识卡分享</a>
         </div>
     </div>
 
@@ -427,13 +428,13 @@
     <div class="create-modal" id="createModal" onclick="closeCreateModal(event)">
         <div class="create-sheet">
             <div class="create-header">
-                <div class="create-header-title">💎 晒我的收�?/div>
-                <button class="create-close" onclick="closeCreateModal()">�?/button>
+                <div class="create-header-title">💎 晒我的收益</div>
+                <button class="create-close" onclick="closeCreateModal()">✕</button>
             </div>
             <div class="create-body" id="createCardList">
-                <div style="text-align:center;padding:20px;color:var(--text-secondary);">加载�?..</div>
+                <div style="text-align:center;padding:20px;color:var(--text-secondary);">加载中...</div>
             </div>
-            <textarea class="create-textarea" id="createNote" placeholder="写点什�?..（如：这张卡我入手时才花了xx，现在已经涨了这么多！）"></textarea>
+            <textarea class="create-textarea" id="createNote" placeholder="写点什么...（如：这张卡我入手时才花了xx，现在已经涨了这么多！）"></textarea>
             <button class="create-submit" id="createSubmitBtn" onclick="submitCreatePost()" disabled>选择一张卡牌后发布</button>
         </div>
     </div>
@@ -443,12 +444,12 @@
         <div class="comment-sheet">
             <div class="comment-header">
                 <div class="comment-header-title">💬 评论</div>
-                <button class="comment-close" onclick="closeCommentModal()">�?/button>
+                <button class="comment-close" onclick="closeCommentModal()">✕</button>
             </div>
             <div class="comment-list" id="commentList"></div>
             <div class="comment-input-area">
-                <input type="text" class="comment-input" id="commentInput" placeholder="写点什�?.." onkeypress="if(event.key==='Enter')submitComment()">
-                <button class="comment-submit" id="commentSubmitBtn" onclick="submitComment()">发�?/button>
+                <input type="text" class="comment-input" id="commentInput" placeholder="写点什么..." onkeypress="if(event.key==='Enter')submitComment()">
+                <button class="comment-submit" id="commentSubmitBtn" onclick="submitComment()">发送</button>
             </div>
         </div>
     </div>
@@ -456,7 +457,7 @@
     <!-- Share Modal -->
     <div class="share-modal" id="shareModal" onclick="closeShare(event)">
         <div class="share-sheet">
-            <div class="share-title">分享�?/div>
+            <div class="share-title">分享到</div>
             <div class="share-options">
                 <button class="share-option" onclick="shareTo('wechat')">
                     <div class="share-icon" style="background:#07C160;color:white;">💬</div>
@@ -502,12 +503,12 @@
         const demoPosts = [
             {
                 id: 'demo-1',
-                author: '卡牌收藏家小�?,
-                avatar: '�?,
-                time: '10分钟�?,
-                note: '今天收到的皮卡丘 ex SAR，入手价580，AI估价比入手价高了�?00！大家觉得现在适合出吗？�?,
+                author: '卡牌收藏家小王',
+                avatar: '王',
+                time: '10分钟前',
+                note: '今天收到的皮卡丘 ex SAR，入手价580，AI估价比入手价高了快200！大家觉得现在适合出吗？🤔',
                 card_image: null,
-                card_name: '皮卡�?ex SAR',
+                card_name: '皮卡丘 ex SAR',
                 series: '超电突围',
                 rarity: 'SAR',
                 estimated_price: 780,
@@ -517,12 +518,12 @@
             },
             {
                 id: 'demo-2',
-                author: 'PTCG老司�?,
-                avatar: '�?,
-                time: '2小时�?,
-                note: '这张喷火龙的品相 NM 级别，入�?20，今天涨�?8%！�?,
+                author: 'PTCG老司机',
+                avatar: '老',
+                time: '2小时前',
+                note: '这张喷火龙的品相 NM 级别，入手420，今天涨了18%！📈',
                 card_image: null,
-                card_name: '喷火�?ex SAR',
+                card_name: '喷火龙 ex SAR',
                 series: '超电突围',
                 rarity: 'SAR',
                 estimated_price: 498,
@@ -532,12 +533,12 @@
             },
             {
                 id: 'demo-3',
-                author: '宝可梦萌�?,
-                avatar: '�?,
-                time: '5小时�?,
-                note: '第一次用AI识卡，好神奇！这是我在卡店淘到的伊布大师球镜面卡 �?,
+                author: '宝可梦萌新',
+                avatar: '萌',
+                time: '5小时前',
+                note: '第一次用AI识卡，好神奇！这是我在卡店淘到的伊布大师球镜面卡 ✨',
                 card_image: null,
-                card_name: '伊布 大师球镜�?,
+                card_name: '伊布 大师球镜面',
                 series: '151',
                 rarity: 'AR',
                 estimated_price: 210,
@@ -598,7 +599,7 @@
                 const profit = post.estimated_price - (post.purchase_price || post.estimated_price);
                 const profitPct = post.purchase_price ? ((profit / post.purchase_price) * 100).toFixed(1) : 0;
                 const isRise = profit >= 0;
-                const avatar = post.avatar || (post.author ? post.author[0] : '�?);
+                const avatar = post.avatar || (post.author ? post.author[0] : '卡');
                 const name = post.author || '匿名玩家';
 
                 return `
@@ -656,9 +657,9 @@
             const now = new Date();
             const diff = (now - d) / 1000;
             if (diff < 60) return '刚刚';
-            if (diff < 3600) return Math.floor(diff / 60) + '分钟�?;
-            if (diff < 86400) return Math.floor(diff / 3600) + '小时�?;
-            return (d.getMonth() + 1) + '�? + d.getDate() + '�?;
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+            return (d.getMonth() + 1) + '月' + d.getDate() + '日';
         }
 
         async function toggleLike(postId) {
@@ -696,7 +697,7 @@
 
         async function loadComments(postId) {
             const list = document.getElementById('commentList');
-            list.innerHTML = '<div class="comment-empty">加载�?..</div>';
+            list.innerHTML = '<div class="comment-empty">加载中...</div>';
             try {
                 const { data: comments, error } = await db
                     .from('community_comments')
@@ -755,10 +756,10 @@
                 await db.rpc('increment_comments', { post_id: currentPostId });
                 loadPosts();
             } catch (e) {
-                alert('评论失败�? + e.message);
+                alert('评论失败：' + e.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '发�?;
+                btn.textContent = '发送';
             }
         }
 
@@ -801,13 +802,13 @@
 
             if (type === 'copy') {
                 navigator.clipboard.writeText(shareUrl).then(() => {
-                    showToast('🔗 链接已复制到剪贴�?);
+                    showToast('🔗 链接已复制到剪贴板');
                 }).catch(() => {
                     showToast('复制失败，请手动复制');
                 });
             } else if (type === 'save') {
                 generateShareCard(post).then(() => {
-                    showToast('📷 分享卡片已保�?);
+                    showToast('📷 分享卡片已保存');
                 }).catch(() => {
                     showToast('图片生成失败');
                 });
@@ -872,7 +873,7 @@
             ctx.font = '16px -apple-system, sans-serif';
             const note = post ? (post.note || '') : '发现卡牌价值，分享收藏乐趣';
             const maxChars = 28;
-            const lines = note.length > maxChars ? [note.slice(0, maxChars) + '�?] : [note];
+            const lines = note.length > maxChars ? [note.slice(0, maxChars) + '…'] : [note];
             lines.forEach(line => { ctx.fillText(line, pad + 20, y); y += 26; });
 
             if (post && post.estimated_price) {
@@ -889,7 +890,7 @@
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             ctx.font = '14px -apple-system, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('扫码打开「卡域」查看更�?, W / 2, y);
+            ctx.fillText('扫码打开「卡域」查看更多', W / 2, y);
             ctx.fillStyle = 'rgba(255,255,255,0.7)';
             ctx.font = '12px -apple-system, sans-serif';
             ctx.fillText('cardrealm.shop', W / 2, y + 22);
@@ -920,7 +921,7 @@
             const modal = document.getElementById('createModal');
             const body = document.getElementById('createCardList');
             modal.classList.add('show');
-            body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);">加载�?..</div>';
+            body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);">加载中...</div>';
 
             try {
                 const { data: cards } = await db
@@ -959,11 +960,11 @@
                     return '<div class="create-card-select" onclick="selectCardForPost(' + userCardsForPost.indexOf(c) + ', this)" data-idx="' + userCardsForPost.indexOf(c) + '">' +
                         '<div class="create-card-name">🃏 ' + c.card_name + '</div>' +
                         '<div style="font-size:11px;color:#999;">' + (c.series || '') + ' · ' + (c.rarity || 'N') + ' · ' + (condLabels[c.condition] || c.condition || 'NM') + '</div>' +
-                        '<div class="create-card-profit ' + posClass + '">💰 入手 ¥' + (c.purchase_price || 0).toLocaleString() + ' �?当前 ¥' + c.currentPrice.toLocaleString() + ' (' + posPct + c.profitPct.toFixed(1) + '%)</div>' +
+                        '<div class="create-card-profit ' + posClass + '">💰 入手 ¥' + (c.purchase_price || 0).toLocaleString() + ' → 当前 ¥' + c.currentPrice.toLocaleString() + ' (' + posPct + c.profitPct.toFixed(1) + '%)</div>' +
                     '</div>';
                 }).join('');
             } catch (e) {
-                body.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">加载失败�? + e.message + '</div>';
+                body.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">加载失败：' + e.message + '</div>';
             }
         }
 
@@ -972,7 +973,7 @@
             el.classList.add('selected');
             selectedCardForPost = userCardsForPost[idx];
             document.getElementById('createSubmitBtn').disabled = false;
-            document.getElementById('createSubmitBtn').textContent = '📢 发布收益�? + (selectedCardForPost.profitPct >= 0 ? '+' : '') + selectedCardForPost.profitPct.toFixed(1) + '%';
+            document.getElementById('createSubmitBtn').textContent = '📢 发布收益：' + (selectedCardForPost.profitPct >= 0 ? '+' : '') + selectedCardForPost.profitPct.toFixed(1) + '%';
         }
 
         async function submitCreatePost() {
@@ -982,12 +983,12 @@
             var card = selectedCardForPost;
             var isRise = card.profitPct >= 0;
             var defaultNote = isRise
-                ? '这张�? + card.card_name + '」我赚了 +' + card.profitPct.toFixed(1) + '%，入手价才�? + (card.purchase_price || 0).toLocaleString() + '，现在市场价已经¥' + card.currentPrice.toLocaleString() + '了！🎉'
-                : '�? + card.card_name + '」持有中，入手价¥' + (card.purchase_price || 0).toLocaleString() + '，当前市价�? + card.currentPrice.toLocaleString() + '，继续持有等待反�?💪';
+                ? '这张「' + card.card_name + '」我赚了 +' + card.profitPct.toFixed(1) + '%，入手价才¥' + (card.purchase_price || 0).toLocaleString() + '，现在市场价已经¥' + card.currentPrice.toLocaleString() + '了！🎉'
+                : '「' + card.card_name + '」持有中，入手价¥' + (card.purchase_price || 0).toLocaleString() + '，当前市价¥' + card.currentPrice.toLocaleString() + '，继续持有等待反弹 💪';
 
             var btn = document.getElementById('createSubmitBtn');
             btn.disabled = true;
-            btn.textContent = '发布�?..';
+            btn.textContent = '发布中...';
 
             try {
                 var { error } = await db.from('community_posts').insert({
@@ -1008,12 +1009,12 @@
                 closeCreateModal();
                 selectedCardForPost = null;
                 document.getElementById('createNote').value = '';
-                showToast('�?收益分享已发布！');
+                showToast('✅ 收益分享已发布！');
                 loadPosts();
             } catch (e) {
-                alert('发布失败�? + e.message);
+                alert('发布失败：' + e.message);
                 btn.disabled = false;
-                btn.textContent = '发布失败，重�?;
+                btn.textContent = '发布失败，重试';
             }
         }
 

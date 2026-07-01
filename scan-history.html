@@ -99,7 +99,7 @@
 </head>
 <body>
     <div class="header">
-        <a href="profile.html" class="header-back">�?/a>
+        <a href="profile.html" class="header-back">←</a>
         <div class="header-title">📷 AI识卡记录</div>
     </div>
 
@@ -107,7 +107,7 @@
         <div class="stats-row">
             <div class="stat-card">
                 <div class="stat-val" id="totalScans">0</div>
-                <div class="stat-label">总识�?/div>
+                <div class="stat-label">总识别</div>
             </div>
             <div class="stat-card">
                 <div class="stat-val" id="totalCards">0</div>
@@ -123,12 +123,12 @@
 
         <div class="empty-state" id="emptyState" style="display:none;">
             <div class="empty-icon">📷</div>
-            <div class="empty-title">还没有识卡记�?/div>
+            <div class="empty-title">还没有识卡记录</div>
             <div class="empty-desc">
-                用AI扫描你的第一张卡�?br>
+                用AI扫描你的第一张卡牌<br>
                 记录会自动保存在这里
             </div>
-            <a href="index.html" class="empty-btn">去识�?/a>
+            <a href="index.html" class="empty-btn">去识卡</a>
         </div>
     </div>
 
@@ -207,10 +207,10 @@
             const now = new Date();
             const diff = (now - d) / 1000;
             if (diff < 60) return '刚刚';
-            if (diff < 3600) return Math.floor(diff / 60) + '分钟�?;
-            if (diff < 86400) return Math.floor(diff / 3600) + '小时�?;
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
             if (diff < 604800) return Math.floor(diff / 86400) + '天前';
-            return (d.getMonth() + 1) + '�? + d.getDate() + '�?;
+            return (d.getMonth() + 1) + '月' + d.getDate() + '日';
         }
 
         init();

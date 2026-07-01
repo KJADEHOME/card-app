@@ -59,7 +59,7 @@
         .reserve-btn.pending { background: #f0f0f0; color: #5B4AE0; cursor: default; }
         .reserve-btn.live-src { background: linear-gradient(135deg, #ff2d55 0%, #ff3b30 100%); }
 
-        /* 加载与空�?*/
+        /* 加载与空态 */
         .loading { text-align: center; padding: 60px 20px; color: #999; }
         .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #f7931e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -87,7 +87,7 @@
             </div>
         </div>
         <div class="search-bar">
-            <input class="search-input" id="searchInput" placeholder="搜索卡包、周边、配�?.." onkeydown="if(event.key==='Enter')search()">
+            <input class="search-input" id="searchInput" placeholder="搜索卡包、周边、配件..." onkeydown="if(event.key==='Enter')search()">
             <button class="search-icon-btn" onclick="search()">🔍</button>
         </div>
     </div>
@@ -96,11 +96,11 @@
     <div class="live-banner" id="liveBanner" onclick="filterCategory('live')">
         <div class="live-dot"></div>
         <div class="live-info">
-            <div class="live-label">🔴 直播�?/div>
+            <div class="live-label">🔴 直播中</div>
             <div class="live-text">抖音直播同款专区</div>
             <div class="live-count" id="liveCount">正在加载...</div>
         </div>
-        <span style="color:white;font-size:20px;">�?/span>
+        <span style="color:white;font-size:20px;">→</span>
     </div>
 
     <!-- 分类标签 -->
@@ -114,7 +114,7 @@
 
     <!-- 商品列表 -->
     <div class="product-grid" id="productGrid">
-        <div class="loading"><div class="spinner"></div><div>加载商品�?..</div></div>
+        <div class="loading"><div class="spinner"></div><div>加载商品中...</div></div>
     </div>
 
     <!-- Toast -->
@@ -180,7 +180,7 @@
 
     async function loadProducts() {
         const grid = document.getElementById('productGrid');
-        grid.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载�?..</div></div>';
+        grid.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
 
         let query = db.from('products').select('*', { count: 'exact' }).eq('status', 'active');
 
@@ -201,7 +201,7 @@
         const { data, error } = await query;
 
         if (error) {
-            grid.innerHTML = '<div class="empty"><div class="empty-icon">�?/div>加载失败，请刷新重试</div>';
+            grid.innerHTML = '<div class="empty"><div class="empty-icon">❌</div>加载失败，请刷新重试</div>';
             return;
         }
 
@@ -220,14 +220,14 @@
             let tagHtml = '';
             if (isLiveProduct(p)) tagHtml = '<div class="product-tag live">直播同款</div>';
             else if (p.tags && p.tags.includes('热门')) tagHtml = '<div class="product-tag hot">热门</div>';
-            else if (p.tags && p.tags.includes('新系�?)) tagHtml = '<div class="product-tag new">新品</div>';
+            else if (p.tags && p.tags.includes('新系列')) tagHtml = '<div class="product-tag new">新品</div>';
 
-            const stockText = p.stock > 0 ? `库存 ${p.stock}` : '已售�?;
+            const stockText = p.stock > 0 ? `库存 ${p.stock}` : '已售罄';
             const stockClass = p.stock === 0 ? 'style="color:#ff3b30;"' : '';
             const soldText = p.sold_count > 0 ? `已售 ${p.sold_count}` : '';
 
             const reservedCount = resStats?.[p.id]?.pending || 0;
-            const reservedText = reservedCount > 0 ? `已预�?${reservedCount}` : '';
+            const reservedText = reservedCount > 0 ? `已预约 ${reservedCount}` : '';
 
             return `
             <div class="product-card" onclick="goDetail('${p.id}')">
@@ -281,7 +281,7 @@
             return;
         }
 
-        showToast(data.message || '预约成功�?);
+        showToast(data.message || '预约成功！');
         loadProducts(); // 刷新预约人数
     }
 
