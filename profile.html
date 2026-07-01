@@ -260,7 +260,7 @@
 
         // ===== Load User Data =====
         async function loadUserData() {
-            const { data } = await db.from('users').select('*').eq('id', user.id).single();
+            const { data } = await db.from('profiles').select('*').eq('id', user.id).single();
             userData = data;
             document.getElementById('userName').textContent = data?.username || user.email?.split('@')[0] || '用户';
             document.getElementById('userLevel').textContent = `Lv.${data?.level || 1} ${getLevelName(data?.level || 1)}`;
