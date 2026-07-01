@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单管理 - 卡域管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .header-back { color: white; text-decoration: none; font-size: 14px; }
+        .content { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        
+        /* Filters */
+        .filters { background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .filter-select { padding: 10px 15px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+        .filter-btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        
+        /* Table */
+        .table-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; }
+        tr:hover { background: #f8f9fa; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-paid { background: #e3f2fd; color: #1976d2; }
+        .badge-shipped { background: #fff3e0; color: #f57c00; }
+        .badge-completed { background: #e8f5e9; color: #4caf50; }
+        .badge-cancelled { background: #ffebee; color: #f44336; }
+        .badge-refunded { background: #f3e5f5; color: #7b1fa2; }
+        .btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-view { background: #e3f2fd; color: #1976d2; }
+        .btn-intervene { background: #fff3e0; color: #f57c00; }
+        
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+        
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; gap: 10px; padding: 20px; }
+        .page-btn { padding: 8px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; }
+        .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="admin.html" class="header-back">← 返回后台</a>
+        <div class="header-title">📦 订单管理</div>
+        <div></div>
+    </div>
+
+    <div class="content">
+        <div class="filters">
+            <select class="filter-select" id="statusFilter" onchange="filterOrders()">
+                <option value="">全部状态</option>
+                <option value="paid">已支付</option>
+                <option value="shipped">已发货</option>
+                <option value="completed">已完成</option>
+                <option value="cancelled">已取消</option>
+                <option value="refund_requested">退款申请中</option>
+                <option value="refunded">已退款</option>
+                <option value="disputed">争议中</option>
+            </select>
+            <button class="filter-btn" onclick="loadOrders()">🔄 刷新</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>订单编号</th>
+                        <th>买家</th>
+                        <th>卖家</th>
+                        <th>商品</th>
+                        <th>金额</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="orderTable">
+                    <tr><td colspan="8" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        let currentPage = 1;
+        const PAGE_SIZE = 20;
+
+        async function init() {
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) { window.location.href = 'login.html'; return; }
+            loadOrders();
+        }
+
+        async function loadOrders() {
+            const status = document.getElementById('statusFilter').value;
+            
+            let query = db.from('orders')
+                .select(`
+                    *,
+                    buyer:profiles!orders_buyer_id_fkey(username, email),
+                    seller:profiles!orders_seller_id_fkey(username, email),
+                    consignments(card_name, image_url)
+                `, { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+            if (status) {
+                query = query.eq('status', status);
+            }
+
+            const { data, error, count } = await query;
+
+            if (error) { 
+                document.getElementById('orderTable').innerHTML = '<tr><td colspan="8" class="empty">加载失败</td></tr>';
+                return; 
+            }
+
+            if (!data || data.length === 0) {
+                document.getElementById('orderTable').innerHTML = '<tr><td colspan="8" class="empty">暂无订单</td></tr>';
+                return;
+            }
+
+            const STATUS_BADGE = {
+                'pending': { text: '待支付', cls: '' },
+                'paid': { text: '已支付', cls: 'badge-paid' },
+                'shipped': { text: '已发货', cls: 'badge-shipped' },
+                'delivered': { text: '已送达', cls: 'badge-shipped' },
+                'completed': { text: '已完成', cls: 'badge-completed' },
+                'cancelled': { text: '已取消', cls: 'badge-cancelled' },
+                'refund_requested': { text: '退款申请', cls: 'badge-paid' },
+                'refunded': { text: '已退款', cls: 'badge-refunded' },
+                'disputed': { text: '争议中', cls: 'badge-cancelled' }
+            };
+
+            document.getElementById('orderTable').innerHTML = data.map(o => {
+                const statusInfo = STATUS_BADGE[o.status] || { text: o.status, cls: '' };
+                return `
+                    <tr>
+                        <td style="font-size:12px;color:#999;">${o.order_no}</td>
+                        <td>${o.buyer?.username || o.buyer_id?.substring(0, 8) || '-'}</td>
+                        <td>${o.seller?.username || o.seller_id?.substring(0, 8) || '-'}</td>
+                        <td>${o.consignments?.card_name || '商品'}</td>
+                        <td style="font-weight:600;">¥${o.total_amount.toFixed(2)}</td>
+                        <td><span class="badge ${statusInfo.cls}">${statusInfo.text}</span></td>
+                        <td style="font-size:12px;color:#999;">${new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
+                        <td>
+                            <button class="btn-sm btn-view" onclick="viewOrder('${o.id}')">查看</button>
+                            ${o.status === 'disputed' ? `<button class="btn-sm btn-intervene" onclick="interveneOrder('${o.id}')">介入</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            renderPagination(count);
+        }
+
+        function filterOrders() {
+            currentPage = 1;
+            loadOrders();
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.ceil(total / PAGE_SIZE);
+            let html = '';
+            
+            if (currentPage > 1) {
+                html += `<button class="page-btn" onclick="goPage(${currentPage - 1})">上一页</button>`;
+            }
+            
+            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+            }
+            
+            if (currentPage < totalPages) {
+                html += `<button class="page-btn" onclick="goPage(${currentPage + 1})">下一页</button>`;
+            }
+            
+            document.getElementById('pagination').innerHTML = html;
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            loadOrders();
+        }
+
+        function viewOrder(orderId) {
+            window.open(`order-detail.html?id=${orderId}`, '_blank');
+        }
+
+        function intervenOrder(orderId) {
+            // TODO: Create intervention modal
+            alert('订单介入功能开发中\n订单ID: ' + orderId);
+        }
+
+        init();
+    </script>
+</body>
+</html>

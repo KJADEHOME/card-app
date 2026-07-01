@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 卡域管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { color: white; font-size: 18px; font-weight: bold; }
+        .header-back { color: white; text-decoration: none; font-size: 14px; }
+        .content { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        
+        /* Search */
+        .search-bar { background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .search-input { flex: 1; padding: 10px 15px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+        .search-btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        
+        /* Table */
+        .table-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; }
+        tr:hover { background: #f8f9fa; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #667eea; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 14px; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-active { background: #e8f5e9; color: #4caf50; }
+        .badge-disabled { background: #ffebee; color: #f44336; }
+        .btn-sm { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-view { background: #e3f2fd; color: #1976d2; }
+        .btn-disable { background: #ffebee; color: #f44336; }
+        
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+        
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; gap: 10px; padding: 20px; }
+        .page-btn { padding: 8px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; }
+        .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="admin.html" class="header-back">← 返回后台</a>
+        <div class="header-title">👥 用户管理</div>
+        <div></div>
+    </div>
+
+    <div class="content">
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索用户名/邮箱..." onkeypress="if(event.key==='Enter')searchUsers()">
+            <button class="search-btn" onclick="searchUsers()">搜索</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>用户</th>
+                        <th>等级</th>
+                        <th>积分</th>
+                        <th>订单数</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userTable">
+                    <tr><td colspan="6" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        let currentPage = 1;
+        const PAGE_SIZE = 20;
+
+        async function init() {
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) { window.location.href = 'login.html'; return; }
+            loadUsers();
+        }
+
+        async function loadUsers() {
+            const search = document.getElementById('searchInput').value.trim();
+            
+            let query = db.from('profiles')
+                .select(`
+                    *,
+                    (SELECT count(*) FROM orders WHERE buyer_id = profiles.id) as order_count,
+                    (SELECT count(*) FROM user_collections WHERE user_id = profiles.id) as card_count
+                `, { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
+
+            if (search) {
+                query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%`);
+            }
+
+            const { data, error, count } = await query;
+
+            if (error) { 
+                document.getElementById('userTable').innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
+                return; 
+            }
+
+            if (!data || data.length === 0) {
+                document.getElementById('userTable').innerHTML = '<tr><td colspan="6" class="empty">暂无用户</td></tr>';
+                return;
+            }
+
+            document.getElementById('userTable').innerHTML = data.map(u => `
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div class="user-avatar">${(u.username || 'U').charAt(0).toUpperCase()}</div>
+                            <div>
+                                <div style="font-weight:600;">${u.username || '未设置'}</div>
+                                <div style="font-size:12px;color:#999;">${u.email || ''}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>Lv.${u.level || 1}</td>
+                    <td>${u.points || 0}</td>
+                    <td>${u.order_count || 0}</td>
+                    <td>${new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
+                    <td>
+                        <button class="btn-sm btn-view" onclick="viewUser('${u.id}')">查看</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPagination(count);
+        }
+
+        function searchUsers() {
+            currentPage = 1;
+            loadUsers();
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.ceil(total / PAGE_SIZE);
+            let html = '';
+            
+            if (currentPage > 1) {
+                html += `<button class="page-btn" onclick="goPage(${currentPage - 1})">上一页</button>`;
+            }
+            
+            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+            }
+            
+            if (currentPage < totalPages) {
+                html += `<button class="page-btn" onclick="goPage(${currentPage + 1})">下一页</button>`;
+            }
+            
+            document.getElementById('pagination').innerHTML = html;
+        }
+
+        function goPage(page) {
+            currentPage = page;
+            loadUsers();
+        }
+
+        function viewUser(userId) {
+            // TODO: Create user detail modal or page
+            alert('用户详情功能开发中\n用户ID: ' + userId);
+        }
+
+        init();
+    </script>
+</body>
+</html>

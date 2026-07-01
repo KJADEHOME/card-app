@@ -33,7 +33,7 @@
         .loading { text-align: center; padding: 40px; color: #666; }
         .refresh-btn { background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; }
         .refresh-btn:hover { background: #5a6fd6; }
-        .admin-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 20px; }
+        .admin-links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px; }
         .admin-link { background: #f8f9fa; border-radius: 10px; padding: 16px; text-align: center; text-decoration: none; color: #333; font-size: 14px; transition: background 0.2s; }
         .admin-link:hover { background: #e3f2fd; }
         .admin-link-icon { font-size: 28px; margin-bottom: 6px; }
@@ -70,6 +70,14 @@
             <div class="section-title">⚙️ 管理工具</div>
         </div>
         <div class="admin-links">
+            <a href="admin-users.html" class="admin-link">
+                <div class="admin-link-icon">👥</div>
+                <div>用户管理</div>
+            </a>
+            <a href="admin-orders.html" class="admin-link">
+                <div class="admin-link-icon">📦</div>
+                <div>订单管理</div>
+            </a>
             <a href="admin-recharge.html" class="admin-link">
                 <div class="admin-link-icon">💰</div>
                 <div>充值审核</div>
