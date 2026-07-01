@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>数据看板 - 卡域 Card Realm</title>
-    <meta name="description" content="卡牌市场数据看板 - 涨跌排行、热门搜索、价格趋势">
+    <meta name="description" content="卡牌市场数据看板 - 涨跌排行、热门搜索、价格趋�?>
     <link rel="manifest" href="manifest.json">
     <style>
         :root {
@@ -377,18 +377,17 @@
 <body>
     <!-- Header -->
     <div class="header">
-        <a href="index.html" class="header-back">←</a>
+        <a href="index.html" class="header-back">�?/a>
         <div class="header-title">📊 数据看板</div>
         <div class="header-category">
-            <span>⚡</span> 宝可梦 PTCG
+            <span>�?/span> 宝可�?PTCG
         </div>
     </div>
 
     <div class="content">
         <!-- Notice -->
         <div class="notice">
-            <span>📢</span> 价格数据每日 12:00 更新，目前为演示数据，仅供参考
-        </div>
+            <span>📢</span> 价格数据每日 12:00 更新，目前为演示数据，仅供参�?        </div>
 
         <!-- Market Overview -->
         <div class="overview-grid" id="overviewGrid">
@@ -403,7 +402,7 @@
                 <div class="overview-change fall" id="fallingChange">--</div>
             </div>
             <div class="overview-card">
-                <div class="overview-label">💰 成交量</div>
+                <div class="overview-label">💰 成交�?/div>
                 <div class="overview-num vol" id="volumeCount">--</div>
                 <div class="overview-change vol" id="volumeChange">--</div>
             </div>
@@ -448,7 +447,7 @@
                 <div class="overview-num vol" id="growthScans">--</div>
             </div>
             <div class="overview-card">
-                <div class="overview-label" style="font-size:10px;">🔄 留存率(D1)</div>
+                <div class="overview-label" style="font-size:10px;">🔄 留存�?D1)</div>
                 <div class="overview-num vol" id="growthRetention">--</div>
             </div>
         </div>
@@ -474,22 +473,22 @@
         <!-- Daily Rankings -->
         <div class="section-title">
             <span>🔥 今日涨跌 TOP5</span>
-            <a href="#" class="section-more">查看完整排行 →</a>
+            <a href="#" class="section-more">查看完整排行 �?/a>
         </div>
         <div class="ranking-row">
             <div class="ranking-card">
-                <div class="ranking-header rise">📈 涨幅榜</div>
+                <div class="ranking-header rise">📈 涨幅�?/div>
                 <div id="riseList"></div>
             </div>
             <div class="ranking-card">
-                <div class="ranking-header fall">📉 跌幅榜</div>
+                <div class="ranking-header fall">📉 跌幅�?/div>
                 <div id="fallList"></div>
             </div>
         </div>
 
         <!-- Trade Top10 -->
         <div class="section-title">
-            <span>🏆 今日成交最高 TOP10</span>
+            <span>🏆 今日成交最�?TOP10</span>
             <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">实时更新</span>
         </div>
         <div class="trade-card" id="tradeTopCard">
@@ -498,8 +497,8 @@
 
         <!-- Hot Keywords -->
         <div class="section-title">
-            <span>🔍 热门搜索关键词</span>
-            <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">更新于今日 12:00</span>
+            <span>🔍 热门搜索关键�?/span>
+            <span style="font-size:11px;color:var(--text-secondary);font-weight:400;">更新于今�?12:00</span>
         </div>
         <div class="keywords-card" id="keywordsCard"></div>
 
@@ -511,9 +510,9 @@
             <div class="chart-header">
                 <div class="chart-title">PTCG 市场平均价格走势</div>
                 <div class="chart-tabs">
-                    <button class="chart-tab" data-days="7">7天</button>
-                    <button class="chart-tab active" data-days="30">30天</button>
-                    <button class="chart-tab" data-days="90">90天</button>
+                    <button class="chart-tab" data-days="7">7�?/button>
+                    <button class="chart-tab active" data-days="30">30�?/button>
+                    <button class="chart-tab" data-days="90">90�?/button>
                 </div>
             </div>
             <div class="chart-area" id="chartArea"></div>
@@ -521,11 +520,11 @@
 
         <!-- Volume Chart -->
         <div class="section-title">
-            <span>📈 交易量统计</span>
+            <span>📈 交易量统�?/span>
         </div>
         <div class="volume-card">
             <div class="chart-header">
-                <div class="chart-title">近7日成交笔数</div>
+                <div class="chart-title">�?日成交笔�?/div>
             </div>
             <div class="volume-area" id="volumeArea"></div>
         </div>
@@ -539,7 +538,7 @@
         <a href="shop.html" class="nav-item"><span class="nav-icon">🛍</span>商城</a>
         <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span>市场</a>
         <a href="dashboard.html" class="nav-item active"><span class="nav-icon">📊</span>看板</a>
-        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
+        <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -553,11 +552,11 @@
             riseList: [],
             fallList: [],
             keywords: [
-                { name: '皮卡丘', trend: '+35.2%' },
-                { name: '喷火龙', trend: '+28.7%' },
+                { name: '皮卡�?, trend: '+35.2%' },
+                { name: '喷火�?, trend: '+28.7%' },
                 { name: '伊布', trend: '+18.9%' },
                 { name: '超梦', trend: '+12.4%' },
-                { name: '烈空坐', trend: '+11.3%' },
+                { name: '烈空�?, trend: '+11.3%' },
             ],
             chart30: [],
             tradeTop: [],
@@ -568,14 +567,14 @@
             document.getElementById('risingCount').textContent = data.rising || '--';
             document.getElementById('fallingCount').textContent = data.falling || '--';
             document.getElementById('volumeCount').textContent = (data.total || data.volume || 0).toLocaleString();
-            document.getElementById('risingChange').textContent = '较昨日 ' + (data.risingChange || '--');
-            document.getElementById('fallingChange').textContent = '较昨日 ' + (data.fallingChange || '--');
-            document.getElementById('volumeChange').textContent = '较昨日 ' + (data.volumeChange || '--');
+            document.getElementById('risingChange').textContent = '较昨�?' + (data.risingChange || '--');
+            document.getElementById('fallingChange').textContent = '较昨�?' + (data.fallingChange || '--');
+            document.getElementById('volumeChange').textContent = '较昨�?' + (data.volumeChange || '--');
         }
         
         function renderTradeStats(data) {
             document.getElementById('tradeOrders').textContent = (data.today_orders || 0).toLocaleString();
-            document.getElementById('tradeGMV').textContent = '¥' + ((data.today_gmv || 0) / 10000).toFixed(1) + '万';
+            document.getElementById('tradeGMV').textContent = '¥' + ((data.today_gmv || 0) / 10000).toFixed(1) + '�?;
             document.getElementById('tradeFees').textContent = '¥' + (data.today_fees || 0).toFixed(0);
             document.getElementById('activeListings').textContent = (data.active_listings || 0).toLocaleString();
         }
@@ -604,7 +603,7 @@
                 <div class="keyword-item">
                     <div class="keyword-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
                     <div class="keyword-text">${kw.name}</div>
-                    <div class="keyword-trend">↑ ${kw.trend}</div>
+                    <div class="keyword-trend">�?${kw.trend}</div>
                 </div>
             `).join('');
         }
@@ -639,7 +638,7 @@
             const range = max - min || 1;
             container.innerHTML = data.map((v, i) => {
                 const height = ((v - min) / range * 120 + 20) + 'px';
-                return `<div class="volume-bar" style="height:${height}" title="${v}笔"></div>`;
+                return `<div class="volume-bar" style="height:${height}" title="${v}�?></div>`;
             }).join('');
         }
 
@@ -684,7 +683,7 @@
                         volume: overviewData.total || 0,
                         risingChange: overviewData.avg_change ? '均幅' + overviewData.avg_change + '%' : '--',
                         fallingChange: overviewData.avg_change ? '均幅' + overviewData.avg_change + '%' : '--',
-                        volumeChange: overviewData.last_updated ? '更新于' + new Date(overviewData.last_updated).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '--'
+                        volumeChange: overviewData.last_updated ? '更新�? + new Date(overviewData.last_updated).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}) : '--'
                     };
                     renderOverview(ov);
                 }
@@ -695,7 +694,7 @@
                     renderTradeStats(tradeStats);
                 }
 
-                // 2. Rise TOP10 — card_prices sorted by change_percent DESC
+                // 2. Rise TOP10 �?card_prices sorted by change_percent DESC
                 const { data: riseData } = await db
                     .from('card_prices')
                     .select('card_name, series, rarity, current_price, change_percent')
@@ -715,7 +714,7 @@
                 }
                 renderRankList(demoData.riseList, 'riseList', 'rise');
 
-                // 3. Fall TOP10 — card_prices sorted by change_percent ASC (most negative first)
+                // 3. Fall TOP10 �?card_prices sorted by change_percent ASC (most negative first)
                 const { data: fallData } = await db
                     .from('card_prices')
                     .select('card_name, series, rarity, current_price, change_percent')
@@ -735,7 +734,7 @@
                 }
                 renderRankList(demoData.fallList, 'fallList', 'fall');
 
-                // 4. Trade TOP10 — highest priced cards
+                // 4. Trade TOP10 �?highest priced cards
                 const { data: topData } = await db
                     .from('card_prices')
                     .select('card_name, series, rarity, current_price, change_percent')
@@ -755,7 +754,7 @@
                 }
                 renderTradeTop();
 
-                // 5. Chart data — use last 30 price_history entries for market trend
+                // 5. Chart data �?use last 30 price_history entries for market trend
                 const { data: historyData } = await db
                     .from('price_history')
                     .select('price_mid, date')
@@ -786,7 +785,7 @@
                 const notice = document.querySelector('.notice');
                 if (notice && overviewData?.last_updated) {
                     const t = new Date(overviewData.last_updated);
-                    notice.innerHTML = `<span>📢</span> 价格数据更新于 ${t.toLocaleString('zh-CN')}`;
+                    notice.innerHTML = `<span>📢</span> 价格数据更新�?${t.toLocaleString('zh-CN')}`;
                 }
 
             } catch (e) {
@@ -794,7 +793,7 @@
             }
         }
 
-        // Init — load real data first, fallback to demo
+        // Init �?load real data first, fallback to demo
         async function init() {
             // Show skeleton first
             renderOverview({ rising: '--', falling: '--', total: '--' });
@@ -825,7 +824,7 @@
                 const today = data.today;
                 document.getElementById('growthDAU').textContent = (today.dau || 0).toLocaleString();
                 document.getElementById('growthMAU').textContent = (today.mau || 0).toLocaleString();
-                document.getElementById('growthAsset').textContent = '¥' + ((today.total_asset || 0) / 10000).toFixed(1) + '万';
+                document.getElementById('growthAsset').textContent = '¥' + ((today.total_asset || 0) / 10000).toFixed(1) + '�?;
                 document.getElementById('growthScans').textContent = (today.ai_scans || 0).toLocaleString();
                 document.getElementById('growthRetention').textContent = (today.retention_d1 || 0).toFixed(0) + '%';
                 document.getElementById('growthNewUsers').textContent = (today.new_users || 0).toLocaleString();

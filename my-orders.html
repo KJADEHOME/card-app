@@ -3,83 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>å¡åŸŸ - æˆ‘çš„è®¢å•</title>
+    <title>¿¨Óò - ÎÒµÄ¶©µ¥</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding-bottom: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; display: flex; align-items: center; }
+        .header { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); padding: 15px; display: flex; align-items: center; }
         .back { color: white; font-size: 24px; text-decoration: none; margin-right: 15px; }
         .header-title { color: white; font-size: 18px; font-weight: bold; }
         .tabs { display: flex; background: white; margin: 12px 15px; border-radius: 12px; overflow: hidden; }
         .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 13px; color: #666; transition: all 0.2s; }
-        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; }
+        .tab.active { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); color: white; font-weight: bold; }
         .order-list { padding: 0 15px; }
         .order-card { background: white; border-radius: 12px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .order-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 0; }
         .order-no { font-size: 12px; color: #999; }
         .order-status { font-size: 13px; font-weight: bold; }
-        .status-pending_payment { color: #f57c00; }
+        .status-pending { color: #f57c00; }
         .status-paid { color: #1976d2; }
         .status-shipped { color: #43a047; }
+        .status-delivered { color: #7b1fa2; }
         .status-completed { color: #9e9e9e; }
         .status-cancelled { color: #9e9e9e; }
+        .status-refund_requested { color: #ff9800; }
+        .status-refunded { color: #f44336; }
+        .status-disputed { color: #e53935; }
         .order-body { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; }
-        .order-thumb { width: 65px; height: 87px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold; }
+        .order-thumb { width: 65px; height: 87px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold; }
         .order-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
         .order-name { font-size: 14px; font-weight: bold; color: #333; }
         .order-meta { font-size: 12px; color: #999; }
-        .order-price { font-size: 15px; font-weight: bold; color: #667eea; text-align: right; }
-        .order-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 0 16px 14px; }
+        .order-price { font-size: 15px; font-weight: bold; color: #5B4AE0; text-align: right; }
+        .order-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 0 16px 14px; flex-wrap: wrap; }
         .order-btn { padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; }
-        .order-btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .order-btn-primary { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); color: white; }
         .order-btn-outline { background: white; color: #666; border: 1px solid #ddd; }
         .order-btn-danger { background: white; color: #f44336; border: 1px solid #f44336; }
+        .order-btn-success { background: #4caf50; color: white; }
         .empty { text-align: center; padding: 60px 20px; color: #999; }
         .empty-icon { font-size: 48px; margin-bottom: 12px; }
         .loading { text-align: center; padding: 60px 20px; color: #999; }
-        .loading .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+        .loading .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #5B4AE0; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #333; color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; opacity: 0; transition: all 0.3s; z-index: 300; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.show { display: flex; }
+        .modal-box { background: white; border-radius: 20px; padding: 24px; width: 90%; max-width: 400px; }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+        .modal-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; }
+        .modal-textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; margin-bottom: 15px; min-height: 100px; resize: vertical; }
+        .modal-btn-row { display: flex; gap: 10px; }
+        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+        .modal-btn-cancel { background: #f0f0f0; color: #666; }
+        .modal-btn-confirm { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); color: white; }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="collection.html" class="back">â†</a>
-        <div class="header-title">æˆ‘çš„è®¢å•</div>
+        <a href="profile.html" class="back">¡û</a>
+        <div class="header-title">ÎÒµÄ¶©µ¥</div>
     </div>
+    
     <div class="tabs" id="roleTabs">
-        <div class="tab active" onclick="switchRole('buyer')">æˆ‘è´­ä¹°çš„</div>
-        <div class="tab" onclick="switchRole('seller')">æˆ‘å–å‡ºçš„</div>
+        <div class="tab active" onclick="switchRole('buyer')">ÎÒÂòµÄ</div>
+        <div class="tab" onclick="switchRole('seller')">ÎÒÂôµÄ</div>
     </div>
-    <div class="tabs" id="sourceTabs" style="margin-top:0;">
-        <div class="tab active" onclick="switchSource('all')">å…¨éƒ¨è®¢å•</div>
-        <div class="tab" onclick="switchSource('shop')">å•†åŸè®¢å•</div>
-        <div class="tab" onclick="switchSource('marketplace')">å¸‚åœºè®¢å•</div>
+    
+    <div class="tabs" id="statusTabs">
+        <div class="tab active" onclick="switchStatus('all')">È«²¿</div>
+        <div class="tab" onclick="switchStatus('paid')">´ı·¢»õ</div>
+        <div class="tab" onclick="switchStatus('shipped')">´ıÊÕ»õ</div>
+        <div class="tab" onclick="switchStatus('completed')">ÒÑÍê³É</div>
+        <div class="tab" onclick="switchStatus('refund_requested')">ÍË¿îÖĞ</div>
     </div>
-    <div class="tabs" id="statusTabs" style="margin-top:0;">
-        <div class="tab active" onclick="switchStatus('all')">å…¨éƒ¨</div>
-        <div class="tab" onclick="switchStatus('pending')">å¾…ä»˜æ¬¾</div>
-        <div class="tab" onclick="switchStatus('paid')">å¾…å‘è´§</div>
-        <div class="tab" onclick="switchStatus('shipped')">å¾…æ”¶è´§</div>
-        <div class="tab" onclick="switchStatus('completed')">å·²å®Œæˆ</div>
-    </div>
+    
     <div class="order-list" id="orderList">
         <div class="loading"><div class="spinner"></div></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <!-- Ship Modal -->
+    <div class="modal" id="shipModal">
+        <div class="modal-box">
+            <div class="modal-title">·¢»õ</div>
+            <input type="text" class="modal-input" id="trackingNo" placeholder="¿ìµİµ¥ºÅ">
+            <input type="text" class="modal-input" id="shippingCarrier" placeholder="¿ìµİ¹«Ë¾£¨Ñ¡Ìî£©">
+            <div class="modal-btn-row">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('shipModal')">È¡Ïû</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmShip()">È·ÈÏ·¢»õ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refund Modal -->
+    <div class="modal" id="refundModal">
+        <div class="modal-box">
+            <div class="modal-title">ÉêÇëÍË¿î</div>
+            <textarea class="modal-textarea" id="refundReason" placeholder="ÍË¿îÔ­Òò"></textarea>
+            <div class="modal-btn-row">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('refundModal')">È¡Ïû</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmRefund()">Ìá½»ÉêÇë</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dispute Modal -->
+    <div class="modal" id="disputeModal">
+        <div class="modal-box">
+            <div class="modal-title">·¢ÆğÕùÒé</div>
+            <textarea class="modal-textarea" id="disputeReason" placeholder="ÕùÒéÔ­Òò"></textarea>
+            <div class="modal-btn-row">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('disputeModal')">È¡Ïû</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmDispute()">Ìá½»</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Process Refund Modal (Seller) -->
+    <div class="modal" id="processRefundModal">
+        <div class="modal-box">
+            <div class="modal-title">´¦ÀíÍË¿îÉêÇë</div>
+            <textarea class="modal-textarea" id="sellerNote" placeholder="´¦ÀíÒâ¼û£¨Ñ¡Ìî£©"></textarea>
+            <div class="modal-btn-row">
+                <button class="modal-btn modal-btn-cancel" onclick="processRefund(false)">¾Ü¾ø</button>
+                <button class="modal-btn modal-btn-confirm" onclick="processRefund(true)">Í¬ÒâÍË¿î</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
     <script>
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_ANON = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+
+        let db, currentUser;
         let currentRole = 'buyer';
         let currentStatus = 'all';
-        let currentSource = 'all';
-        let currentUser = null;
+        let currentOrderId = null;
 
         const STATUS_TEXT = {
-            pending: 'å¾…ä»˜æ¬¾', paid: 'å¾…å‘è´§', shipped: 'è¿è¾“ä¸­',
-            completed: 'å·²å®Œæˆ', cancelled: 'å·²å–æ¶ˆ', refunded: 'å·²é€€æ¬¾'
+            pending: '´ı¸¶¿î',
+            paid: '´ı·¢»õ',
+            shipped: 'ÒÑ·¢»õ',
+            delivered: 'ÒÑËÍ´ï',
+            completed: 'ÒÑÍê³É',
+            cancelled: 'ÒÑÈ¡Ïû',
+            refund_requested: 'ÍË¿îÉêÇëÖĞ',
+            refunded: 'ÒÑÍË¿î',
+            disputed: 'ÕùÒéÖĞ'
         };
 
         async function init() {
+            const { createClient } = supabase;
+            db = createClient(SUPABASE_URL, SUPABASE_ANON);
             const { data: { user } } = await db.auth.getUser();
             currentUser = user;
             if (!user) { window.location.href = 'login.html'; return; }
@@ -89,13 +167,6 @@
         function switchRole(role) {
             currentRole = role;
             document.querySelectorAll('#roleTabs .tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            loadOrders();
-        }
-
-        function switchSource(source) {
-            currentSource = source;
-            document.querySelectorAll('#sourceTabs .tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             loadOrders();
         }
@@ -111,200 +182,231 @@
             const list = document.getElementById('orderList');
             list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-            var field = currentRole === 'buyer' ? 'buyer_id' : 'seller_id';
-            var query = db.from('orders')
-                .select('*, products(title, image_url, description), consignments(card_name, card_image, card_series, card_rarity)')
-                .eq(field, currentUser.id)
-                .order('created_at', { ascending: false })
-                .limit(50);
+            let query = db.from('orders').select(`
+                *,
+                consignments(*),
+                products(*)
+            `);
 
-            if (currentStatus !== 'all') query = query.eq('status', currentStatus);
-            if (currentSource === 'shop') query = query.eq('order_source', 'shop');
-            else if (currentSource === 'marketplace') query = query.or('order_source.eq.marketplace,order_source.is.null');
-
-            const { data, error } = await query;
-            if (error) { list.innerHTML = '<div class="empty"><div class="empty-icon">âŒ</div>åŠ è½½å¤±è´¥</div>'; return; }
-            if (!data || data.length === 0) { list.innerHTML = '<div class="empty"><div class="empty-icon">ğŸ“‹</div>æš‚æ— è®¢å•</div>'; return; }
-
-            list.innerHTML = data.map(function(o) {
-                // åˆ¤æ–­è®¢å•æ¥æºï¼šæœ‰ product_id çš„æ˜¯å•†åŸè®¢å•
-                var isShop = o.order_source === 'shop' || (o.product_id && !o.consignment_id);
-                var prod = o.products || {};
-                var cons = o.consignments || {};
-
-                var name = isShop ? (prod.title || 'å•†åŸå•†å“') : (cons.card_name || o.card_name || 'å¡ç‰Œ');
-                var imgUrl = isShop ? (prod.image_url || '') : (cons.card_image || o.card_image_url || '');
-                var meta = isShop ? (prod.description || '').substring(0, 30) : ((cons.card_series || '') + ' Â· ' + (cons.card_rarity || ''));
-                var bgStyle = imgUrl ? 'background-image: url(' + imgUrl + '); background-size: cover; background-position: center;' : '';
-                var orderSourceLabel = isShop ? '<span style="background:#f7931e;color:white;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">å•†åŸ</span>' : '<span style="background:#667eea;color:white;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">å¸‚åœº</span>';
-
-                var btns = '';
-                if (currentRole === 'buyer' && o.status === 'pending') {
-                    btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();payOrder(\'' + o.id + '\')">å»ä»˜æ¬¾</button><button class="order-btn order-btn-danger" onclick="event.stopPropagation();cancelShopOrder(\'' + o.id + '\')">å–æ¶ˆ</button>';
-                } else if (currentRole === 'buyer' && o.status === 'shipped') {
-                    btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();confirmReceive(\'' + o.id + '\')">ç¡®è®¤æ”¶è´§</button>';
-                } else if (currentRole === 'seller' && o.status === 'paid') {
-                    btns = '<button class="order-btn order-btn-primary" onclick="event.stopPropagation();window.location.href=\'order-detail.html?id=' + o.id + '\'">å»å‘è´§</button>';
-                }
-
-                var detailLink = isShop ? '#' : 'order-detail.html?id=' + o.id;
-                var clickHandler = isShop ? '' : ' onclick="window.location.href=\'order-detail.html?id=' + o.id + '\'"';
-
-                return '<div class="order-card"' + clickHandler + '>' +
-                    '<div class="order-header"><span class="order-no">' + (o.order_no || '') + orderSourceLabel + '</span><span class="order-status status-' + o.status + '">' + (STATUS_TEXT[o.status] || o.status) + '</span></div>' +
-                    '<div class="order-body"><div class="order-thumb" style="' + bgStyle + '">' + (imgUrl ? '' : (name || '').substring(0,2)) + '</div>' +
-                    '<div class="order-info"><div><div class="order-name">' + (name || '') + '</div><div class="order-meta">' + (meta || '') + '</div></div><div class="order-price">Â¥' + (o.total_amount || 0) + '</div></div></div>' +
-                    (btns ? '<div class="order-footer">' + btns + '</div>' : '') +
-                    '</div>';
-            }).join('');
-        }
-
-        async function cancelShopOrder(id) {
-            if (!confirm('ç¡®å®šå–æ¶ˆè®¢å•ï¼Ÿ')) return;
-            var o = await db.from('orders').select('product_id, quantity, status').eq('id', id).single();
-            if (!o.data || o.data.status !== 'pending') { alert('æ— æ³•å–æ¶ˆ'); return; }
-
-            // é‡Šæ”¾åº“å­˜
-            if (o.data.product_id) {
-                await db.rpc('release_shop_order_stock', { p_order_id: id, p_product_id: o.data.product_id, p_quantity: o.data.quantity });
+            if (currentRole === 'buyer') {
+                query = query.eq('buyer_id', currentUser.id);
+            } else {
+                query = query.eq('seller_id', currentUser.id);
             }
 
-            await db.from('orders').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id);
+            if (currentStatus !== 'all') {
+                query = query.eq('status', currentStatus);
+            }
+
+            query = query.order('created_at', { ascending: false });
+
+            const { data: orders, error } = await query;
+            if (error) { list.innerHTML = '<div class="empty">¼ÓÔØÊ§°Ü</div>'; return; }
+            if (!orders || orders.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">?</div>ÔİÎŞ¶©µ¥</div>';
+                return;
+            }
+
+            list.innerHTML = orders.map(o => renderOrder(o)). join('');
+        }
+
+        function renderOrder(o) {
+            const statusClass = 'status-' + o.status;
+            const statusText = STATUS_TEXT[o.status] || o.status;
+            const thumb = o.consignments?.image_url || o.products?.image_url || '';
+            
+            return `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-no">${o.order_no}</div>
+                        <div class="order-status ${statusClass}">${statusText}</div>
+                    </div>
+                    <div class="order-body" onclick="viewOrder('${o.id}')">
+                        <div class="order-thumb" style="${thumb ? `background-image:url(${thumb})` : ''}">
+                            ${thumb ? '' : '?'}
+                        </div>
+                        <div class="order-info">
+                            <div class="order-name">${o.consignments?.card_name || o.products?.name || 'ÉÌÆ·'}</div>
+                            <div class="order-meta">${o.shipping_carrier ? '¿ìµİ: ' + o.shipping_carrier : ''} ${o.tracking_no ? 'µ¥ºÅ: ' + o.tracking_no : ''}</div>
+                            <div class="order-price">?${o.total_amount.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div class="order-footer">
+                        ${getOrderActions(o)}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getOrderActions(o) {
+            const isBuyer = o.buyer_id === currentUser.id;
+            const isSeller = o.seller_id === currentUser.id;
+            let actions = '';
+
+            if (isBuyer) {
+                // Âò¼Ò²Ù×÷
+                if (o.status === 'paid') {
+                    // ÒÑ¸¶¿î£¬µÈ´ıÂô¼Ò·¢»õ£¬Âò¼Ò¿ÉÒÔÈ¡Ïû»òÉêÇëÍË¿î
+                    actions += `<button class="order-btn order-btn-danger" onclick="event.stopPropagation(); openRefundModal('${o.id}')">ÉêÇëÍË¿î</button>`;
+                } else if (o.status === 'shipped' || o.status === 'delivered') {
+                    // ÒÑ·¢»õ£¬Âò¼Ò¿ÉÒÔÈ·ÈÏÊÕ»õ
+                    actions += `<button class="order-btn order-btn-primary" onclick="event.stopPropagation(); confirmReceipt('${o.id}')">È·ÈÏÊÕ»õ</button>`;
+                } else if (o.status === 'refund_requested') {
+                    actions += `<span style="color:#999;font-size:12px;">ÍË¿îÉêÇë´¦ÀíÖĞ</span>`;
+                } else if (o.status === 'completed') {
+                    actions += `<button class="order-btn order-btn-outline" onclick="event.stopPropagation(); openDisputeModal('${o.id}')">·¢ÆğÕùÒé</button>`;
+                }
+            }
+
+            if (isSeller) {
+                // Âô¼Ò²Ù×÷
+                if (o.status === 'paid') {
+                    // ÒÑ¸¶¿î£¬Âô¼ÒĞèÒª·¢»õ
+                    actions += `<button class="order-btn order-btn-primary" onclick="event.stopPropagation(); openShipModal('${o.id}')">·¢»õ</button>`;
+                } else if (o.status === 'refund_requested') {
+                    // Âò¼ÒÉêÇëÍË¿î£¬Âô¼ÒĞèÒª´¦Àí
+                    actions += `<button class="order-btn order-btn-primary" onclick="event.stopPropagation(); openProcessRefundModal('${o.id}')">´¦ÀíÍË¿î</button>`;
+                } else if (o.status === 'shipped') {
+                    actions += `<span style="color:#43a047;font-size:12px;">ÒÑ·¢»õ£¬µÈ´ıÂò¼ÒÈ·ÈÏ</span>`;
+                }
+            }
+
+            return actions;
+        }
+
+        function viewOrder(orderId) {
+            window.location.href = `order-detail.html?id=${orderId}`;
+        }
+
+        // ===== Ship =====
+        function openShipModal(orderId) {
+            currentOrderId = orderId;
+            document.getElementById('shipModal').classList.add('show');
+        }
+
+        async function confirmShip() {
+            const trackingNo = document.getElementById('trackingNo').value.trim();
+            if (!trackingNo) { showToast('ÇëÊäÈë¿ìµİµ¥ºÅ'); return; }
+            const carrier = document.getElementById('shippingCarrier').value.trim();
+
+            const { error } = await db.rpc('seller_ship_order', {
+                p_order_id: currentOrderId,
+                p_tracking_no: trackingNo,
+                p_shipping_carrier: carrier || null
+            });
+
+            if (error) { showToast('·¢»õÊ§°Ü: ' + error.message); return; }
+            closeModal('shipModal');
+            showToast('·¢»õ³É¹¦£¡');
             loadOrders();
         }
 
-        async function payOrder(id) {
-            var o = await db.from('orders').select('*').eq('id', id).single();
-            if (!o.data) return;
-            var isShop = o.data.order_source === 'shop' || o.data.product_id;
+        // ===== Confirm Receipt =====
+        async function confirmReceipt(orderId) {
+            if (!confirm('È·ÈÏÒÑÊÕµ½ÉÌÆ·£¿')) return;
 
-            if (isShop) {
-                // å•†åŸè®¢å•ï¼šç›´æ¥è°ƒç”¨ pay_shop_order RPC
-                var { data: payData, error: payErr } = await db.rpc('pay_shop_order', {
-                    p_order_id: id,
-                    p_user_id: currentUser.id
-                });
-                if (payErr) { alert('æ”¯ä»˜å¤±è´¥: ' + payErr.message); return; }
-                if (!payData.success) { alert(payData.error); return; }
-                loadOrders();
-                return;
-            }
+            const { error } = await db.rpc('buyer_confirm_receipt', {
+                p_order_id: orderId
+            });
 
-            // åŸæœ‰å¸‚åœºè®¢å•æ”¯ä»˜é€»è¾‘
-            // 1. æ£€æŸ¥é’±åŒ…ä½™é¢
-            var walletResult = await db.from('wallets').select('*').eq('user_id', currentUser.id).single();
-            if (!walletResult.data) {
-                alert('è¯·å…ˆå¼€é€šé’±åŒ…');
-                window.location.href = 'wallet.html';
-                return;
-            }
-            var walletData = walletResult.data;
-            var balance = parseFloat(walletData.balance);
-            var total = parseFloat(o.data.total_amount);
+            if (error) { showToast('²Ù×÷Ê§°Ü: ' + error.message); return; }
+            showToast('È·ÈÏÊÕ»õ³É¹¦£¡');
+            loadOrders();
+        }
 
-            if (balance < total) {
-                var needRecharge = (total - balance).toFixed(2);
-                if (!confirm('ä½™é¢ä¸è¶³ï¼å½“å‰ Â¥' + balance.toFixed(2) + 'ï¼Œè¿˜éœ€ Â¥' + needRecharge + 'ã€‚\n\nå‰å¾€å……å€¼ï¼Ÿ')) return;
-                window.location.href = 'wallet.html';
-                return;
-            }
+        // ===== Refund =====
+        function openRefundModal(orderId) {
+            currentOrderId = orderId;
+            document.getElementById('refundModal').classList.add('show');
+        }
 
-            if (!confirm('ç¡®è®¤æ”¯ä»˜ Â¥' + total.toFixed(2) + 'ï¼Ÿ')) return;
+        async function confirmRefund() {
+            const reason = document.getElementById('refundReason').value.trim();
+            if (!reason) { showToast('ÇëÊäÈëÍË¿îÔ­Òò'); return; }
 
-            try {
-                // 2. æ‰£å‡ä½™é¢
-                var newBalance = balance - total;
-                var newExpense = parseFloat(walletData.total_expense) + total;
-                var updateWallet = await db.from('wallets').update({
-                    balance: newBalance,
-                    total_expense: newExpense
-                }).eq('id', walletData.id);
-                if (updateWallet.error) throw updateWallet.error;
+            const { error } = await db.rpc('buyer_request_refund', {
+                p_order_id: currentOrderId,
+                p_reason: reason
+            });
 
-                // 3. å†™å…¥äº¤æ˜“è®°å½•
-                await db.from('wallet_transactions').insert([{
-                    wallet_id: walletData.id,
-                    order_id: id,
-                    type: 'payment',
-                    amount: total,
-                    balance_after: newBalance,
-                    description: 'è´­ä¹°ã€Œ' + o.data.card_name + 'ã€'
-                }]);
+            if (error) { showToast('ÉêÇëÊ§°Ü: ' + error.message); return; }
+            closeModal('refundModal');
+            showToast('ÍË¿îÉêÇëÒÑÌá½»£¡');
+            loadOrders();
+        }
 
-                // 4. æ›´æ–°è®¢å•çŠ¶æ€
-                var { error } = await db.from('orders').update({
-                    status: 'paid',
-                    payment_at: new Date().toISOString(),
-                    payment_no: 'PAY' + Date.now(),
-                    payment_method: 'balance'
-                }).eq('id', id);
-                if (error) throw error;
+        // ===== Process Refund (Seller) =====
+        function openProcessRefundModal(orderId) {
+            currentOrderId = orderId;
+            document.getElementById('processRefundModal').classList.add('show');
+        }
 
-                // 5. é€šçŸ¥å–å®¶
-                await db.from('notifications').insert([{
-                    user_id: o.data.seller_id,
-                    title: 'ä¹°å®¶å·²ä»˜æ¬¾',
-                    content: 'è®¢å• ' + o.data.order_no + ' å·²ä»˜æ¬¾',
-                    type: 'order',
-                    related_id: id
-                }]);
-                loadOrders();
-            } catch (err) {
-                alert('æ”¯ä»˜å¤±è´¥: ' + (err.message || 'è¯·é‡è¯•'));
+        async function processRefund(approved) {
+            const note = document.getElementById('sellerNote').value.trim();
+
+            const { error } = await db.rpc('seller_process_refund', {
+                p_order_id: currentOrderId,
+                p_approved: approved,
+                p_seller_note: note || null
+            });
+
+            if (error) { showToast('²Ù×÷Ê§°Ü: ' + error.message); return; }
+            closeModal('processRefundModal');
+            showToast(approved ? 'ÒÑÍ¬ÒâÍË¿î' : 'ÒÑ¾Ü¾øÍË¿î');
+            loadOrders();
+        }
+
+        // ===== Dispute =====
+        function openDisputeModal(orderId) {
+            currentOrderId = orderId;
+            document.getElementById('disputeModal').classList.add('show');
+        }
+
+        async function confirmDispute() {
+            const reason = document.getElementById('disputeReason').value.trim();
+            if (!reason) { showToast('ÇëÊäÈëÕùÒéÔ­Òò'); return; }
+
+            const { error } = await db.rpc('create_order_dispute', {
+                p_order_id: currentOrderId,
+                p_reason: reason
+            });
+
+            if (error) { showToast('·¢ÆğÊ§°Ü: ' + error.message); return; }
+            closeModal('disputeModal');
+            showToast('ÕùÒéÒÑ¿ªÆô');
+            loadOrders();
+        }
+
+        // ===== Modal =====
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+            if (id === 'shipModal') {
+                document.getElementById('trackingNo').value = '';
+                document.getElementById('shippingCarrier').value = '';
+            } else if (id === 'refundModal') {
+                document.getElementById('refundReason').value = '';
+            } else if (id === 'disputeModal') {
+                document.getElementById('disputeReason').value = '';
+            } else if (id === 'processRefundModal') {
+                document.getElementById('sellerNote').value = '';
             }
         }
 
-        async function cancelOrder(id) {
-            if (!confirm('ç¡®å®šå–æ¶ˆï¼Ÿ')) return;
-            var o = await db.from('orders').select('listing_id, order_no, seller_id').eq('id', id).single();
-            var { error } = await db.from('orders').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', id);
-            if (!error) {
-                if (o.data && o.data.listing_id) await db.from('market_listings').update({ status: 'active' }).eq('id', o.data.listing_id);
-                if (o.data) await db.from('notifications').insert([{ user_id: o.data.seller_id, title: 'è®¢å•å·²å–æ¶ˆ', content: 'è®¢å• ' + o.data.order_no + ' å·²å–æ¶ˆ', type: 'order', related_id: id }]);
-                loadOrders();
-            } else { alert('æ“ä½œå¤±è´¥'); }
+        // ===== Toast =====
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
         }
 
-        async function confirmReceive(id) {
-            if (!confirm('ç¡®è®¤å·²æ”¶è´§ï¼Ÿ')) return;
-            var o = await db.from('orders').select('*').eq('id', id).single();
-            if (!o.data) return;
-            var { error } = await db.from('orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id);
-            if (!error) {
-                if (o.data.listing_id) await db.from('market_listings').update({ status: 'sold' }).eq('id', o.data.listing_id);
-
-                // æ¬¾é¡¹è½¬å…¥å–å®¶é’±åŒ…
-                try {
-                    var sellerWalletResult = await db.from('wallets').select('*').eq('user_id', o.data.seller_id).single();
-                    if (sellerWalletResult.data) {
-                        var sw = sellerWalletResult.data;
-                        var newBalance = parseFloat(sw.balance) + parseFloat(o.data.seller_amount);
-                        await db.from('wallets').update({
-                            balance: newBalance,
-                            total_income: parseFloat(sw.total_income) + parseFloat(o.data.seller_amount)
-                        }).eq('id', sw.id);
-                        await db.from('wallet_transactions').insert([{
-                            wallet_id: sw.id,
-                            order_id: id,
-                            type: 'income',
-                            amount: parseFloat(o.data.seller_amount),
-                            balance_after: newBalance,
-                            description: 'å‡ºå”®ã€Œ' + o.data.card_name + 'ã€æ”¶å…¥'
-                        }]);
-                    }
-                } catch (walletErr) {
-                    console.error('å–å®¶é’±åŒ…å…¥è´¦å¤±è´¥:', walletErr);
-                }
-
-                await db.from('notifications').insert([
-                    { user_id: o.data.seller_id, title: 'äº¤æ˜“å®Œæˆ', content: 'è®¢å• ' + o.data.order_no + ' å·²å®Œæˆï¼ŒÂ¥' + o.data.seller_amount + ' å·²åˆ°è´¦', type: 'order', related_id: id },
-                    { user_id: o.data.buyer_id, title: 'äº¤æ˜“å®Œæˆ', content: 'è®¢å• ' + o.data.order_no + ' å·²å®Œæˆ', type: 'order', related_id: id }
-                ]);
-                loadOrders();
-            } else { alert('æ“ä½œå¤±è´¥'); }
-        }
-
-        init();
+        // ===== Init =====
+        (function() {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+            s.onload = init;
+            document.head.appendChild(s);
+        })();
     </script>
 </body>
 </html>

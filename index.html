@@ -93,6 +93,52 @@
         .rarity-chip.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
         .result-count { font-size: 12px; color: var(--text-secondary); white-space: nowrap; margin-left: auto; }
 
+        /* ===== AI Classification Badges ===== */
+        .cls-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; margin-left: 6px; vertical-align: middle;
+        }
+        .cls-badge.tcg { background: #e8f5e9; color: #2e7d32; }
+        .cls-badge.non-tcg { background: #fff3e0; color: #e65100; }
+        .cls-badge.unknown { background: #fce4ec; color: #c62828; }
+        .confidence-bar-wrap {
+            display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+            background: #f5f5f5; border-radius: 8px; font-size: 11px; color: #666;
+        }
+        .confidence-bar {
+            flex: 1; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;
+        }
+        .confidence-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+        .confidence-fill.high { background: #4caf50; }
+        .confidence-fill.mid { background: #ff9800; }
+        .confidence-fill.low { background: #f44336; }
+
+        /* ===== NON_TCG Confirmation Form ===== */
+        .confirm-section { padding: 12px 16px; }
+        .confirm-label { font-size: 12px; font-weight: 600; color: #555; margin: 10px 0 4px; }
+        .confirm-input {
+            width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0;
+            border-radius: 8px; font-size: 14px; box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .confirm-input:focus { border-color: var(--primary); outline: none; }
+        .confirm-input.game-input { background: #fafafa; }
+        .suggest-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .suggest-tag {
+            padding: 4px 10px; background: #e3f2fd; color: #1565c0;
+            border-radius: 14px; font-size: 12px; cursor: pointer; border: none;
+            transition: background 0.2s;
+        }
+        .suggest-tag:active { background: #bbdefb; }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 10px 24px; border-radius: 20px;
+            font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+
         /* ===== Card Grid ===== */
         .content { padding: 12px; }
         .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -369,7 +415,7 @@
         <a href="shop.html" class="nav-item"><span class="nav-icon">🛍</span><span>商城</span></a>
         <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span><span>市场</span></a>
         <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span data-i18n="nav_dashboard">看板</span></a>
-        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Me</span></a>
+        <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Me</span></a>
     </div>
 
     <!-- Hidden File Input for Upload -->
@@ -540,6 +586,7 @@
         let aiDetectedPrice = 0;
         let aiPreviewUrl = '';
         let aiDetectedImageHash = null;     // SHA256 for dedup
+        let aiDetectedConfidence = 0;       // AI confidence 0~1
         let cameraStream = null;
         let facingMode = 'environment';
 
@@ -812,57 +859,71 @@
                 if (!response.ok || result.error) throw new Error(result.error || t('ai_error'));
 
                 const data = result.data || {};
-                aiDetectedName = data.name || t('unknown_card');
-                aiDetectedSeries = data.series || t('unknown_series');
-                aiDetectedRarity = data.rarity || 'N';
+                const cardType = data.card_type || 'UNKNOWN';
+                aiDetectedImageHash = data.image_hash || null;
                 aiPreviewUrl = previewUrl || '';
-                aiDetectedImageHash = data.image_hash || null;
 
-                // Show cache indicator
                 if (data.cached) {
-                    console.log('[AI Scan] Cache hit — no AI call made');
+                    console.log('[AI Scan] Cache hit');
                 }
-                aiDetectedImageHash = data.image_hash || null;
-                const isRare = data.isRare === true;
 
-                // Render result with preview
-                const rareLabel = t('ai_rare');
-                content.innerHTML = `
-                    <div class="ai-result-handle"></div>
-                    <div class="ai-result-header">
-                        <div class="ai-result-thumb">${previewUrl ? `<img src="${previewUrl}" alt="card">` : '🃏'}</div>
-                        <div class="ai-result-info">
-                            <div class="ai-result-name">${escHTML(aiDetectedName)}</div>
-                            <div class="ai-result-series">${escHTML(aiDetectedSeries)} · ${escHTML(aiDetectedRarity)}</div>
-                            <div class="ai-result-tags">
-                                ${isRare ? `<span class="ai-result-tag rare">⭐ ${rareLabel}</span>` : ''}
-                                <span class="ai-result-tag rarity">${escHTML(aiDetectedRarity)}</span>
+                // ============================================================
+                // Branch by card type
+                // ============================================================
+                if (cardType === 'TCG') {
+                    // ——— TCG: auto-recognized, existing flow ———
+                    aiDetectedName = data.card_name || data.name || 'Unknown';
+                    aiDetectedSeries = data.game || data.series || 'Unknown';
+                    aiDetectedRarity = data.rarity || 'N';
+                    aiDetectedConfidence = data.confidence || 0;
+
+                    const confPct = (aiDetectedConfidence * 100).toFixed(0);
+                    const confClass = aiDetectedConfidence > 0.8 ? 'high' : aiDetectedConfidence > 0.5 ? 'mid' : 'low';
+                    const cachedLabel = data.cached ? ' 💾缓存' : '';
+
+                    content.innerHTML = `
+                        <div class="ai-result-handle"></div>
+                        <div class="ai-result-header">
+                            <div class="ai-result-thumb">${previewUrl ? `<img src="${previewUrl}" alt="card">` : '🃏'}</div>
+                            <div class="ai-result-info">
+                                <div class="ai-result-name">
+                                    ${escHTML(aiDetectedName)}
+                                    <span class="cls-badge tcg">TCG自动识别${cachedLabel}</span>
+                                </div>
+                                <div class="ai-result-series">${escHTML(aiDetectedSeries)} · ${escHTML(aiDetectedRarity)}</div>
                             </div>
                         </div>
-                    </div>
-                    <div id="aiPriceCard" class="ai-price-card">
-                        <div class="ai-scanning"><div class="ai-spinner"></div><span>${t('ai_price_loading') || 'Fetching price...'}</span></div>
-                    </div>
-                    <div class="points-discount" id="pointsDiscount" style="display:none;">
-                        <div class="points-discount-row">
-                            <span>🎁 积分抵扣</span>
-                            <label class="switch">
-                                <input type="checkbox" id="usePointsToggle" onchange="togglePointsDiscount()">
-                                <span class="slider"></span>
-                            </label>
+                        <div class="confidence-bar-wrap">
+                            置信度 <strong>${confPct}%</strong>
+                            <div class="confidence-bar"><div class="confidence-fill ${confClass}" style="width:${confPct}%"></div></div>
                         </div>
-                        <div class="points-discount-info" id="pointsDiscountInfo">
-                            可用 <strong id="userPointsAvail">0</strong> 积分，抵扣 <strong id="discountAmount">¥0</strong>
+                        <div id="aiPriceCard" class="ai-price-card">
+                            <div class="ai-scanning"><div class="ai-spinner"></div><span>${t('ai_price_loading') || 'Fetching price...'}</span></div>
                         </div>
-                    </div>
-                    <div class="ai-result-actions">
-                        <button class="ai-action-btn secondary" onclick="retakePhoto()">${t('ai_retry_btn')}</button>
-                        <button class="ai-action-btn primary" onclick="confirmAndSearch()">${t('ai_search_btn')}</button>
-                        <button class="ai-action-btn" style="background: linear-gradient(135deg,#F5A623,#FF8C00);color:white;" onclick="addToCollection()">⭐ 收藏</button>
-                        <button class="ai-action-btn" style="background: linear-gradient(135deg,#667eea,#764ba2);color:white;" onclick="shareToCommunity()">🌍 分享</button>
-                    </div>`;
+                        <div class="points-discount" id="pointsDiscount" style="display:none;">
+                            <div class="points-discount-row">
+                                <span>🎁 积分抵扣</span>
+                                <label class="switch"><input type="checkbox" id="usePointsToggle" onchange="togglePointsDiscount()"><span class="slider"></span></label>
+                            </div>
+                            <div class="points-discount-info" id="pointsDiscountInfo">
+                                可用 <strong id="userPointsAvail">0</strong> 积分，抵扣 <strong id="discountAmount">¥0</strong>
+                            </div>
+                        </div>
+                        <div class="ai-result-actions">
+                            <button class="ai-action-btn secondary" onclick="retakePhoto()">${t('ai_retry_btn')}</button>
+                            <button class="ai-action-btn primary" onclick="confirmAndSearch()">${t('ai_search_btn')}</button>
+                            <button class="ai-action-btn" style="background:linear-gradient(135deg,#F5A623,#FF8C00);color:white;" onclick="addToCollection()">⭐ 收藏</button>
+                            <button class="ai-action-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;" onclick="shareToCommunity()">🌍 分享</button>
+                        </div>`;
+                    fetchCardPrice(aiDetectedName, aiDetectedSeries);
 
-                fetchCardPrice(aiDetectedName, aiDetectedSeries);
+                } else if (cardType === 'NON_TCG') {
+                    // ——— NON_TCG: need manual confirmation ———
+                    renderNonTcgResult(data, previewUrl, content);
+                } else {
+                    // ——— UNKNOWN: completely unrecognized ———
+                    renderUnknownResult(data, previewUrl, content);
+                }
             } catch (error) {
                 console.error('AI scan error:', error);
                 content.innerHTML = `
@@ -1265,6 +1326,241 @@
             toast.style.opacity = '1';
             clearTimeout(toast._timeout);
             toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+        }
+
+        // ===== NON_TCG / UNKNOWN — 三态识卡渲染函数 =====
+
+        // 全局暂存当前扫描的AI数据（用于确认/手动提交）
+        let pendingScanData = null;
+
+        function renderNonTcgResult(data, previewUrl, content) {
+            aiDetectedName = data.card_name || '';
+            aiDetectedSeries = data.game || '';
+            aiDetectedConfidence = data.confidence || 0;
+            const confPct = (aiDetectedConfidence * 100).toFixed(0);
+            const suggestCards = data.suggested_cards || [];
+            const reason = data.reason || '';
+
+            // 存储供后续确认使用
+            pendingScanData = {
+                type: 'NON_TCG',
+                card_name: aiDetectedName,
+                game: aiDetectedSeries,
+                confidence: aiDetectedConfidence,
+                suggested_cards: suggestCards,
+                reason: reason,
+                image_hash: aiDetectedImageHash,
+                preview_url: aiPreviewUrl
+            };
+
+            let suggestHTML = '';
+            if (suggestCards.length > 0) {
+                suggestHTML = '<div class="confirm-label">💡 AI建议（点击填充）</div><div class="suggest-tags">' +
+                    suggestCards.map(c => `<button class="suggest-tag" onclick="fillSuggestion('${escHTML(c)}')">${escHTML(c)}</button>`).join('') +
+                    '</div>';
+            }
+
+            content.innerHTML = `
+                <div class="ai-result-handle"></div>
+                <div class="ai-result-header">
+                    <div class="ai-result-thumb">${previewUrl ? `<img src="${previewUrl}" alt="card">` : '🎴'}</div>
+                    <div class="ai-result-info">
+                        <div class="ai-result-name" style="font-size:15px;">
+                            ⚠️ 需要人工确认
+                            <span class="cls-badge non-tcg">非TCG</span>
+                        </div>
+                        <div class="ai-result-series" style="font-size:11px;color:#e65100;">${escHTML(reason)}</div>
+                    </div>
+                </div>
+                <div class="confidence-bar-wrap">
+                    置信度 <strong>${confPct}%</strong>
+                    <div class="confidence-bar"><div class="confidence-fill mid" style="width:${confPct}%"></div></div>
+                </div>
+                <div class="confirm-section">
+                    <div class="confirm-label">卡牌名称</div>
+                    <input class="confirm-input" id="confirmCardName" value="${escHTML(aiDetectedName)}" placeholder="请输入卡牌名称">
+                    <div class="confirm-label">游戏/系列</div>
+                    <input class="confirm-input game-input" id="confirmGame" value="${escHTML(aiDetectedSeries)}" placeholder="如: 尼基、剑星、棕色尘埃2">
+                    ${suggestHTML}
+                    ${aiDetectedConfidence < 0.4 ? '<div style="font-size:11px;color:#e65100;margin-top:8px;">⚠️ AI识别置信度较低，请仔细核对</div>' : ''}
+                </div>
+                <div class="ai-result-actions">
+                    <button class="ai-action-btn secondary" onclick="retakePhoto()">📷 重新拍照</button>
+                    <button class="ai-action-btn primary" onclick="confirmNonTcgCard()">✅ 确认并加入资产</button>
+                </div>`;
+        }
+
+        function fillSuggestion(name) {
+            document.getElementById('confirmCardName').value = name;
+            showToast('已填充: ' + name);
+        }
+
+        async function confirmNonTcgCard() {
+            const name = document.getElementById('confirmCardName')?.value?.trim();
+            const game = document.getElementById('confirmGame')?.value?.trim();
+            if (!name) { showToast('请输入卡牌名称'); return; }
+            if (!game) { showToast('请输入游戏/系列'); return; }
+
+            const priceStr = prompt(`确认将「${name} (${game})」加入资产\n\n请输入入手价（元）:`, '0');
+            if (priceStr === null) return;
+            const price = parseFloat(priceStr) || 0;
+
+            showToast('⏳ 正在添加...');
+
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) { alert('请先登录'); return; }
+
+                // 先写入 pending_card_confirmations
+                const { data: pending } = await db
+                    .from('pending_card_confirmations')
+                    .insert({
+                        user_id: session.user.id,
+                        image_hash: pendingScanData?.image_hash || null,
+                        ai_type: 'NON_TCG',
+                        ai_card_name: pendingScanData?.card_name || '',
+                        ai_game: pendingScanData?.game || '',
+                        ai_confidence: pendingScanData?.confidence || 0,
+                        ai_suggested_cards: pendingScanData?.suggested_cards || [],
+                        ai_reason: pendingScanData?.reason || '',
+                        status: 'confirmed',
+                        confirmed_name: name,
+                        confirmed_game: game,
+                        confirmed_price: price,
+                        confirmed_at: new Date().toISOString()
+                    })
+                    .select('id')
+                    .single();
+
+                const pendingId = pending?.id;
+
+                // 使用 RPC 原子确认并入库
+                const { data: resolved, error } = await db.rpc('resolve_pending_confirmation', {
+                    p_pending_id: pendingId,
+                    p_confirmed_name: name,
+                    p_confirmed_game: game,
+                    p_confirmed_rarity: 'N',
+                    p_confirmed_price: price,
+                    p_image_url: aiPreviewUrl || null
+                });
+
+                if (error || !resolved?.success) {
+                    // 回退：直接 insert user_collections
+                    await db.from('user_collections').insert({
+                        user_id: session.user.id,
+                        card_name: name,
+                        series: game,
+                        rarity: 'N',
+                        purchase_price: price,
+                        source: 'MANUAL',
+                        card_image: aiPreviewUrl || null,
+                        quantity: 1
+                    });
+                }
+
+                showToast('✅ 已加入资产！');
+                document.getElementById('aiResultPanel').classList.remove('show');
+                pendingScanData = null;
+            } catch (e) {
+                console.error('Confirm error:', e);
+                showToast('❌ 添加失败: ' + e.message);
+            }
+        }
+
+        function renderUnknownResult(data, previewUrl, content) {
+            const reason = data.reason || 'AI无法识别此图片中的卡牌';
+
+            pendingScanData = {
+                type: 'UNKNOWN',
+                image_hash: aiDetectedImageHash,
+                preview_url: aiPreviewUrl,
+                reason: reason
+            };
+
+            content.innerHTML = `
+                <div class="ai-result-handle"></div>
+                <div style="text-align:center;padding:16px;">
+                    <div style="font-size:48px;margin-bottom:8px;">🤔</div>
+                    <div style="font-weight:600;font-size:16px;margin-bottom:4px;">无法识别</div>
+                    <div style="font-size:12px;color:#999;margin-bottom:12px;">${escHTML(reason)}</div>
+                </div>
+                <div class="confirm-section">
+                    <div class="confirm-label">📝 手动输入卡牌信息</div>
+                    <input class="confirm-input" id="manualCardName" placeholder="卡牌名称" style="margin-bottom:8px;">
+                    <input class="confirm-input game-input" id="manualGame" placeholder="游戏/系列（如：尼基、剑星、T1）" style="margin-bottom:8px;">
+                    <div style="display:flex;gap:8px;">
+                        <select id="manualRarity" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;">
+                            <option value="N">N 普通</option>
+                            <option value="R">R 稀有</option>
+                            <option value="SR">SR 超稀有</option>
+                            <option value="UR">UR 极度稀有</option>
+                            <option value="SSR">SSR 最高稀有</option>
+                            <option value="PR">PR 推广卡</option>
+                        </select>
+                        <input class="confirm-input" id="manualPrice" placeholder="入手价(元)" style="flex:1;" type="number" min="0" step="0.01">
+                    </div>
+                </div>
+                <div class="ai-result-actions">
+                    <button class="ai-action-btn secondary" onclick="retakePhoto()">📷 重新拍照</button>
+                    <button class="ai-action-btn primary" onclick="submitManualCard()">✅ 手动录入</button>
+                </div>`;
+        }
+
+        async function submitManualCard() {
+            const name = document.getElementById('manualCardName')?.value?.trim();
+            const game = document.getElementById('manualGame')?.value?.trim();
+            const rarity = document.getElementById('manualRarity')?.value || 'N';
+            const price = parseFloat(document.getElementById('manualPrice')?.value) || 0;
+
+            if (!name) { showToast('请输入卡牌名称'); return; }
+            if (!game) { showToast('请输入游戏/系列'); return; }
+
+            showToast('⏳ 正在录入...');
+
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) { alert('请先登录'); return; }
+
+                // 写入 pending_card_confirmations + user_collections
+                const { data: pending } = await db
+                    .from('pending_card_confirmations')
+                    .insert({
+                        user_id: session.user.id,
+                        image_hash: pendingScanData?.image_hash || null,
+                        ai_type: 'UNKNOWN',
+                        ai_card_name: '',
+                        ai_game: '',
+                        ai_confidence: 0,
+                        ai_reason: pendingScanData?.reason || '',
+                        status: 'confirmed',
+                        confirmed_name: name,
+                        confirmed_game: game,
+                        confirmed_rarity: rarity,
+                        confirmed_price: price,
+                        confirmed_at: new Date().toISOString()
+                    })
+                    .select('id')
+                    .single();
+
+                // 直接写入 user_collections
+                await db.from('user_collections').insert({
+                    user_id: session.user.id,
+                    card_name: name,
+                    series: game,
+                    rarity: rarity,
+                    purchase_price: price,
+                    source: 'MANUAL',
+                    card_image: aiPreviewUrl || null,
+                    quantity: 1
+                });
+
+                showToast('✅ 卡牌已录入！');
+                document.getElementById('aiResultPanel').classList.remove('show');
+                pendingScanData = null;
+            } catch (e) {
+                console.error('Manual submit error:', e);
+                showToast('❌ 录入失败: ' + e.message);
+            }
         }
 
         function dismissResult() {

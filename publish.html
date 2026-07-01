@@ -87,11 +87,11 @@
 <body>
     <div class="header">
         <div class="header-left">
-            <a href="index.html" class="back">←</a>
+            <a href="index.html" class="back">�?/a>
             <div class="header-title" data-i18n="title">Publish Trade</div>
         </div>
         <div class="lang-switch">
-            <button class="lang-btn active" data-lang="zh" onclick="switchLang('zh')">中</button>
+            <button class="lang-btn active" data-lang="zh" onclick="switchLang('zh')">�?/button>
             <button class="lang-btn" data-lang="en" onclick="switchLang('en')">EN</button>
         </div>
     </div>
@@ -126,9 +126,9 @@
         <div class="form-group">
             <label data-i18n="label_series">Series</label>
             <select id="cardSeries">
-                <option value="游戏王">Yu-Gi-Oh!</option>
-                <option value="宝可梦">Pokémon</option>
-                <option value="万智牌">Magic: The Gathering</option>
+                <option value="游戏�?>Yu-Gi-Oh!</option>
+                <option value="宝可�?>Pokémon</option>
+                <option value="万智�?>Magic: The Gathering</option>
                 <option value="数码宝贝">Digimon</option>
                 <option value="其他">Other</option>
             </select>
@@ -162,7 +162,7 @@
         <a href="index.html" class="nav-item"><span class="nav-icon">🔍</span><span data-i18n="nav_explore">Discover</span></a>
         <a href="message.html" class="nav-item"><span class="nav-icon">💬</span><span data-i18n="nav_messages">Messages</span></a>
         <a href="publish.html" class="nav-add">+</a>
-        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Profile</span></a>
+        <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span><span data-i18n="nav_profile">Profile</span></a>
     </div>
 
     <!-- Catalog Modal -->
@@ -178,9 +178,9 @@
             </div>
             <div class="modal-filters" id="catalogFilters">
                 <div class="filter-chip active" onclick="setCatalogFilter(this,'all')" data-i18n="catalog_filter_all">All</div>
-                <div class="filter-chip" onclick="setCatalogFilter(this,'游戏王')">Yu-Gi-Oh!</div>
-                <div class="filter-chip" onclick="setCatalogFilter(this,'宝可梦')">Pokémon</div>
-                <div class="filter-chip" onclick="setCatalogFilter(this,'万智牌')">Magic</div>
+                <div class="filter-chip" onclick="setCatalogFilter(this,'游戏�?)">Yu-Gi-Oh!</div>
+                <div class="filter-chip" onclick="setCatalogFilter(this,'宝可�?)">Pokémon</div>
+                <div class="filter-chip" onclick="setCatalogFilter(this,'万智�?)">Magic</div>
                 <div class="filter-chip" onclick="setCatalogFilter(this,'数码宝贝')">Digimon</div>
                 <div class="filter-chip" onclick="setCatalogFilter(this,'其他')" data-i18n="catalog_filter_other">Other</div>
             </div>
@@ -198,13 +198,13 @@
         const I18N = {
             zh: {
                 title: '发布交易',
-                tab_sell: '我要卖',
-                tab_buy: '我要买',
+                tab_sell: '我要�?,
+                tab_buy: '我要�?,
                 label_image: '卡牌图片 *',
                 upload_hint: '点击上传卡牌图片',
                 label_name: '卡牌名称 *',
                 label_browse: '📚 从目录选择',
-                name_placeholder: '输入名称搜索，或点「从目录选择」',
+                name_placeholder: '输入名称搜索，或点「从目录选择�?,
                 btn_browse: '📚 浏览',
                 label_series: '系列',
                 label_rarity: '稀有度',
@@ -212,7 +212,7 @@
                 label_desc: '描述',
                 desc_placeholder: '卡牌状态、交易方式、联系方式等...',
                 btn_publish: '发布',
-                btn_publishing: '发布中...',
+                btn_publishing: '发布�?..',
                 nav_explore: '探索',
                 nav_messages: '消息',
                 nav_profile: '个人',
@@ -220,27 +220,27 @@
                 catalog_search_placeholder: '搜索卡牌名称...',
                 catalog_filter_all: '全部',
                 catalog_filter_other: '其他',
-                catalog_load_fail: '加载失败：',
-                catalog_empty: '没有找到匹配的卡牌',
+                catalog_load_fail: '加载失败�?,
+                catalog_empty: '没有找到匹配的卡�?,
                 catalog_empty_hint: '可以手动输入名称发布',
-                loading: '加载中...',
+                loading: '加载�?..',
                 loading_cards: '加载卡牌...',
                 login_first: '请先登录',
-                no_suggestions: '没找到，试试「从目录选择」',
+                no_suggestions: '没找到，试试「从目录选择�?,
                 need_name: '请输入或选择卡牌名称',
-                need_price: '请输入有效价格',
-                publish_success: '发布成功！',
+                need_price: '请输入有效价�?,
+                publish_success: '发布成功�?,
                 publish_fail: '发布失败: ',
-                series_ygo: '游戏王',
-                series_pokemon: '宝可梦',
-                series_magic: '万智牌',
+                series_ygo: '游戏�?,
+                series_pokemon: '宝可�?,
+                series_magic: '万智�?,
                 series_digimon: '数码宝贝',
                 series_other: '其他',
-                rarity_N: '普通 (N)',
-                rarity_R: '稀有 (R)',
-                rarity_SR: '超稀有 (SR)',
-                rarity_UR: '终极稀有 (UR)',
-                rarity_SEC: 'Secret稀有 (SEC)'
+                rarity_N: '普�?(N)',
+                rarity_R: '稀�?(R)',
+                rarity_SR: '超稀�?(SR)',
+                rarity_UR: '终极稀�?(UR)',
+                rarity_SEC: 'Secret稀�?(SEC)'
             },
             en: {
                 title: 'Publish Trade',
@@ -272,7 +272,7 @@
                 loading: 'Loading...',
                 loading_cards: 'Loading cards...',
                 login_first: 'Please login first',
-                no_suggestions: 'Not found — try Browse Catalog',
+                no_suggestions: 'Not found �?try Browse Catalog',
                 need_name: 'Please enter or select a card name',
                 need_price: 'Please enter a valid price',
                 publish_success: 'Published successfully!',
@@ -321,7 +321,7 @@
                 }
             });
             // Series dropdown - name translations
-            const seriesMap = { '游戏王': 'series_ygo', '宝可梦': 'series_pokemon', '万智牌': 'series_magic', '数码宝贝': 'series_digimon', '其他': 'series_other' };
+            const seriesMap = { '游戏�?: 'series_ygo', '宝可�?: 'series_pokemon', '万智�?: 'series_magic', '数码宝贝': 'series_digimon', '其他': 'series_other' };
             document.querySelectorAll('#cardSeries option').forEach(opt => {
                 const k = seriesMap[opt.value];
                 if (k && I18N[currentLang][k]) opt.textContent = I18N[currentLang][k];

@@ -11,14 +11,14 @@
         .back { color: white; font-size: 22px; text-decoration: none; }
         .header-title { color: white; font-size: 18px; font-weight: bold; }
 
-        /* Tab 筛选 */
+        /* Tab 筛�?*/
         .tab-bar { display: flex; gap: 8px; padding: 12px 15px; overflow-x: auto; scrollbar-width: none; background: white; border-bottom: 0.5px solid #eee; }
         .tab-bar::-webkit-scrollbar { display: none; }
         .tab-chip { padding: 6px 16px; border-radius: 18px; font-size: 13px; white-space: nowrap; cursor: pointer; border: 1.5px solid #e0e0e0; background: white; color: #666; }
         .tab-chip.active { background: #5B4AE0; color: white; border-color: transparent; font-weight: bold; }
         .tab-chip .count { margin-left: 4px; opacity: 0.7; }
 
-        /* 统计条 */
+        /* 统计�?*/
         .stats-bar { display: flex; padding: 12px 15px; gap: 12px; background: white; margin-bottom: 8px; }
         .stat-item { flex: 1; text-align: center; padding: 8px; background: #f8f8ff; border-radius: 10px; }
         .stat-num { font-size: 20px; font-weight: bold; color: #5B4AE0; }
@@ -34,7 +34,7 @@
         .res-price { font-size: 15px; font-weight: bold; color: #ff3b30; }
         .res-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 
-        /* 状态标签 */
+        /* 状态标�?*/
         .status-badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
         .status-badge.pending { background: #fff3e0; color: #f7931e; }
         .status-badge.notified { background: #e8f5e9; color: #34c759; }
@@ -71,29 +71,29 @@
 </head>
 <body>
     <div class="header">
-        <a href="shop.html" class="back">←</a>
+        <a href="shop.html" class="back">�?/a>
         <div class="header-title">我的预约</div>
     </div>
 
-    <!-- 统计条 -->
+    <!-- 统计�?-->
     <div class="stats-bar">
-        <div class="stat-item"><div class="stat-num" id="pendingCount">--</div><div class="stat-label">等待中</div></div>
+        <div class="stat-item"><div class="stat-num" id="pendingCount">--</div><div class="stat-label">等待�?/div></div>
         <div class="stat-item"><div class="stat-num" id="notifiedCount">--</div><div class="stat-label">已通知</div></div>
-        <div class="stat-item"><div class="stat-num" id="convertedCount">--</div><div class="stat-label">已转化</div></div>
+        <div class="stat-item"><div class="stat-num" id="convertedCount">--</div><div class="stat-label">已转�?/div></div>
     </div>
 
-    <!-- Tab 筛选 -->
+    <!-- Tab 筛�?-->
     <div class="tab-bar">
         <div class="tab-chip active" data-status="" onclick="filterByStatus('')">全部</div>
-        <div class="tab-chip" data-status="pending" onclick="filterByStatus('pending')">等待中<span class="count" id="tabPending">0</span></div>
+        <div class="tab-chip" data-status="pending" onclick="filterByStatus('pending')">等待�?span class="count" id="tabPending">0</span></div>
         <div class="tab-chip" data-status="notified" onclick="filterByStatus('notified')">已通知<span class="count" id="tabNotified">0</span></div>
-        <div class="tab-chip" data-status="converted" onclick="filterByStatus('converted')">已转化<span class="count" id="tabConverted">0</span></div>
-        <div class="tab-chip" data-status="cancelled" onclick="filterByStatus('cancelled')">已取消<span class="count" id="tabCancelled">0</span></div>
+        <div class="tab-chip" data-status="converted" onclick="filterByStatus('converted')">已转�?span class="count" id="tabConverted">0</span></div>
+        <div class="tab-chip" data-status="cancelled" onclick="filterByStatus('cancelled')">已取�?span class="count" id="tabCancelled">0</span></div>
     </div>
 
     <!-- 预约列表 -->
     <div class="list" id="reservationList">
-        <div class="loading"><div class="spinner"></div><div>加载中...</div></div>
+        <div class="loading"><div class="spinner"></div><div>加载�?..</div></div>
     </div>
 
     <div class="toast" id="toast"></div>
@@ -104,7 +104,7 @@
         <a href="dashboard.html" class="nav-item"><span class="nav-icon">📊</span><span>看板</span></a>
         <a href="marketplace.html" class="nav-item"><span class="nav-icon">🏪</span><span>市场</span></a>
         <a href="shop.html" class="nav-item active"><span class="nav-icon">🛍</span><span>商城</span></a>
-        <a href="collection.html" class="nav-item"><span class="nav-icon">👤</span><span>我的</span></a>
+        <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span><span>我的</span></a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -130,7 +130,7 @@
 
     async function loadReservations() {
         const list = document.getElementById('reservationList');
-        list.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
+        list.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载�?..</div></div>';
 
         const pStatus = currentFilter || null;
         const { data, error } = await db.rpc('get_user_reservations', {
@@ -139,7 +139,7 @@
         });
 
         if (error) {
-            list.innerHTML = '<div class="empty"><div class="empty-icon">❌</div>加载失败，请刷新重试</div>';
+            list.innerHTML = '<div class="empty"><div class="empty-icon">�?/div>加载失败，请刷新重试</div>';
             return;
         }
 
@@ -156,12 +156,12 @@
     function renderList(reservations) {
         const list = document.getElementById('reservationList');
         if (!reservations || reservations.length === 0) {
-            list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>暂无预约记录<br><small>去 <a href="shop.html" style="color:#5B4AE0;">商城</a> 看看吧</small></div>`;
+            list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>暂无预约记录<br><small>�?<a href="shop.html" style="color:#5B4AE0;">商城</a> 看看�?/small></div>`;
             return;
         }
 
         list.innerHTML = reservations.map(r => {
-            const statusMap = { pending: '等待中', notified: '已通知', converted: '已转化', cancelled: '已取消' };
+            const statusMap = { pending: '等待�?, notified: '已通知', converted: '已转�?, cancelled: '已取�? };
             const srcMap = { tiktok: '直播', live: '直播', shop: '商城' };
             const isPending = r.status === 'pending';
             const isLive = r.source === 'tiktok' || r.source === 'live';
@@ -222,7 +222,7 @@
         if (error) { showToast('取消失败: ' + error.message); return; }
         if (!data.success) { showToast(data.error); return; }
 
-        showToast('已取消预约');
+        showToast('已取消预�?);
         loadReservations();
     }
 

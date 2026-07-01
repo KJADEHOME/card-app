@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>个人中心 - 卡域</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding-bottom: 80px; color: #1a1a1a; }
+
+        /* ===== Header ===== */
+        .header { background: linear-gradient(135deg, #5B4AE0 0%, #7B6CF0 100%); padding: 20px 15px 25px; color: white; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header-title { font-size: 18px; font-weight: 700; }
+        .header-actions { display: flex; gap: 12px; }
+        .header-action-btn { font-size: 20px; cursor: pointer; text-decoration: none; }
+
+        /* ===== User Profile Card ===== */
+        .profile-card { display: flex; align-items: center; gap: 15px; }
+        .avatar-wrapper { position: relative; }
+        .avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 32px; border: 3px solid rgba(255,255,255,0.3); }
+        .avatar-edit { position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+        .user-info { flex: 1; }
+        .user-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .user-meta { font-size: 13px; opacity: 0.85; display: flex; align-items: center; gap: 8px; }
+        .user-level { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+
+        /* ===== Quick Stats ===== */
+        .quick-stats { display: flex; background: white; border-radius: 16px; margin: -15px 15px 15px; padding: 18px 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); position: relative; z-index: 2; }
+        .stat-item { flex: 1; text-align: center; position: relative; }
+        .stat-item:not(:last-child)::after { content: ''; position: absolute; right: 0; top: 5px; bottom: 5px; width: 1px; background: #eee; }
+        .stat-value { font-size: 22px; font-weight: 800; color: #5B4AE0; }
+        .stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+
+        /* ===== Menu Sections ===== */
+        .menu-section { background: white; border-radius: 16px; margin: 0 15px 12px; overflow: hidden; }
+        .menu-title { font-size: 13px; color: #999; padding: 12px 15px 6px; font-weight: 600; }
+        .menu-item { display: flex; align-items: center; padding: 14px 15px; cursor: pointer; transition: background 0.15s; text-decoration: none; color: #1a1a1a; }
+        .menu-item:active { background: #f9f9f9; }
+        .menu-item:not(:last-child) { border-bottom: 1px solid #f5f5f5; }
+        .menu-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; flex-shrink: 0; }
+        .menu-icon.blue { background: #E3F2FD; }
+        .menu-icon.orange { background: #FFF3E0; }
+        .menu-icon.green { background: #E8F5E9; }
+        .menu-icon.purple { background: #F3E5F5; }
+        .menu-icon.red { background: #FFEBEE; }
+        .menu-icon.teal { background: #E0F2F1; }
+        .menu-icon.gray { background: #F5F5F5; }
+        .menu-text { flex: 1; font-size: 15px; font-weight: 500; }
+        .menu-badge { background: #5B4AE0; color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+        .menu-badge.orange { background: #FF9800; }
+        .menu-badge.red { background: #f44336; }
+        .menu-arrow { color: #ccc; font-size: 14px; }
+
+        /* ===== Checkin Card ===== */
+        .checkin-card { background: linear-gradient(135deg, #FF8C42 0%, #F5A623 100%); border-radius: 16px; margin: 0 15px 12px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-shadow: 0 4px 16px rgba(245,166,35,0.3); transition: transform 0.2s; }
+        .checkin-card:active { transform: scale(0.98); }
+        .checkin-card.done { background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%); box-shadow: 0 4px 16px rgba(39,174,96,0.3); }
+        .checkin-left { color: white; }
+        .checkin-title { font-size: 16px; font-weight: 700; }
+        .checkin-desc { font-size: 12px; opacity: 0.85; margin-top: 3px; }
+        .checkin-btn { background: white; color: #F5A623; padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .checkin-card.done .checkin-btn { color: #27AE60; }
+
+        /* ===== Bottom Nav ===== */
+        .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #999; font-size: 11px; text-decoration: none; padding: 4px 8px; }
+        .nav-item.active { color: #5B4AE0; }
+        .nav-icon { font-size: 24px; margin-bottom: 2px; }
+
+        /* ===== Toast ===== */
+        .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #333; color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; opacity: 0; transition: all 0.3s; z-index: 300; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-top">
+            <div class="header-title">个人中心</div>
+            <div class="header-actions">
+                <a href="settings.html" class="header-action-btn" title="设置">⚙️</a>
+                <a href="notifications.html" class="header-action-btn" title="消息">🔔</a>
+            </div>
+        </div>
+        <div class="profile-card">
+            <div class="avatar-wrapper">
+                <div class="avatar" id="userAvatar">👤</div>
+                <div class="avatar-edit" onclick="changeAvatar()">📷</div>
+            </div>
+            <div class="user-info">
+                <div class="user-name" id="userName">加载中...</div>
+                <div class="user-meta">
+                    <span class="user-level" id="userLevel">Lv.1 卡牌新手</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="stat-item">
+            <div class="stat-value" id="statAssets">0</div>
+            <div class="stat-label">资产总值</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="statCards">0</div>
+            <div class="stat-label">卡牌数量</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="statTrades">0</div>
+            <div class="stat-label">交易次数</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="statPoints">0</div>
+            <div class="stat-label">积分</div>
+        </div>
+    </div>
+
+    <!-- Checkin -->
+    <div class="checkin-card" id="checkinCard" onclick="doCheckin()">
+        <div class="checkin-left">
+            <div class="checkin-title">📅 每日签到</div>
+            <div class="checkin-desc" id="checkinDesc">连续签到领积分奖励</div>
+        </div>
+        <div class="checkin-btn" id="checkinBtn">签到</div>
+    </div>
+
+    <!-- Menu: 我的交易 -->
+    <div class="menu-section">
+        <div class="menu-title">我的交易</div>
+        <a href="my-orders.html" class="menu-item">
+            <div class="menu-icon blue">📦</div>
+            <div class="menu-text">我的订单</div>
+            <div class="menu-badge orange" id="orderBadge" style="display:none;">0</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <a href="my-listings.html" class="menu-item">
+            <div class="menu-icon orange">🏷️</div>
+            <div class="menu-text">我的挂单</div>
+            <div class="menu-badge" id="listingBadge" style="display:none;">0</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <a href="my-reservations.html" class="menu-item">
+            <div class="menu-icon purple">📋</div>
+            <div class="menu-text">我的预约</div>
+            <div class="menu-arrow">›</div>
+        </a>
+    </div>
+
+    <!-- Menu: 我的资产 -->
+    <div class="menu-section">
+        <div class="menu-title">我的资产</div>
+        <a href="my-assets.html" class="menu-item">
+            <div class="menu-icon green">💎</div>
+            <div class="menu-text">我的收藏</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <a href="wallet.html" class="menu-item">
+            <div class="menu-icon teal">💰</div>
+            <div class="menu-text">我的钱包</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <a href="points.html" class="menu-item">
+            <div class="menu-icon orange">⭐</div>
+            <div class="menu-text">我的积分</div>
+            <div class="menu-badge" id="pointsBadge" style="display:none;">0</div>
+            <div class="menu-arrow">›</div>
+        </a>
+    </div>
+
+    <!-- Menu: 其他 -->
+    <div class="menu-section">
+        <div class="menu-title">其他</div>
+        <a href="scan-history.html" class="menu-item">
+            <div class="menu-icon gray">📷</div>
+            <div class="menu-text">识卡记录</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <a href="feedback.html" class="menu-item">
+            <div class="menu-icon blue">💬</div>
+            <div class="menu-text">意见反馈</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <a href="about.html" class="menu-item">
+            <div class="menu-icon gray">ℹ️</div>
+            <div class="menu-text">关于我们</div>
+            <div class="menu-arrow">›</div>
+        </a>
+        <div class="menu-item" onclick="logout()">
+            <div class="menu-icon red">🚪</div>
+            <div class="menu-text">退出登录</div>
+            <div class="menu-arrow">›</div>
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="nav">
+        <a href="index.html" class="nav-item">
+            <div class="nav-icon">🏠</div>
+            <div>首页</div>
+        </a>
+        <a href="marketplace.html" class="nav-item">
+            <div class="nav-icon">🛒</div>
+            <div>市场</div>
+        </a>
+        <a href="index.html#scan" class="nav-item">
+            <div class="nav-icon">📷</div>
+            <div>扫卡</div>
+        </a>
+        <a href="community.html" class="nav-item">
+            <div class="nav-icon">💬</div>
+            <div>社区</div>
+        </a>
+        <a href="profile.html" class="nav-item active">
+            <div class="nav-icon">👤</div>
+            <div>我的</div>
+        </a>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_ANON = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+
+        let db, user, userData;
+
+        // ===== Init =====
+        async function init() {
+            const { createClient } = supabase;
+            db = createClient(SUPABASE_URL, SUPABASE_ANON);
+            const { data: { user: u } } = await db.auth.getUser();
+            if (!u) { window.location.href = 'login.html'; return; }
+            user = u;
+            await loadUserData();
+            await loadStats();
+            await checkCheckinStatus();
+            await loadBadges();
+        }
+
+        // ===== Load User Data =====
+        async function loadUserData() {
+            const { data } = await db.from('users').select('*').eq('id', user.id).single();
+            userData = data;
+            document.getElementById('userName').textContent = data?.username || user.email?.split('@')[0] || '用户';
+            document.getElementById('userLevel').textContent = `Lv.${data?.level || 1} ${getLevelName(data?.level || 1)}`;
+            if (data?.avatar_url) {
+                document.getElementById('userAvatar').innerHTML = `<img src="${data.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            }
+        }
+
+        function getLevelName(level) {
+            if (level < 5) return '卡牌新手';
+            if (level < 10) return '卡牌爱好者';
+            if (level < 20) return '卡牌收藏家';
+            if (level < 50) return '卡牌大师';
+            return '卡牌传奇';
+        }
+
+        // ===== Load Stats =====
+        async function loadStats() {
+            // Assets
+            const { data: assets } = await db.rpc('get_user_asset_change', { p_user_id: user.id, p_days: 1 });
+            if (assets && assets.length > 0) {
+                document.getElementById('statAssets').textContent = formatPrice(assets[0].total_value || 0);
+            }
+
+            // Cards count
+            const { count: cardsCount } = await db.from('user_collections').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+            document.getElementById('statCards').textContent = cardsCount || 0;
+
+            // Trades count
+            const { count: buyCount } = await db.from('orders').select('*', { count: 'exact', head: true }).eq('buyer_id', user.id);
+            const { count: sellCount } = await db.from('consignments').select('*', { count: 'exact', head: true }).eq('seller_id', user.id).eq('status', 'sold');
+            document.getElementById('statTrades').textContent = (buyCount || 0) + (sellCount || 0);
+
+            // Points
+            const { data: pts } = await db.rpc('get_user_points', { p_user_id: user.id });
+            document.getElementById('statPoints').textContent = pts?.current_points || 0;
+        }
+
+        function formatPrice(p) {
+            if (p >= 10000) return (p / 10000).toFixed(1) + '万';
+            return p.toFixed(0);
+        }
+
+        // ===== Checkin =====
+        async function checkCheckinStatus() {
+            const today = new Date().toISOString().split('T')[0];
+            const { data } = await db.from('point_transactions')
+                .select('created_at')
+                .eq('user_id', user.id)
+                .eq('type', 'checkin')
+                .gte('created_at', today + 'T00:00:00')
+                .limit(1);
+            
+            if (data && data.length > 0) {
+                document.getElementById('checkinCard').classList.add('done');
+                document.getElementById('checkinBtn').textContent = '已签到 ✓';
+                document.getElementById('checkinDesc').textContent = '明天再来吧！';
+            }
+        }
+
+        async function doCheckin() {
+            if (document.getElementById('checkinCard').classList.contains('done')) {
+                showToast('今天已经签到过了！');
+                return;
+            }
+
+            const { data, error } = await db.rpc('do_checkin');
+            if (error) { showToast('签到失败：' + error.message); return; }
+
+            document.getElementById('checkinCard').classList.add('done');
+            document.getElementById('checkinBtn').textContent = '已签到 ✓';
+            document.getElementById('checkinDesc').textContent = `获得 ${data?.points || 10} 积分！`;
+            showToast(`🎉 签到成功！获得 ${data?.points || 10} 积分`);
+            
+            setTimeout(() => loadStats(), 1000);
+        }
+
+        // ===== Badges =====
+        async function loadBadges() {
+            // Order badge
+            const { count } = await db.from('orders').select('*', { count: 'exact', head: true })
+                .eq('buyer_id', user.id).in('status', ['paid', 'shipped']);
+            if (count > 0) {
+                document.getElementById('orderBadge').style.display = 'block';
+                document.getElementById('orderBadge').textContent = count > 99 ? '99+' : count;
+            }
+
+            // Listing badge
+            const { count: lc } = await db.from('consignments').select('*', { count: 'exact', head: true })
+                .eq('seller_id', user.id).eq('status', 'active');
+            if (lc > 0) {
+                document.getElementById('listingBadge').style.display = 'block';
+                document.getElementById('listingBadge').textContent = lc > 99 ? '99+' : lc;
+            }
+        }
+
+        // ===== Change Avatar =====
+        function changeAvatar() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                showToast('上传中...');
+                // TODO: Upload to Supabase Storage
+                showToast('头像上传功能开发中');
+            };
+            input.click();
+        }
+
+        // ===== Logout =====
+        async function logout() {
+            if (!confirm('确定要退出登录吗？')) return;
+            await db.auth.signOut();
+            window.location.href = 'login.html';
+        }
+
+        // ===== Toast =====
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // ===== Load Supabase =====
+        (function() {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+            s.onload = init;
+            document.head.appendChild(s);
+        })();
+    </script>
+</body>
+</html>
