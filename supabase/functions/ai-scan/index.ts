@@ -8,8 +8,11 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co";
 const SB_SERVICE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") || "";
 
-const MODEL_NAME = "gemini-2.0-flash";
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL_NAME + ":generateContent?key=" + GEMINI_API_KEY;
+const MODEL_NAME = "gemini-2.5-flash";
+const FALLBACK_MODEL_NAME = "gemini-2.5-flash-lite";
+function getGeminiEndpoint(modelName) {
+  return "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + GEMINI_API_KEY;
+}
 const ESTIMATED_COST_CNY = 0.0; // Gemini free tier — $0 cost
 
 const corsHeaders = {
@@ -238,7 +241,7 @@ Deno.serve(async (req) => {
       }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 500,
+        maxOutputTokens: 1000,
         response_mime_type: "application/json",
         response_schema: {
           type: "object",
@@ -258,20 +261,36 @@ Deno.serve(async (req) => {
     let geminiData = null;
     let aiError = null;
 
-    try {
-      const geminiRes = await fetch(GEMINI_ENDPOINT, {
+    async function tryGeminiModel(modelName) {
+      console.log(`[ai-scan] Calling Gemini API: ${modelName}`);
+      const res = await fetch(getGeminiEndpoint(modelName), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(geminiReq),
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[ai-scan] Gemini API error (${modelName}):`, res.status, errText);
+        return { ok: false, status: res.status, error: errText.substring(0, 300) };
+      }
+      return { ok: true, data: await res.json() };
+    }
 
-      if (!geminiRes.ok) {
-        const errText = await geminiRes.text();
-        console.error("[ai-scan] Gemini API error:", geminiRes.status, errText);
-        aiError = "Gemini API error " + geminiRes.status + ": " + errText.substring(0, 200);
-      } else {
-        geminiData = await geminiRes.json();
+    try {
+      // Try primary model first
+      let result = await tryGeminiModel(MODEL_NAME);
+
+      // If primary hits rate limit, try fallback model (often has higher quota)
+      if (!result.ok && result.status === 429 && FALLBACK_MODEL_NAME) {
+        console.log(`[ai-scan] Primary model rate limited, trying ${FALLBACK_MODEL_NAME}`);
+        result = await tryGeminiModel(FALLBACK_MODEL_NAME);
+      }
+
+      if (result.ok) {
+        geminiData = result.data;
         console.log("[ai-scan] Gemini response received");
+      } else {
+        aiError = "Gemini API error " + result.status + ": " + result.error;
       }
     } catch (fetchErr) {
       console.error("[ai-scan] Gemini fetch failed:", fetchErr.message);
@@ -316,7 +335,7 @@ Deno.serve(async (req) => {
             }
           }
         } catch (parseErr) {
-          console.error("[ai-scan] JSON parse error, raw:", rawText.substring(0, 200));
+          console.error("[ai-scan] JSON parse error, raw:", rawText.substring(0, 300));
           // Fallback: try extracting JSON from text
           const jsonMatch = rawText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {

@@ -2,3 +2,4 @@
 deploy_payload.json
 checkins.sql
 gen_report.js
+supabase/.temp/
