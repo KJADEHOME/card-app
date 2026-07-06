@@ -186,6 +186,17 @@
         </a>
     </div>
 
+    <!-- Menu: 商家后台 (仅管理员/商家可见) -->
+    <div class="menu-section" id="merchantMenu" style="display:none;">
+        <div class="menu-title">商家管理</div>
+        <a href="admin-merchant.html" class="menu-item">
+            <div class="menu-icon purple">🛡️</div>
+            <div class="menu-text">商家后台</div>
+            <div class="menu-badge">自营</div>
+            <div class="menu-arrow">›</div>
+        </a>
+    </div>
+
     <!-- Menu: 其他 -->
     <div class="menu-section">
         <div class="menu-title">其他</div>
@@ -266,6 +277,11 @@
             document.getElementById('userLevel').textContent = `Lv.${data?.level || 1} ${getLevelName(data?.level || 1)}`;
             if (data?.avatar_url) {
                 document.getElementById('userAvatar').innerHTML = `<img src="${data.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            }
+            
+            // 显示商家后台入口 (admin/merchant)
+            if (data?.role === 'admin' || data?.role === 'merchant' || data?.merchant_verified || user.email?.includes('admin')) {
+                document.getElementById('merchantMenu').style.display = 'block';
             }
         }
 
