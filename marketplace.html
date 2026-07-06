@@ -40,7 +40,10 @@
         .card-img{width:100%;aspect-ratio:3/4;object-fit:cover;background:linear-gradient(135deg,#f0f0f5,#e8e8f0)}
         .card-body{padding:12px}
         .card-name{font-size:14px;font-weight:700;color:#1a1a2e;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-        .card-meta{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+        .source-tag{display:inline-flex;align-items:center;gap:2px;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;margin-right:4px;margin-bottom:4px}
+        .source-tag.platform{background:linear-gradient(135deg,#5B4AE0,#7B6CF0);color:white}
+        .source-tag.user{background:#F0F0F8;color:#666}
+        .card-meta{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}
         .tag{font-size:10px;padding:2px 8px;border-radius:6px;background:#F0F0F8;color:#666}
         .tag.rarity{background:linear-gradient(135deg,#FFF8E1,#FFECB3);color:#D4880F}
         .tag.nm{background:#E8F5E9;color:#2E7D32}
@@ -137,6 +140,7 @@
     
         <div class="filters" id="filters">
         <div class="filter-chip active" data-cat="" onclick="filterBy(this)">全部</div>
+        <div class="filter-chip" data-cat="platform_store" onclick="filterBy(this)" style="border-color:#5B4AE0;color:#5B4AE0;background:#F5F3FF">🏛️官方发行</div>
         <div class="filter-chip" data-cat="platform" onclick="filterBy(this)" style="border-color:#4CAF50;color:#4CAF50;background:#E8F5E9">🛡️自营</div>
         <div class="filter-chip" data-cat="pokemon" onclick="filterBy(this)">宝可梦</div>
         <div class="filter-chip" data-cat="yugioh" onclick="filterBy(this)">游戏王</div>
@@ -232,34 +236,77 @@
             document.getElementById('cardGrid').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
             
-            // Use market_list_with_seller view (includes seller info + platform badge)
-            let query = db.from('market_list_with_seller').select('*');
-            
-            // Filter: "platform" means is_platform_sale=true
-            if (currentCategory === 'platform') {
-                query = query.eq('is_platform_sale', true);
-            } else if (currentCategory) {
-                query = query.eq('card_category', currentCategory);
-            }
+            listings = [];
+            let consignmentData = [];
+            let platformData = [];
+            let errorMsg = null;
             
             const search = document.getElementById('searchInput').value.trim();
-            if (search) query = query.or(`card_name.ilike.%${search}%,series.ilike.%${search}%`);
             
-            if (currentSort === 'newest') query = query.order('seller_weight', { ascending: false }).order('listed_at', { ascending: false });
-            else if (currentSort === 'price_asc') query = query.order('seller_weight', { ascending: false }).order('asking_price', { ascending: true });
-            else if (currentSort === 'platform') query = query.order('seller_weight', { ascending: false }).order('listed_at', { ascending: false });
-            else query = query.order('seller_weight', { ascending: false }).order('asking_price', { ascending: false });
+            // ============ 加载平台官方发行卡牌 ============
+            if (!currentCategory || currentCategory === 'platform_store' || currentCategory === '') {
+                try {
+                    let query = db.from('platform_store_list').select('*').eq('status', 'active');
+                    if (search) query = query.or(`name.ilike.%${search}%,set_name.ilike.%${search}%`);
+                    if (currentCategory && currentCategory !== 'platform_store') query = query.eq('card_category', currentCategory);
+                    
+                    if (currentSort === 'newest') query = query.order('created_at', { ascending: false });
+                    else if (currentSort === 'price_asc') query = query.order('final_price', { ascending: true });
+                    else query = query.order('final_price', { ascending: false });
+                    
+                    const { data, error } = await query.limit(50);
+                    if (error) throw error;
+                    platformData = (data || []).map(p => ({ ...p, _type: 'platform_card', _id: p.id }));
+                } catch (e) {
+                    console.error('platform_store load error:', e);
+                    errorMsg = e.message;
+                }
+            }
             
-            const { data, error } = await query.limit(50);
+            // ============ 加载用户市场寄售 ============
+            if (currentCategory !== 'platform_store') {
+                try {
+                    let query = db.from('market_list_with_seller').select('*');
+                    
+                    if (currentCategory === 'platform') {
+                        query = query.eq('is_platform_sale', true);
+                    } else if (currentCategory) {
+                        query = query.eq('card_category', currentCategory);
+                    }
+                    
+                    if (search) query = query.or(`card_name.ilike.%${search}%,series.ilike.%${search}%`);
+                    
+                    if (currentSort === 'newest') query = query.order('seller_weight', { ascending: false }).order('listed_at', { ascending: false });
+                    else if (currentSort === 'price_asc') query = query.order('seller_weight', { ascending: false }).order('asking_price', { ascending: true });
+                    else query = query.order('seller_weight', { ascending: false }).order('asking_price', { ascending: false });
+                    
+                    const { data, error } = await query.limit(50);
+                    if (error) throw error;
+                    consignmentData = (data || []).map(c => ({ ...c, _type: 'consignment', _id: c.id }));
+                } catch (e) {
+                    console.error('market load error:', e);
+                    errorMsg = e.message;
+                }
+            }
             
             document.getElementById('loadingState').style.display = 'none';
             
-            if (error) {
-                showToast('加载失败: ' + error.message);
+            if (errorMsg && consignmentData.length === 0 && platformData.length === 0) {
+                showToast('加载失败: ' + errorMsg);
                 return;
             }
             
-            listings = data || [];
+            // 合并两种数据源：官方发行优先，然后按排序规则
+            listings = [...platformData, ...consignmentData];
+            
+            if (currentSort === 'newest') {
+                listings.sort((a, b) => new Date(b.created_at || b.listed_at) - new Date(a.created_at || a.listed_at));
+            } else if (currentSort === 'price_asc') {
+                listings.sort((a, b) => ((a.final_price || a.asking_price || 0) - (b.final_price || b.asking_price || 0)));
+            } else if (currentSort === 'price_desc') {
+                listings.sort((a, b) => ((b.final_price || b.asking_price || 0) - (a.final_price || a.asking_price || 0)));
+            }
+            
             document.getElementById('resultCount').textContent = `共 ${listings.length} 件`;
             
             if (listings.length === 0) {
@@ -269,22 +316,32 @@
             
             document.getElementById('cardGrid').style.display = 'grid';
             document.getElementById('cardGrid').innerHTML = listings.map(c => {
+                const isPlatform = c._type === 'platform_card';
                 const condClass = (c.condition || 'NM').toLowerCase();
-                const isPlatform = c.is_platform_sale;
-                const badge = isPlatform ? '<span class="platform-badge">🛡️自营</span>' : (c.merchant_verified ? '<span class="tag verified">✅认证</span>' : '');
+                const sourceTag = isPlatform
+                    ? '<span class="source-tag platform">🏛️官方发行</span>'
+                    : '<span class="source-tag user">👤用户上传</span>';
+                const badge = isPlatform
+                    ? '<span class="platform-badge">🛡️官方</span>'
+                    : (c.is_platform_sale ? '<span class="platform-badge">🛡️自营</span>' : (c.merchant_verified ? '<span class="tag verified">✅认证</span>' : ''));
+                const price = isPlatform ? (c.final_price || c.listing_price || 0) : (c.asking_price || 0);
+                const btnText = isPlatform ? '预约' : (c.is_platform_sale ? '自营购买' : '购买');
+                const stockText = isPlatform ? `<div style="font-size:10px;color:#888;margin-top:4px">库存 ${c.available_quantity || 0} · 已预约 ${c.reserved_quantity || 0}</div>` : '';
+                
                 return `
-                <div class="card-item" onclick="openDetail('${c.id}')">
-                    <img class="card-img" src="${c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(c.card_name)}" loading="lazy">
+                <div class="card-item" onclick="openDetail('${c._id}')">
+                    <img class="card-img" src="${c.card_image_url || c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(c.name || c.card_name)}" loading="lazy">
                     <div class="card-body">
-                        <div class="card-name">${badge}${esc(c.card_name)}</div>
+                        <div class="card-name">${sourceTag}${badge}${esc(c.name || c.card_name)}</div>
                         <div class="card-meta">
                             <span class="tag rarity">${esc(c.rarity || 'N')}</span>
                             <span class="tag ${condClass}">${esc(c.condition || 'NM')}</span>
                         </div>
                         <div class="card-price-row">
-                            <div class="card-price"><span class="unit">¥</span>${(c.asking_price || 0).toFixed(2)}</div>
-                            <button class="buy-btn" onclick="event.stopPropagation();buyCard('${c.id}')">${isPlatform ? '自营购买' : '购买'}</button>
+                            <div class="card-price"><span class="unit">¥</span>${(price).toFixed(2)}</div>
+                            <button class="buy-btn" onclick="event.stopPropagation();${isPlatform ? `reservePlatformCard('${c._id}')` : `buyCard('${c._id}')`}">${btnText}</button>
                         </div>
+                        ${stockText}
                     </div>
                 </div>`;
             }).join('');
@@ -317,17 +374,26 @@
         });
         
         function openDetail(id) {
-            const c = listings.find(x => x.id === id);
+            const c = listings.find(x => x._id === id);
             if (!c) return;
+            
+            const isPlatformCard = c._type === 'platform_card';
+            
+            if (isPlatformCard) {
+                openPlatformDetail(c);
+                return;
+            }
+            
             const isMine = currentUser && currentUser.id === c.seller_id;
             const isPlatform = c.is_platform_sale;
             const sellerDisplay = c.merchant_name || c.seller_name || ('卖家 #' + (c.seller_id || '').slice(0,8));
             const sellerBadgeHTML = isPlatform ? '<span style="background:linear-gradient(135deg,#4CAF50,#66BB6A);color:white;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700">🛡️平台自营</span>' : (c.merchant_verified ? '<span style="background:#E3F2FD;color:#1565C0;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">✅认证商家</span>' : '');
+            const sourceTag = '<span style="background:#F0F0F8;color:#666;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">👤用户上传</span>';
             
             document.getElementById('modalContent').innerHTML = `
                 <img class="modal-img" src="${c.card_image || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(c.card_name)}">
                 <div class="modal-body">
-                    <div class="modal-name">${sellerBadgeHTML} ${esc(c.card_name)}</div>
+                    <div class="modal-name">${sourceTag} ${sellerBadgeHTML} ${esc(c.card_name)}</div>
                     <div class="modal-series">${esc(c.series || '未知系列')} · ${esc(c.card_category || '-')}</div>
                     <div class="modal-tags">
                         <span class="modal-tag rarity">${esc(c.rarity || 'N')}</span>
@@ -359,6 +425,56 @@
                     </div>
                     <button class="modal-buy-btn" onclick="buyCard('${c.id}')" ${isMine ? 'disabled' : ''} style="${isPlatform ? 'background:linear-gradient(135deg,#4CAF50,#2E7D32);box-shadow:0 4px 16px rgba(76,175,80,.35)' : ''}">
                         ${isMine ? '自己的商品' : (isPlatform ? '🛡️自营购买' : '立即购买')}
+                    </button>
+                </div>
+            `;
+            document.getElementById('detailModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function openPlatformDetail(c) {
+            const canReserve = currentUser && (c.available_quantity || 0) > 0;
+            
+            document.getElementById('modalContent').innerHTML = `
+                <img class="modal-img" src="${c.card_image_url || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(c.name)}">
+                <div class="modal-body">
+                    <div class="modal-name">
+                        <span style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);color:white;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700">🏛️官方发行</span>
+                        ${esc(c.name)}
+                    </div>
+                    <div class="modal-series">${esc(c.set_name || '-')} · ${esc(c.card_category || '-')}</div>
+                    <div class="modal-tags">
+                        <span class="modal-tag rarity">${esc(c.rarity || 'N')}</span>
+                        <span class="modal-tag condition">品相 ${esc(c.condition || 'NM')}</span>
+                        <span class="modal-tag" style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9);color:#2E7D32;font-weight:700">🛡️官方正品保障</span>
+                    </div>
+                    <div style="background:linear-gradient(135deg,#F5F3FF,#E8E5FF);padding:12px;border-radius:12px;margin-top:12px;font-size:13px;color:#5B4AE0;line-height:1.6">
+                        <strong>🏛️ 平台官方发行</strong><br>
+                        ✅ 正品保证 · 🚚 统一发货 · 💰 预约锁定价格 · 📦 库存有限
+                    </div>
+                    <div class="modal-desc">
+                        <div class="modal-desc-label">📝 卡牌描述</div>
+                        ${c.description || '平台官方发行卡牌，正品保障，统一发货。'}
+                    </div>
+                    <div class="seller-info">
+                        <div class="seller-avatar" style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0)">官</div>
+                        <div><div class="seller-name">CardRealm 官方发行</div><div style="font-size:11px;color:#888">source_type: platform</div></div>
+                    </div>
+                    <div class="fee-breakdown" style="background:linear-gradient(135deg,#F5F3FF,#E8E5FF)">
+                        <div class="fee-line"><span>锁定价格</span><span>¥${(c.final_price || c.listing_price || 0).toFixed(2)}</span></div>
+                        <div class="fee-line"><span>市场价</span><span>¥${(c.mark_price || c.listing_price || 0).toFixed(2)}</span></div>
+                        <div class="fee-line"><span>运费</span><span>${c.shipping_fee > 0 ? '¥' + c.shipping_fee : '包邮'}</span></div>
+                        <div class="fee-line total"><span>预计支付</span><span style="color:#5B4AE0">¥${(((c.final_price || c.listing_price || 0)) + (c.shipping_fee || 0)).toFixed(2)}</span></div>
+                    </div>
+                </div>
+                <div class="modal-bottom">
+                    <div class="modal-price-info">
+                        <div class="modal-price-label">🏛️官方发行价</div>
+                        <div class="modal-price-value" style="color:#5B4AE0">¥${(c.final_price || c.listing_price || 0).toFixed(2)}</div>
+                        <div class="modal-price-shipping">${(c.available_quantity || 0) > 0 ? `可预约库存 ${c.available_quantity} 件` : '暂时缺货'}</div>
+                    </div>
+                    <button class="modal-buy-btn" onclick="reservePlatformCard('${c.id}')" ${!canReserve ? 'disabled' : ''} style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);box-shadow:0 4px 16px rgba(91,74,224,.35)">
+                        ${!currentUser ? '请先登录' : (c.available_quantity || 0) <= 0 ? '已售罄' : '立即预约'}
                     </button>
                 </div>
             `;
@@ -428,6 +544,44 @@
         
         function closePurchase() {
             document.getElementById('purchaseOverlay').classList.remove('show');
+        }
+        
+        async function reservePlatformCard(platformCardId) {
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+            
+            const c = listings.find(x => x._id === platformCardId && x._type === 'platform_card');
+            if (!c) return;
+            
+            try {
+                const { data, error } = await db.rpc('create_pre_order', {
+                    p_user_id: currentUser.id,
+                    p_platform_card_id: platformCardId,
+                    p_quantity: 1,
+                    p_source: 'marketplace'
+                });
+                
+                if (error) throw error;
+                if (!data || !data.success) throw new Error((data && data.error) || '预约失败');
+                
+                document.getElementById('detailModal').classList.remove('show');
+                document.body.style.overflow = '';
+                
+                document.getElementById('purchaseIcon').textContent = '🎉';
+                document.getElementById('purchaseTitle').textContent = '预约成功！';
+                document.getElementById('purchaseResult').innerHTML = 
+                    `<strong>${esc(c.name)}</strong><br>
+                     订单号: ${data.order_no}<br>
+                     锁定价格: ¥${(data.reserved_price || 0).toFixed(2)}<br>
+                     当前为意向订单，无需立即支付`;
+                document.getElementById('purchaseOverlay').classList.add('show');
+                
+                loadListings();
+            } catch (err) {
+                showToast('预约失败: ' + (err.message || err));
+            }
         }
         
         init();

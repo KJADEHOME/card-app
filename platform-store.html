@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 官方发行商店</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f7fa; min-height: 100vh; padding-bottom: 80px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; position: sticky; top: 0; z-index: 100; }
+        .header-title { font-size: 20px; font-weight: bold; }
+        .header-subtitle { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+
+        .banner { background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); border-radius: 16px; padding: 20px; margin-bottom: 20px; color: #4a3000; }
+        .banner-title { font-size: 18px; font-weight: bold; margin-bottom: 6px; }
+        .banner-desc { font-size: 13px; opacity: 0.9; }
+
+        .filters { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 4px; }
+        .filter-chip { white-space: nowrap; padding: 8px 16px; border-radius: 20px; background: white; color: #666; font-size: 13px; cursor: pointer; border: 1px solid #e8e8e8; }
+        .filter-chip.active { background: #667eea; color: white; border-color: #667eea; }
+
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+        .card-item { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); cursor: pointer; transition: transform 0.2s; }
+        .card-item:hover { transform: translateY(-3px); }
+        .card-img-wrap { position: relative; padding-top: 130%; background: #f8f8f8; }
+        .card-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+        .card-source-badge {
+            position: absolute; top: 8px; left: 8px; background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: bold;
+        }
+        .card-body { padding: 12px; }
+        .card-name { font-size: 14px; font-weight: bold; color: #1a1a2e; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 38px; }
+        .card-meta { font-size: 11px; color: #888; margin-top: 6px; }
+        .card-price-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .card-price { font-size: 16px; color: #E74C3C; font-weight: bold; }
+        .card-price .unit { font-size: 11px; }
+        .reserve-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+        .reserve-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .stock-tag { font-size: 10px; color: #888; margin-top: 4px; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: flex-end; justify-content: center; z-index: 200; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 24px 24px 0 0; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 24px; animation: slideUp 0.3s; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal-close { text-align: right; font-size: 24px; color: #999; cursor: pointer; margin-bottom: 8px; }
+        .modal-img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 12px; background: #f8f8f8; margin-bottom: 16px; }
+        .modal-name { font-size: 20px; font-weight: bold; color: #333; }
+        .modal-series { color: #888; font-size: 14px; margin-top: 4px; }
+        .modal-tags { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+        .modal-tag { padding: 4px 12px; border-radius: 12px; font-size: 12px; background: #f0f0f8; color: #666; }
+        .modal-tag.platform { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .modal-desc { background: #f8f8f8; border-radius: 12px; padding: 14px; font-size: 13px; color: #555; line-height: 1.6; margin: 12px 0; }
+        .modal-price-info { display: flex; align-items: baseline; gap: 12px; margin: 16px 0; }
+        .modal-price { font-size: 28px; color: #E74C3C; font-weight: bold; }
+        .modal-mark-price { font-size: 14px; color: #888; text-decoration: line-through; }
+        .modal-stock { color: #27ae60; font-size: 14px; margin-bottom: 12px; }
+        .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+        .modal-actions .btn { flex: 1; padding: 14px; }
+        .btn-outline { background: white; color: #667eea; border: 2px solid #667eea; }
+
+        .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 24px; font-size: 14px; display: none; z-index: 300; }
+        .toast.show { display: block; }
+
+        .empty { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-icon { font-size: 60px; margin-bottom: 12px; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid #667eea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: white;
+            display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #eee; z-index: 100;
+        }
+        .nav-item { text-align: center; color: #999; font-size: 11px; text-decoration: none; }
+        .nav-item.active { color: #667eea; }
+        .nav-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">🏛️ 官方发行商店</div>
+        <div class="header-subtitle">平台正品保障 · 预约购买 · 统一发货</div>
+    </div>
+
+    <div class="container">
+        <div class="banner">
+            <div class="banner-title">🛡️ CardRealm 官方发行</div>
+            <div class="banner-desc">所有卡牌均由平台直发，正品保证。当前为预约购买模式，下单后锁定价格，无需立即支付。</div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-chip active" data-cat="" onclick="filterBy(this)">全部</div>
+            <div class="filter-chip" data-cat="pokemon" onclick="filterBy(this)">宝可梦</div>
+            <div class="filter-chip" data-cat="yugioh" onclick="filterBy(this)">游戏王</div>
+            <div class="filter-chip" data-cat="magic" onclick="filterBy(this)">万智牌</div>
+            <div class="filter-chip" data-cat="onepiece" onclick="filterBy(this)">海贼王</div>
+            <div class="filter-chip" data-cat="lorcana" onclick="filterBy(this)">Lorcana</div>
+        </div>
+
+        <div id="cardGrid" class="card-grid">
+            <div class="empty"><span class="loading"></span><br>加载中...</div>
+        </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="modal-overlay" id="detailModal" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-close" onclick="closeModal()">&times;</div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item"><span class="nav-icon">🏠</span>首页</a>
+        <a href="marketplace.html" class="nav-item"><span class="nav-icon">🛒</span>市场</a>
+        <a href="platform-store.html" class="nav-item active"><span class="nav-icon">🏛️</span>官方</a>
+        <a href="collection.html" class="nav-item"><span class="nav-icon">📁</span>收藏</a>
+        <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        let currentUser = null;
+        let products = [];
+        let currentCategory = '';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { user } } = await db.auth.getUser();
+            currentUser = user;
+            loadProducts();
+        });
+
+        async function loadProducts() {
+            const grid = document.getElementById('cardGrid');
+            grid.innerHTML = '<div class="empty"><span class="loading"></span><br>加载中...</div>';
+
+            try {
+                const { data, error } = await db.rpc('get_platform_card_list', {
+                    p_status: 'active',
+                    p_card_category: currentCategory || null,
+                    p_limit: 100,
+                    p_offset: 0
+                });
+
+                if (error) throw error;
+                products = data || [];
+
+                if (products.length === 0) {
+                    grid.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>暂无官方卡牌，敬请期待</div>';
+                    return;
+                }
+
+                grid.innerHTML = products.map(p => `
+                    <div class="card-item" onclick="openDetail('${p.id}')">
+                        <div class="card-img-wrap">
+                            <img class="card-img" src="${p.card_image_url || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(p.name)}" loading="lazy">
+                            <span class="card-source-badge">官方发行</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-name">${esc(p.name)}</div>
+                            <div class="card-meta">${esc(p.set_name || p.card_category || '-')}</div>
+                            <div class="card-price-row">
+                                <div class="card-price"><span class="unit">¥</span>${(p.final_price || p.listing_price || 0).toFixed(2)}</div>
+                            </div>
+                            <div class="stock-tag">库存 ${p.available_quantity} · 已预约 ${p.reserved_quantity}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                grid.innerHTML = '<div class="empty">加载失败: ' + esc(err.message || err) + '</div>';
+            }
+        }
+
+        function filterBy(el) {
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            currentCategory = el.dataset.cat;
+            loadProducts();
+        }
+
+        function openDetail(id) {
+            const p = products.find(x => x.id === id);
+            if (!p) return;
+
+            const canReserve = currentUser && p.available_quantity > 0;
+
+            document.getElementById('modalContent').innerHTML = `
+                <img class="modal-img" src="${p.card_image_url || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(p.name)}">
+                <div class="modal-name">${esc(p.name)}</div>
+                <div class="modal-series">${esc(p.set_name || '-')} · ${esc(p.card_category || '-')}</div>
+                <div class="modal-tags">
+                    <span class="modal-tag platform">🛡️ 官方发行</span>
+                    <span class="modal-tag">${esc(p.rarity || 'N')}</span>
+                    <span class="modal-tag">品相 ${esc(p.condition || 'NM')}</span>
+                </div>
+                <div class="modal-desc">
+                    <strong>卡牌描述</strong><br>
+                    ${esc(p.description) || '平台官方发行卡牌，正品保障，统一发货。'}
+                </div>
+                <div class="modal-price-info">
+                    <span class="modal-price">¥${(p.final_price || p.listing_price || 0).toFixed(2)}</span>
+                    <span class="modal-mark-price">市场价 ¥${(p.mark_price || p.listing_price || 0).toFixed(2)}</span>
+                </div>
+                <div class="modal-stock">
+                    ${p.available_quantity > 0 ? `✅ 可预约库存：${p.available_quantity} 件` : '❌ 暂时缺货'}
+                    ${p.reserved_quantity > 0 ? ` · 已预约 ${p.reserved_quantity} 件` : ''}
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="closeModal()">再看看</button>
+                    <button class="btn" onclick="reserveCard('${p.id}')" ${!canReserve ? 'disabled' : ''}>
+                        ${!currentUser ? '请先登录' : p.available_quantity <= 0 ? '已售罄' : '立即预约'}
+                    </button>
+                </div>
+            `;
+            document.getElementById('detailModal').classList.add('show');
+        }
+
+        function closeModal(e) {
+            if (e && e.target !== document.getElementById('detailModal')) return;
+            document.getElementById('detailModal').classList.remove('show');
+        }
+
+        async function reserveCard(platformCardId) {
+            if (!currentUser) {
+                localStorage.setItem('redirectAfterLogin', 'platform-store.html');
+                showToast('请先登录');
+                setTimeout(() => window.location.href = 'login.html', 1000);
+                return;
+            }
+
+            try {
+                const { data, error } = await db.rpc('create_pre_order', {
+                    p_user_id: currentUser.id,
+                    p_platform_card_id: platformCardId,
+                    p_quantity: 1,
+                    p_source: 'platform_store'
+                });
+
+                if (error) throw error;
+                if (!data || !data.success) throw new Error((data && data.error) || '预约失败');
+
+                showToast(`✅ 预约成功！订单号 ${data.order_no}，锁定价格 ¥${(data.reserved_price || 0).toFixed(2)}`);
+                closeModal();
+                loadProducts();
+            } catch (err) {
+                showToast('❌ ' + (err.message || err));
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function esc(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+    </script>
+</body>
+</html>

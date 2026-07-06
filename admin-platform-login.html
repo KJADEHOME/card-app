@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 平台管理员登录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .box { background: white; border-radius: 20px; padding: 40px 30px; width: 100%; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .logo { text-align: center; margin-bottom: 30px; }
+        .logo-icon { font-size: 60px; }
+        .logo-title { font-size: 26px; font-weight: bold; color: #333; }
+        .logo-subtitle { font-size: 13px; color: #888; margin-top: 6px; }
+        .badge { display: inline-block; background: linear-gradient(135deg, #ff6b6b, #ee5a6f); color: white; font-size: 11px; padding: 3px 10px; border-radius: 12px; margin-top: 8px; }
+        .input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 15px; margin-bottom: 15px; }
+        .input:focus { border-color: #667eea; outline: none; }
+        .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .msg { color: #f44336; font-size: 13px; text-align: center; margin-top: 12px; min-height: 20px; }
+        .msg.success { color: #4caf50; }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .hint { font-size: 12px; color: #999; text-align: center; margin-top: 20px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            <div class="logo-title">平台发行后台</div>
+            <div class="logo-subtitle">CardRealm Platform Issuer</div>
+            <div class="badge">独立管理员系统</div>
+        </div>
+
+        <input type="text" class="input" id="username" placeholder="管理员账号" value="platform_admin">
+        <input type="password" class="input" id="password" placeholder="密码" value="PlatformAdmin2026!" onkeypress="if(event.key==='Enter')adminLogin()">
+
+        <button class="btn" onclick="adminLogin()" id="loginBtn">登录</button>
+        <div class="msg" id="msg"></div>
+
+        <div class="hint">
+            默认账号：platform_admin<br>
+            默认密码：PlatformAdmin2026!<br>
+            登录后进入平台卡牌发布后台
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+
+        async function adminLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            const msg = document.getElementById('msg');
+
+            if (!username || !password) {
+                msg.textContent = '请输入账号和密码';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>登录中...';
+            msg.textContent = '';
+
+            try {
+                const { data, error } = await db.rpc('admin_login', {
+                    p_username: username,
+                    p_password: password,
+                    p_session_duration_hours: 24
+                });
+
+                if (error) throw error;
+
+                if (!data || !data.success) {
+                    throw new Error((data && data.error) || '登录失败');
+                }
+
+                // 存储管理员 token（与用户系统隔离）
+                localStorage.setItem('platformAdminToken', data.session_token);
+                localStorage.setItem('platformAdminName', data.display_name || data.username);
+                localStorage.setItem('platformAdminRole', data.role);
+
+                msg.textContent = '✅ 登录成功！';
+                msg.classList.add('success');
+
+                setTimeout(() => {
+                    window.location.href = 'admin-platform-publish.html';
+                }, 500);
+            } catch (error) {
+                msg.textContent = '登录失败: ' + (error.message || error);
+                msg.classList.remove('success');
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+        }
+    </script>
+</body>
+</html>

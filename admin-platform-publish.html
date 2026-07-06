@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡域 - 平台卡牌发布后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f7fa; min-height: 100vh; padding-bottom: 30px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; position: sticky; top: 0; z-index: 100; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .header-title { font-size: 20px; font-weight: bold; }
+        .header-subtitle { font-size: 12px; opacity: 0.9; }
+        .admin-info { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .admin-badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; }
+        .logout-btn { background: rgba(255,255,255,0.25); border: none; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+        .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .card-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px; border: 2px solid #e8e8e8; border-radius: 10px; font-size: 14px; font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #667eea; outline: none; }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+
+        .upload-area {
+            border: 2px dashed #d0d0e0; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer;
+            transition: all 0.2s; background: #fafbff;
+        }
+        .upload-area:hover { border-color: #667eea; background: #f5f7ff; }
+        .upload-area.has-image { padding: 12px; }
+        .upload-preview { max-width: 100%; max-height: 220px; border-radius: 8px; object-fit: contain; }
+        .upload-text { color: #888; font-size: 14px; }
+        .upload-hint { color: #aaa; font-size: 12px; margin-top: 6px; }
+
+        .btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-outline { background: white; color: #667eea; border: 2px solid #667eea; }
+        .btn-danger { background: #ff4757; }
+        .btn-sm { padding: 8px 14px; font-size: 13px; }
+
+        .msg { padding: 12px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; display: none; }
+        .msg.success { background: #e8f5e9; color: #2e7d32; display: block; }
+        .msg.error { background: #ffebee; color: #c62828; display: block; }
+
+        .product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+        .product-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .product-img { width: 100%; height: 140px; object-fit: cover; background: #f0f0f0; }
+        .product-body { padding: 12px; }
+        .product-name { font-size: 13px; font-weight: bold; color: #333; line-height: 1.3; margin-bottom: 4px; }
+        .product-meta { font-size: 11px; color: #888; margin-bottom: 8px; }
+        .product-price { font-size: 15px; color: #667eea; font-weight: bold; }
+        .product-stock { font-size: 11px; color: #888; margin-top: 4px; }
+        .product-badge { display: inline-block; background: #667eea; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 6px; }
+
+        .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div>
+                <div class="header-title">🛡️ 平台卡牌发行后台</div>
+                <div class="header-subtitle">发布官方卡牌 · 管理库存 · 查看预约订单</div>
+            </div>
+            <button class="logout-btn" onclick="adminLogout()">🚪 退出</button>
+        </div>
+        <div class="admin-info">
+            <span class="admin-badge" id="adminName">未登录</span>
+            <span class="admin-badge" id="adminRole">-</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="msg" id="msg"></div>
+
+        <!-- 发布表单 -->
+        <div class="card">
+            <div class="card-title">📦 发布平台官方卡牌</div>
+
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                <div id="uploadPlaceholder">
+                    <div class="upload-text">📷 点击上传卡牌图片</div>
+                    <div class="upload-hint">支持 JPG / PNG，建议尺寸 600x800</div>
+                </div>
+                <img id="imagePreview" class="upload-preview" style="display:none;">
+            </div>
+            <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageUpload(this)">
+            <input type="hidden" id="cardImageUrl">
+
+            <div class="form-row" style="margin-top: 16px;">
+                <div class="form-group">
+                    <label>卡牌名称 *</label>
+                    <input type="text" id="cardName" placeholder="例如：喷火龙 VMAX">
+                </div>
+                <div class="form-group">
+                    <label>系列/卡包</label>
+                    <input type="text" id="setName" placeholder="例如：剑&盾">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>卡牌分类</label>
+                    <select id="cardCategory">
+                        <option value="pokemon">宝可梦</option>
+                        <option value="yugioh">游戏王</option>
+                        <option value="magic">万智牌</option>
+                        <option value="onepiece">海贼王</option>
+                        <option value="lorcana">Lorcana</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>稀有度</label>
+                    <select id="rarity">
+                        <option value="N">N</option>
+                        <option value="R">R</option>
+                        <option value="SR">SR</option>
+                        <option value="SSR">SSR</option>
+                        <option value="UR">UR</option>
+                        <option value="SEC">SEC</option>
+                        <option value="AR">AR</option>
+                        <option value="SAR">SAR</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>品相</label>
+                    <select id="condition">
+                        <option value="NM" selected>NM 近全新</option>
+                        <option value="M">M 全新</option>
+                        <option value="LP">LP 轻度磨损</option>
+                        <option value="MP">MP 中度磨损</option>
+                        <option value="HP">HP 重度磨损</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>初始库存 *</label>
+                    <input type="number" id="stockQuantity" min="0" value="10" placeholder="库存数量">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>进货价（成本）</label>
+                    <input type="number" id="costPrice" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>上架价 *</label>
+                    <input type="number" id="listingPrice" min="0" step="0.01" placeholder="199.00">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>运费</label>
+                    <input type="number" id="shippingFee" min="0" step="0.01" value="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>平台手续费%</label>
+                    <input type="number" id="platformFeePct" min="0" max="100" step="0.01" value="0" placeholder="0">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>卡牌描述</label>
+                <textarea id="description" placeholder="填写卡牌描述、版本信息、注意事项等..."></textarea>
+            </div>
+
+            <button class="btn" id="publishBtn" onclick="publishCard()">🚀 发布官方卡牌</button>
+        </div>
+
+        <!-- 已发布列表 -->
+        <div class="card">
+            <div class="card-title">📋 已发布平台卡牌</div>
+            <div id="productList">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        let adminToken = localStorage.getItem('platformAdminToken');
+        let uploadedFile = null;
+
+        // 检查登录状态
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!adminToken) {
+                window.location.href = 'admin-platform-login.html';
+                return;
+            }
+
+            const adminName = localStorage.getItem('platformAdminName') || '管理员';
+            const adminRole = localStorage.getItem('platformAdminRole') || 'platform_admin';
+            document.getElementById('adminName').textContent = adminName;
+            document.getElementById('adminRole').textContent = adminRole === 'super_admin' ? '超级管理员' : '平台管理员';
+
+            loadProducts();
+        });
+
+        function showMsg(text, type) {
+            const msg = document.getElementById('msg');
+            msg.textContent = text;
+            msg.className = 'msg ' + type;
+            if (type === 'success') setTimeout(() => { msg.className = 'msg'; msg.textContent = ''; }, 3000);
+        }
+
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            uploadedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('imagePreview').src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+                document.getElementById('uploadPlaceholder').style.display = 'none';
+                document.getElementById('uploadArea').classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadImage() {
+            if (!uploadedFile) return null;
+
+            const fileExt = uploadedFile.name.split('.').pop().toLowerCase();
+            const fileName = `platform/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+
+            const { data, error } = await db.storage.from('card-images').upload(fileName, uploadedFile, {
+                contentType: uploadedFile.type,
+                upsert: false
+            });
+
+            if (error) throw new Error('图片上传失败: ' + error.message);
+
+            const { data: urlData } = db.storage.from('card-images').getPublicUrl(fileName);
+            return urlData.publicUrl;
+        }
+
+        async function publishCard() {
+            const btn = document.getElementById('publishBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>发布中...';
+
+            try {
+                const name = document.getElementById('cardName').value.trim();
+                const setName = document.getElementById('setName').value.trim();
+                const cardCategory = document.getElementById('cardCategory').value;
+                const rarity = document.getElementById('rarity').value;
+                const condition = document.getElementById('condition').value;
+                const stockQuantity = parseInt(document.getElementById('stockQuantity').value) || 0;
+                const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
+                const listingPrice = parseFloat(document.getElementById('listingPrice').value) || 0;
+                const shippingFee = parseFloat(document.getElementById('shippingFee').value) || 0;
+                const platformFeePct = parseFloat(document.getElementById('platformFeePct').value) || 0;
+                const description = document.getElementById('description').value.trim();
+
+                if (!name) throw new Error('请输入卡牌名称');
+                if (listingPrice <= 0) throw new Error('上架价必须大于0');
+                if (stockQuantity <= 0) throw new Error('库存必须大于0');
+
+                // 上传图片
+                let imageUrl = null;
+                if (uploadedFile) {
+                    imageUrl = await uploadImage();
+                }
+
+                const { data, error } = await db.rpc('admin_publish_card', {
+                    p_admin_token: adminToken,
+                    p_name: name,
+                    p_set_name: setName,
+                    p_card_image_url: imageUrl,
+                    p_images: imageUrl ? [imageUrl] : [],
+                    p_thumbnail_url: imageUrl,
+                    p_description: description,
+                    p_card_category: cardCategory,
+                    p_rarity: rarity,
+                    p_condition: condition,
+                    p_initial_cost_price: costPrice,
+                    p_listing_price: listingPrice,
+                    p_stock_quantity: stockQuantity,
+                    p_platform_fee_pct: platformFeePct,
+                    p_shipping_fee: shippingFee
+                });
+
+                if (error) throw error;
+                if (!data || !data.success) throw new Error((data && data.error) || '发布失败');
+
+                showMsg(`✅ 发布成功！最终价 ¥${(data.final_price || 0).toFixed(2)}，市场价 ¥${(data.mark_price || 0).toFixed(2)}`, 'success');
+
+                // 清空表单
+                document.getElementById('cardName').value = '';
+                document.getElementById('setName').value = '';
+                document.getElementById('description').value = '';
+                document.getElementById('listingPrice').value = '';
+                document.getElementById('costPrice').value = '';
+                document.getElementById('stockQuantity').value = '10';
+                document.getElementById('shippingFee').value = '0';
+                document.getElementById('cardImageUrl').value = '';
+                document.getElementById('imagePreview').style.display = 'none';
+                document.getElementById('uploadPlaceholder').style.display = 'block';
+                document.getElementById('uploadArea').classList.remove('has-image');
+                uploadedFile = null;
+
+                loadProducts();
+            } catch (err) {
+                showMsg('❌ ' + (err.message || err), 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🚀 发布官方卡牌';
+            }
+        }
+
+        async function loadProducts() {
+            try {
+                const { data, error } = await db.rpc('get_platform_card_list', {
+                    p_status: null,
+                    p_card_category: null,
+                    p_limit: 50,
+                    p_offset: 0
+                });
+
+                if (error) throw error;
+
+                const list = document.getElementById('productList');
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<div class="empty">暂无平台卡牌，请发布第一张</div>';
+                    return;
+                }
+
+                list.innerHTML = '<div class="product-list">' + data.map(p => `
+                    <div class="product-item">
+                        <img class="product-img" src="${p.card_image_url || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(p.name)}">
+                        <div class="product-body">
+                            <div class="product-name">${esc(p.name)}</div>
+                            <div class="product-meta">${esc(p.set_name || '-')}</div>
+                            <div class="product-price">¥${(p.final_price || p.listing_price || 0).toFixed(2)}</div>
+                            <div class="product-stock">库存 ${p.available_quantity}/${p.stock_quantity} · 已售 ${p.sold_quantity}</div>
+                            <span class="product-badge">${p.status === 'active' ? '上架中' : p.status === 'sold_out' ? '售罄' : '已下架'}</span>
+                        </div>
+                    </div>
+                `).join('') + '</div>';
+            } catch (err) {
+                document.getElementById('productList').innerHTML = '<div class="empty">加载失败: ' + esc(err.message || err) + '</div>';
+            }
+        }
+
+        async function adminLogout() {
+            try {
+                await db.rpc('admin_logout', { p_token: adminToken });
+            } catch (e) {}
+            localStorage.removeItem('platformAdminToken');
+            localStorage.removeItem('platformAdminName');
+            localStorage.removeItem('platformAdminRole');
+            window.location.href = 'admin-platform-login.html';
+        }
+
+        function esc(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+    </script>
+</body>
+</html>
