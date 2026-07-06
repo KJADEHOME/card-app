@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>钱包充值 - 卡域</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0d1117; color: #e6edf3; min-height: 100vh;
+        }
+        .header {
+            background: #161b22; padding: 16px 20px; display: flex;
+            align-items: center; border-bottom: 1px solid #30363d;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header a { color: #58a6ff; text-decoration: none; font-size: 14px; }
+        .header h1 { font-size: 18px; margin-left: 20px; font-weight: 600; }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+        .balance-card {
+            background: linear-gradient(135deg, #1f6feb, #388bfd);
+            border-radius: 16px; padding: 24px; margin-bottom: 24px;
+        }
+        .balance-label { font-size: 13px; opacity: 0.8; margin-bottom: 8px; }
+        .balance-amount { font-size: 36px; font-weight: 700; }
+        .balance-amount small { font-size: 16px; font-weight: 400; margin-left: 4px; }
+        .section-title { font-size: 15px; color: #8b949e; margin-bottom: 12px; }
+        .amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .amount-btn {
+            background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+            padding: 16px 0; color: #e6edf3; font-size: 18px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .amount-btn:hover { border-color: #388bfd; }
+        .amount-btn.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+        .custom-input {
+            width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+            padding: 14px 16px; color: #e6edf3; font-size: 16px; margin-bottom: 24px; outline: none;
+        }
+        .custom-input:focus { border-color: #388bfd; }
+        .pay-methods { display: flex; gap: 12px; margin-bottom: 24px; }
+        .pay-method {
+            flex: 1; background: #161b22; border: 2px solid #30363d; border-radius: 12px;
+            padding: 16px; cursor: pointer; text-align: center; transition: all 0.2s;
+        }
+        .pay-method.active { border-color: #3fb950; background: #0d2818; }
+        .pay-method .icon { font-size: 28px; margin-bottom: 6px; }
+        .pay-method .name { font-size: 14px; }
+        .submit-btn {
+            width: 100%; background: #238636; border: none; border-radius: 12px;
+            padding: 16px; color: #fff; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .submit-btn:hover { background: #2ea043; }
+        .submit-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+        /* 二维码弹窗 */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            z-index: 200; justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #161b22; border-radius: 20px; padding: 32px 24px;
+            max-width: 360px; width: 90%; text-align: center;
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 8px; }
+        .modal .amount { font-size: 28px; font-weight: 700; color: #3fb950; margin-bottom: 16px; }
+        .modal img { width: 240px; height: 240px; border-radius: 8px; margin-bottom: 16px; }
+        .modal .tip { font-size: 13px; color: #8b949e; line-height: 1.6; }
+        .modal .status { font-size: 14px; margin-top: 12px; }
+        .modal .status.waiting { color: #d29922; }
+        .modal .status.success { color: #3fb950; }
+        .modal .close-btn {
+            margin-top: 16px; background: #21262d; border: 1px solid #30363d; border-radius: 8px;
+            padding: 10px 24px; color: #8b949e; cursor: pointer; font-size: 14px;
+        }
+        .login-tip { text-align: center; padding: 60px 20px; color: #8b949e; }
+        .login-tip a { color: #58a6ff; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="dashboard.html">&larr; 返回</a>
+        <h1>钱包充值</h1>
+    </div>
+
+    <div id="app">
+        <!-- 登录检查后动态渲染 -->
+        <div class="login-tip" id="loading-tip">加载中...</div>
+    </div>
+
+    <!-- 二维码支付弹窗 -->
+    <div class="modal-overlay" id="qrcode-modal">
+        <div class="modal">
+            <h2>扫码支付</h2>
+            <div class="amount" id="modal-amount"></div>
+            <img id="qrcode-img" src="" alt="支付二维码">
+            <div class="tip">请使用<span id="modal-provider"></span>扫描二维码完成支付</div>
+            <div class="status waiting" id="pay-status">等待支付中...</div>
+            <button class="close-btn" id="close-modal">取消支付</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/payment-client.js"></script>
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let selectedAmount = 100;
+        let selectedProvider = 'alipay';
+        let currentUser = null;
+        let pollTimer = null;
+
+        async function init() {
+            const { data: { session } } = await db.auth.getSession();
+            if (!session) {
+                document.getElementById('app').innerHTML =
+                    '<div class="login-tip">请先<a href="login.html">登录</a></div>';
+                return;
+            }
+            currentUser = session.user;
+            await loadBalance();
+            renderPage();
+        }
+
+        async function loadBalance() {
+            const { data } = await db
+                .from('wallets')
+                .select('balance, frozen_balance')
+                .eq('user_id', currentUser.id)
+                .single();
+            return data;
+        }
+
+        function renderPage() {
+            loadBalance().then(wallet => {
+                const balance = wallet ? wallet.balance : 0;
+                const frozen = wallet ? wallet.frozen_balance : 0;
+                document.getElementById('app').innerHTML = `
+                    <div class="container">
+                        <div class="balance-card">
+                            <div class="balance-label">可用余额</div>
+                            <div class="balance-amount">${parseFloat(balance).toFixed(2)}<small>元</small></div>
+                            ${frozen > 0 ? `<div class="balance-label" style="margin-top:8px">冻结中: ${parseFloat(frozen).toFixed(2)} 元</div>` : ''}
+                        </div>
+
+                        <div class="section-title">选择充值金额</div>
+                        <div class="amount-grid">
+                            ${[50, 100, 200, 500, 1000, 2000].map(a => 
+                                `<button class="amount-btn ${a === selectedAmount ? 'active' : ''}" data-amount="${a}">${a}</button>`
+                            ).join('')}
+                        </div>
+                        <input type="number" class="custom-input" id="custom-amount" placeholder="或输入自定义金额" min="1" step="0.01">
+
+                        <div class="section-title">选择支付方式</div>
+                        <div class="pay-methods">
+                            <div class="pay-method ${selectedProvider === 'alipay' ? 'active' : ''}" data-provider="alipay">
+                                <div class="icon">💰</div>
+                                <div class="name">支付宝</div>
+                            </div>
+                            <div class="pay-method ${selectedProvider === 'wechat' ? 'active' : ''}" data-provider="wechat">
+                                <div class="icon">💚</div>
+                                <div class="name">微信支付</div>
+                            </div>
+                        </div>
+
+                        <button class="submit-btn" id="recharge-btn">立即充值</button>
+                    </div>
+                `;
+                bindEvents();
+            });
+        }
+
+        function bindEvents() {
+            // 金额选择
+            document.querySelectorAll('.amount-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedAmount = parseFloat(btn.dataset.amount);
+                    document.getElementById('custom-amount').value = '';
+                });
+            });
+
+            // 自定义金额
+            document.getElementById('custom-amount').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (val > 0) {
+                    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+                    selectedAmount = val;
+                }
+            });
+
+            // 支付方式
+            document.querySelectorAll('.pay-method').forEach(m => {
+                m.addEventListener('click', () => {
+                    document.querySelectorAll('.pay-method').forEach(x => x.classList.remove('active'));
+                    m.classList.add('active');
+                    selectedProvider = m.dataset.provider;
+                });
+            });
+
+            // 充值按钮
+            document.getElementById('recharge-btn').addEventListener('click', doRecharge);
+        }
+
+        async function doRecharge() {
+            if (!selectedAmount || selectedAmount <= 0) {
+                alert('请输入有效金额');
+                return;
+            }
+
+            const btn = document.getElementById('recharge-btn');
+            btn.disabled = true;
+            btn.textContent = '正在创建支付订单...';
+
+            try {
+                const result = await PaymentClient.startRecharge(selectedAmount, selectedProvider);
+
+                btn.disabled = false;
+                btn.textContent = '立即充值';
+
+                if (result.type === 'redirect') {
+                    // 跳转支付（H5 / PC 网页支付）
+                    window.location.href = result.url;
+                } else if (result.type === 'qrcode') {
+                    // 扫码支付 - 展示二维码
+                    showQrcodeModal(result);
+                } else if (result.type === 'jsapi') {
+                    // 微信内 JSAPI 支付
+                    await PaymentClient.callWechatJsapi(result.params);
+                    onPaymentSuccess(result.paymentNo);
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = '立即充值';
+                alert('充值失败: ' + err.message);
+            }
+        }
+
+        function showQrcodeModal(result) {
+            document.getElementById('modal-amount').textContent = result.amount + ' 元';
+            document.getElementById('qrcode-img').src = result.qrcode;
+            document.getElementById('modal-provider').textContent =
+                selectedProvider === 'alipay' ? '支付宝' : '微信';
+            document.getElementById('pay-status').className = 'status waiting';
+            document.getElementById('pay-status').textContent = '等待支付中...';
+            document.getElementById('qrcode-modal').classList.add('show');
+
+            // 轮询支付状态
+            pollTimer = setInterval(async () => {
+                try {
+                    const status = await PaymentClient.queryStatus(result.paymentNo);
+                    if (status.status === 'paid') {
+                        clearInterval(pollTimer);
+                        onPaymentSuccess(result.paymentNo);
+                    } else if (status.status === 'failed' || status.status === 'closed') {
+                        clearInterval(pollTimer);
+                        document.getElementById('pay-status').className = 'status';
+                        document.getElementById('pay-status').style.color = '#f85149';
+                        document.getElementById('pay-status').textContent = '支付失败，请重试';
+                    }
+                } catch (e) { /* 继续轮询 */ }
+            }, 2000);
+
+            // 5分钟超时
+            setTimeout(() => {
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    document.getElementById('pay-status').className = 'status';
+                    document.getElementById('pay-status').style.color = '#f85149';
+                    document.getElementById('pay-status').textContent = '支付超时，请重试';
+                }
+            }, 300000);
+        }
+
+        async function onPaymentSuccess(paymentNo) {
+            document.getElementById('pay-status').className = 'status success';
+            document.getElementById('pay-status').textContent = '充值成功！';
+
+            setTimeout(() => {
+                document.getElementById('qrcode-modal').classList.remove('show');
+                renderPage(); // 刷新余额
+            }, 1500);
+        }
+
+        document.getElementById('close-modal').addEventListener('click', () => {
+            if (pollTimer) clearInterval(pollTimer);
+            document.getElementById('qrcode-modal').classList.remove('show');
+        });
+
+        init();
+    </script>
+</body>
+</html>

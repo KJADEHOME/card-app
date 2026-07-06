@@ -3,3 +3,8 @@ deploy_payload.json
 checkins.sql
 gen_report.js
 supabase/.temp/
+
+# 支付服务
+server/node_modules/
+server/.env
+server/.env.local

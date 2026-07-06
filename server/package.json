@@ -1,0 +1,24 @@
+{
+  "name": "card-app-payment-server",
+  "version": "1.0.0",
+  "description": "卡域APP支付服务 - 支付宝/微信收款接入 + 平台资金担保监管",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "alipay-sdk": "^4.10.0",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "crypto-js": "^4.2.0",
+    "qrcode": "^1.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
