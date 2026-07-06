@@ -1,19 +1,12 @@
--- Phase 8.5: 价格解释系统 + 市场状态标签
--- 目标：构建"市场可视化 + 用户理解层"
+-- Phase 8.5 修复：generate_price_explanation() format() 错误
+-- 修复 PostgreSQL format() 不支持 %.1f 的问题
 
--- ===== 1. card_market 新增解释列 =====
+-- ===== 1. 删除旧函数 =====
 
-ALTER TABLE card_market 
-ADD COLUMN IF NOT EXISTS price_explanation TEXT,
-ADD COLUMN IF NOT EXISTS price_reason_tags TEXT[],
-ADD COLUMN IF NOT EXISTS market_state TEXT DEFAULT 'COLD' CHECK (market_state IN ('HOT','NORMAL','COLD')),
-ADD COLUMN IF NOT EXISTS last_explanation_update TIMESTAMPTZ DEFAULT NOW();
+DROP FUNCTION IF EXISTS generate_price_explanation(TEXT,TEXT,TEXT,TEXT);
+DROP FUNCTION IF EXISTS refresh_all_price_explanations(TEXT);
 
-COMMENT ON COLUMN card_market.price_explanation IS '价格变化解释文本（用户可读）';
-COMMENT ON COLUMN card_market.price_reason_tags IS '价格变化原因标签数组，如 {volume_surge,buyer_inflow}';
-COMMENT ON COLUMN card_market.market_state IS '市场状态：HOT(>0.7) / NORMAL(0.3~0.7) / COLD(<0.3)';
-
--- ===== 2. price_explanation 生成函数 =====
+-- ===== 2. 重新创建 generate_price_explanation() =====
 
 CREATE OR REPLACE FUNCTION generate_price_explanation(
   p_card_name TEXT,
@@ -30,6 +23,7 @@ DECLARE
   v_card RECORD;
   v_prev_price NUMERIC;
   v_change_pct NUMERIC;
+  v_change_pct_text TEXT;
   v_explanation TEXT := '';
   v_reason_tags TEXT[] := '{}';
   v_market_state TEXT := 'COLD';
@@ -69,14 +63,15 @@ BEGIN
     v_market_state := 'COLD';
   END IF;
 
-  -- 生成解释（基于模拟数据，实际应从 price_change_events 获取）
-  -- 这里生成结构化解释
+  -- 生成解释
   IF v_card.final_price IS NOT NULL AND v_card.mark_price IS NOT NULL THEN
     v_change_pct := CASE 
       WHEN v_card.mark_price > 0 
       THEN ((v_card.final_price - v_card.mark_price) / v_card.mark_price * 100)
       ELSE 0 
     END;
+    
+    v_change_pct_text := ROUND(v_change_pct, 1)::TEXT;
 
     -- 生成原因标签
     IF v_activity_score >= 0.7 THEN
@@ -95,10 +90,10 @@ BEGIN
       v_reason_tags := array_append(v_reason_tags, 'buyer_inflow');
     END IF;
 
-    -- 生成解释文本（修复 format() 用法）
+    -- 生成解释文本（使用正确的 format() 语法）
     IF v_change_pct > 5 THEN
       v_explanation := format('价格较昨日上涨 %s%%，市场活跃度 %s', 
-        ROUND(v_change_pct, 1)::TEXT, 
+        v_change_pct_text,
         CASE 
           WHEN v_market_state = 'HOT' THEN '🔥 高热度'
           WHEN v_market_state = 'NORMAL' THEN '📈 正常'
@@ -108,7 +103,7 @@ BEGIN
       v_reason_tags := array_append(v_reason_tags, 'price_up');
     ELSIF v_change_pct < -5 THEN
       v_explanation := format('价格较昨日下跌 %s%%，市场活跃度 %s', 
-        ROUND(ABS(v_change_pct), 1)::TEXT, 
+        ROUND(ABS(v_change_pct), 1)::TEXT,
         CASE 
           WHEN v_market_state = 'HOT' THEN '🔥 高热度'
           WHEN v_market_state = 'NORMAL' THEN '📉 正常'
@@ -168,9 +163,9 @@ END;
 $$;
 
 COMMENT ON FUNCTION generate_price_explanation(TEXT,TEXT,TEXT,TEXT) IS 
-'生成卡牌价格解释和市场状态标签';
+'生成卡牌价格解释和市场状态标签（已修复 format() 错误）';
 
--- ===== 3. 批量更新所有卡牌解释 =====
+-- ===== 3. 重新创建 refresh_all_price_explanations() =====
 
 CREATE OR REPLACE FUNCTION refresh_all_price_explanations(
   p_market TEXT DEFAULT 'CN'
@@ -205,120 +200,9 @@ END;
 $$;
 
 COMMENT ON FUNCTION refresh_all_price_explanations(TEXT) IS 
-'批量更新所有卡牌的价格解释和市场状态';
+'批量更新所有卡牌的价格解释和市场状态（已修复）';
 
--- ===== 4. 市场状态统计视图 =====
+-- ===== 4. 授权 =====
 
-CREATE OR REPLACE VIEW market_state_overview AS
-SELECT 
-  market,
-  market_state,
-  COUNT(*) as card_count,
-  AVG(activity_score) as avg_activity,
-  AVG(final_price) as avg_price,
-  MAX(last_explanation_update) as last_update
-FROM card_market
-WHERE market_state IS NOT NULL
-GROUP BY market, market_state
-ORDER BY market, 
-  CASE market_state 
-    WHEN 'HOT' THEN 1 
-    WHEN 'NORMAL' THEN 2 
-    WHEN 'COLD' THEN 3 
-  END;
-
-COMMENT ON VIEW market_state_overview IS 
-'市场状态分布概览（用于 Market Feed 页面）';
-
--- ===== 5. 热门卡牌视图（用于 Market Feed） =====
-
-CREATE OR REPLACE VIEW hot_cards_feed AS
-SELECT 
-  cm.card_name,
-  cm.series,
-  cm.rarity,
-  cm.market,
-  cm.final_price,
-  cm.mark_price,
-  cm.activity_score,
-  cm.market_state,
-  cm.price_explanation,
-  cm.price_reason_tags,
-  cm.trade_count_24h,
-  cm.volatility_24h,
-  CASE 
-    WHEN cm.mark_price > 0 
-    THEN ROUND(((cm.final_price - cm.mark_price) / cm.mark_price * 100)::NUMERIC, 2)
-    ELSE 0 
-  END as change_percent,
-  cm.last_explanation_update
-FROM card_market cm
-WHERE cm.market = 'CN'
-ORDER BY 
-  CASE cm.market_state 
-    WHEN 'HOT' THEN 1 
-    WHEN 'NORMAL' THEN 2 
-    WHEN 'COLD' THEN 3 
-  END,
-  cm.activity_score DESC,
-  cm.final_price DESC
-LIMIT 50;
-
-COMMENT ON VIEW hot_cards_feed IS 
-'热门卡牌 Feed（用于 market_feed.html）';
-
--- ===== 6. 触发器：自动更新 market_state =====
-
-CREATE OR REPLACE FUNCTION update_market_state()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- 当 activity_score 变化时，自动更新 market_state
-  IF NEW.activity_score IS DISTINCT FROM OLD.activity_score 
-     OR NEW.activity_score IS NOT NULL AND OLD.activity_score IS NULL
-     OR NEW.activity_score IS NULL AND OLD.activity_score IS NOT NULL
-  THEN
-    NEW.market_state := CASE 
-      WHEN NEW.activity_score >= 0.7 THEN 'HOT'
-      WHEN NEW.activity_score >= 0.3 THEN 'NORMAL'
-      ELSE 'COLD'
-    END;
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_update_market_state ON card_market;
-
-CREATE TRIGGER trg_update_market_state
-BEFORE INSERT OR UPDATE OF activity_score ON card_market
-FOR EACH ROW
-EXECUTE FUNCTION update_market_state();
-
-COMMENT ON TRIGGER trg_update_market_state ON card_market IS 
-'自动根据 activity_score 更新 market_state';
-
--- ===== 7. 初始化现有数据 =====
-
--- 更新现有卡的 market_state
-UPDATE card_market
-SET market_state = CASE 
-  WHEN activity_score >= 0.7 THEN 'HOT'
-  WHEN activity_score >= 0.3 THEN 'NORMAL'
-  ELSE 'COLD'
-END
-WHERE market_state IS NULL;
-
--- 生成初始解释（批量）
--- SELECT refresh_all_price_explanations('CN');
-
--- ===== 8. 授权 =====
-
-GRANT SELECT ON hot_cards_feed TO authenticated, anon;
-GRANT SELECT ON market_state_overview TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION generate_price_explanation(TEXT,TEXT,TEXT,TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION refresh_all_price_explanations(TEXT) TO service_role;
