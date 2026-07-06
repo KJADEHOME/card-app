@@ -1,12 +1,13 @@
-// price-updater Edge Function v3 — 市场价格模拟波动 + 资产市场化
+// price-updater Edge Function v4 — 市场价格波动 + 资产市场化 + 价格趋势
 // Supported actions:
-//   fluctuate          — 价格波动 → 同步用户资产 → card_market → portfolio → 快照（完整流水线）
+//   fluctuate          — 价格波动 → 同步 → card_market → portfolio → 快照 → 每日定价快照（完整流水线）
 //   sync               — 仅同步用户资产价格
 //   seed               — 从 price_history 初始化 card_prices
 //   market_seed        — 从 card_prices 初始化 card_market
 //   portfolio_sync     — 从 user_collections 同步到 portfolio_items
 //   portfolio_refresh  — 刷新所有用户 user_portfolio
 //   snapshot           — 仅生成资产快照
+//   price_snapshot     — 每日定价快照 card_market.final_price → price_history.daily_price
 "use strict";
 
 const corsHeaders = {
@@ -154,6 +155,25 @@ Deno.serve(async (req) => {
           portfoliosRefreshed = pfData[0]?.users_refreshed || 0;
         }
 
+        // Phase 7.5: 每日定价快照 card_market.final_price → price_history.daily_price
+        const priceSnapRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/take_daily_price_snapshot`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+            body: JSON.stringify({ p_market: market }),
+          }
+        );
+        let priceSnapshots = 0;
+        if (priceSnapRes.ok) {
+          const psData = await priceSnapRes.json();
+          priceSnapshots = psData[0]?.cards_snapshotted || 0;
+        }
+
         return jsonResponse({
           success: true,
           data: {
@@ -165,6 +185,8 @@ Deno.serve(async (req) => {
             // Phase 7 新增
             market_cards_seeded: marketSeeded,
             portfolios_refreshed: portfoliosRefreshed,
+            // Phase 7.5 新增
+            price_snapshots: priceSnapshots,
           },
         });
       }
@@ -308,6 +330,32 @@ Deno.serve(async (req) => {
 
         const data = await refreshRes.json();
         return jsonResponse({ success: true, data: { action: "portfolio_refresh", ...data[0] } });
+      }
+
+      // ===== Phase 7.5 新增 action =====
+
+      case "price_snapshot": {
+        // 每日定价快照：card_market.final_price → price_history.daily_price
+        const snapRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/take_daily_price_snapshot`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+            body: JSON.stringify({ p_market: market }),
+          }
+        );
+
+        if (!snapRes.ok) {
+          const err = await snapRes.text();
+          return jsonResponse({ success: false, error: "price_snapshot RPC failed: " + err }, 500);
+        }
+
+        const data = await snapRes.json();
+        return jsonResponse({ success: true, data: { action: "price_snapshot", ...data[0] } });
       }
 
       default:
