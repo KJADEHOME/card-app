@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Market Feed - CardRealm</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }
+        .header h1 { font-size: 24px; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        
+        .market-stats { display: flex; gap: 10px; padding: 15px; background: white; margin: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .stat-item { flex: 1; text-align: center; }
+        .stat-value { font-size: 20px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+        
+        .section { margin: 15px; }
+        .section-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-title .icon { font-size: 24px; }
+        
+        .card-item { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card-header { display: flex; justify-content: between; align-items: flex-start; margin-bottom: 10px; }
+        .card-name { font-size: 16px; font-weight: bold; color: #333; flex: 1; }
+        .market-state { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .market-state.HOT { background: #ffebee; color: #c62828; }
+        .market-state.NORMAL { background: #fff3e0; color: #e65100; }
+        .market-state.COLD { background: #e8f5e9; color: #2e7d32; }
+        
+        .card-price { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+        .price-final { font-size: 24px; font-weight: 800; color: #333; }
+        .price-mark { font-size: 14px; color: #999; }
+        .price-change { font-size: 14px; font-weight: bold; margin-left: auto; }
+        .price-change.up { color: #f44336; }
+        .price-change.down { color: #4caf50; }
+        .price-change.stable { color: #999; }
+        
+        .card-explanation { font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 8px; padding: 10px; background: #f8f9fa; border-radius: 8px; }
+        
+        .reason-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .reason-tag { padding: 3px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 11px; }
+        
+        .card-stats { display: flex; gap: 15px; font-size: 12px; color: #999; }
+        .stat-item-small { display: flex; align-items: center; gap: 4px; }
+        
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .error { text-align: center; padding: 40px; color: #f44336; }
+        
+        .tab-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e0e0e0; display: flex; justify-content: space-around; padding: 10px; z-index: 100; }
+        .tab-item { text-align: center; color: #999; text-decoration: none; font-size: 12px; }
+        .tab-item.active { color: #667eea; }
+        .tab-icon { font-size: 24px; display: block; margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Market Feed</h1>
+        <p>实时市场动态 + 价格解读</p>
+    </div>
+    
+    <div class="market-stats" id="marketStats">
+        <div class="stat-item">
+            <div class="stat-value" id="hotCount">-</div>
+            <div class="stat-label">🔥 热门</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="normalCount">-</div>
+            <div class="stat-label">📊 正常</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="coldCount">-</div>
+            <div class="stat-label">❄️ 冷门</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">
+            <span class="icon">🔥</span>
+            <span>热门市场（HOT）</span>
+        </div>
+        <div id="hotCards"></div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">
+            <span class="icon">📊</span>
+            <span>正常交易（NORMAL）</span>
+        </div>
+        <div id="normalCards"></div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">
+            <span class="icon">❄️</span>
+            <span>冷门卡牌（COLD）</span>
+        </div>
+        <div id="coldCards"></div>
+    </div>
+    
+    <div class="loading" id="loading">加载中...</div>
+    <div class="error" id="error" style="display:none;"></div>
+    
+    <div class="tab-bar">
+        <a href="index.html" class="tab-item">
+            <span class="tab-icon">🏠</span>
+            <span>首页</span>
+        </a>
+        <a href="marketplace.html" class="tab-item">
+            <span class="tab-icon">🛒</span>
+            <span>市场</span>
+        </a>
+        <a href="market_feed.html" class="tab-item active">
+            <span class="tab-icon">📊</span>
+            <span>行情</span>
+        </a>
+        <a href="my-assets.html" class="tab-item">
+            <span class="tab-icon">💰</span>
+            <span>资产</span>
+        </a>
+    </div>
+    
+    <script>
+        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
+        
+        let db;
+        
+        async function initDB() {
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+            db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        
+        async function loadMarketFeed() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                
+                // 加载市场统计
+                const { data: statsData, error: statsError } = await db
+                    .from('market_state_overview')
+                    .select('*')
+                    .eq('market', 'CN');
+                
+                if (statsData) {
+                    let hotCount = 0, normalCount = 0, coldCount = 0;
+                    statsData.forEach(row => {
+                        if (row.market_state === 'HOT') hotCount = row.card_count;
+                        else if (row.market_state === 'NORMAL') normalCount = row.card_count;
+                        else if (row.market_state === 'COLD') coldCount = row.card_count;
+                    });
+                    document.getElementById('hotCount').textContent = hotCount;
+                    document.getElementById('normalCount').textContent = normalCount;
+                    document.getElementById('coldCount').textContent = coldCount;
+                }
+                
+                // 加载热门卡牌
+                const { data: hotData, error: hotError } = await db
+                    .from('hot_cards_feed')
+                    .select('*')
+                    .eq('market_state', 'HOT')
+                    .limit(10);
+                
+                renderCards('hotCards', hotData || []);
+                
+                // 加载正常交易卡牌
+                const { data: normalData, error: normalError } = await db
+                    .from('hot_cards_feed')
+                    .select('*')
+                    .eq('market_state', 'NORMAL')
+                    .limit(10);
+                
+                renderCards('normalCards', normalData || []);
+                
+                // 加载冷门卡牌
+                const { data: coldData, error: coldError } = await db
+                    .from('hot_cards_feed')
+                    .select('*')
+                    .eq('market_state', 'COLD')
+                    .limit(10);
+                
+                renderCards('coldCards', coldData || []);
+                
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (err) {
+                console.error('加载失败:', err);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = '加载失败: ' + err.message;
+            }
+        }
+        
+        function renderCards(containerId, cards) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (!cards || cards.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无数据</div>';
+                return;
+            }
+            
+            cards.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-item';
+                cardDiv.onclick = () => {
+                    window.location.href = `card-detail.html?name=${encodeURIComponent(card.card_name)}&series=${encodeURIComponent(card.series || '')}&rarity=${encodeURIComponent(card.rarity || 'N')}`;
+                };
+                
+                const changePct = card.change_percent || 0;
+                const changeClass = changePct > 0 ? 'up' : changePct < 0 ? 'down' : 'stable';
+                const changeText = changePct > 0 ? `+${changePct}%` : `${changePct}%`;
+                
+                const tags = card.price_reason_tags || [];
+                const tagsHtml = tags.map(tag => `<span class="reason-tag">${tag}</span>`).join('');
+                
+                cardDiv.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-name">${card.card_name}</div>
+                        <span class="market-state ${card.market_state}">${card.market_state}</span>
+                    </div>
+                    <div class="card-price">
+                        <span class="price-final">¥${parseFloat(card.final_price || 0).toLocaleString()}</span>
+                        <span class="price-mark">平滑价: ¥${parseFloat(card.mark_price || 0).toLocaleString()}</span>
+                        <span class="price-change ${changeClass}">${changeText}</span>
+                    </div>
+                    ${card.price_explanation ? `<div class="card-explanation">${card.price_explanation}</div>` : ''}
+                    ${tags.length > 0 ? `<div class="reason-tags">${tagsHtml}</div>` : ''}
+                    <div class="card-stats">
+                        <span class="stat-item-small">📊 交易: ${card.trade_count_24h || 0}</span>
+                        <span class="stat-item-small">👥 买家: ${card.unique_buyers_24h || 0}</span>
+                        <span class="stat-item-small">📈 波动: ${(card.volatility_24h || 0) * 100}%</span>
+                    </div>
+                `;
+                
+                container.appendChild(cardDiv);
+            });
+        }
+        
+        // 初始化
+        (async () => {
+            await initDB();
+            await loadMarketFeed();
+        })();
+    </script>
+</body>
+</html>
