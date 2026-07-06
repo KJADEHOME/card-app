@@ -1,5 +1,12 @@
-// price-updater Edge Function — 市场价格模拟波动 + 同步
-// Supported actions: fluctuate (波动所有价格), sync (同步用户资产), seed (初始化价格)
+// price-updater Edge Function v3 — 市场价格模拟波动 + 资产市场化
+// Supported actions:
+//   fluctuate          — 价格波动 → 同步用户资产 → card_market → portfolio → 快照（完整流水线）
+//   sync               — 仅同步用户资产价格
+//   seed               — 从 price_history 初始化 card_prices
+//   market_seed        — 从 card_prices 初始化 card_market
+//   portfolio_sync     — 从 user_collections 同步到 portfolio_items
+//   portfolio_refresh  — 刷新所有用户 user_portfolio
+//   snapshot           — 仅生成资产快照
 "use strict";
 
 const corsHeaders = {
@@ -110,6 +117,43 @@ Deno.serve(async (req) => {
           snapshots = snapData[0]?.snapshots_taken || 0;
         }
 
+        // Phase 7: 同步 card_market（触发器自动同步，此处手动 seed 确保完整性）
+        const marketSeedRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/seed_card_market`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+            body: JSON.stringify({ p_market: market }),
+          }
+        );
+        let marketSeeded = 0;
+        if (marketSeedRes.ok) {
+          const msData = await marketSeedRes.json();
+          marketSeeded = msData[0]?.cards_seeded || 0;
+        }
+
+        // Phase 7: 刷新所有用户资产组合
+        const portfolioRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/refresh_all_portfolios`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+          }
+        );
+        let portfoliosRefreshed = 0;
+        if (portfolioRes.ok) {
+          const pfData = await portfolioRes.json();
+          portfoliosRefreshed = pfData[0]?.users_refreshed || 0;
+        }
+
         return jsonResponse({
           success: true,
           data: {
@@ -118,6 +162,9 @@ Deno.serve(async (req) => {
             ...fluctuateData[0],
             cards_synced: synced,
             snapshots_taken: snapshots,
+            // Phase 7 新增
+            market_cards_seeded: marketSeeded,
+            portfolios_refreshed: portfoliosRefreshed,
           },
         });
       }
@@ -188,6 +235,79 @@ Deno.serve(async (req) => {
 
         const data = await snapRes.json();
         return jsonResponse({ success: true, data: { action: "snapshot", ...data[0] } });
+      }
+
+      // ===== Phase 7 新增 actions =====
+
+      case "market_seed": {
+        // 从 card_prices 初始化 card_market
+        const seedRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/seed_card_market`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+            body: JSON.stringify({ p_market: market }),
+          }
+        );
+
+        if (!seedRes.ok) {
+          const err = await seedRes.text();
+          return jsonResponse({ success: false, error: "market_seed RPC failed: " + err }, 500);
+        }
+
+        const data = await seedRes.json();
+        return jsonResponse({ success: true, data: { action: "market_seed", ...data[0] } });
+      }
+
+      case "portfolio_sync": {
+        // 从 user_collections 迁移到 portfolio_items
+        const syncRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/sync_collections_to_portfolio`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+            body: JSON.stringify({ p_user_id: null }),
+          }
+        );
+
+        if (!syncRes.ok) {
+          const err = await syncRes.text();
+          return jsonResponse({ success: false, error: "portfolio_sync RPC failed: " + err }, 500);
+        }
+
+        const data = await syncRes.json();
+        return jsonResponse({ success: true, data: { action: "portfolio_sync", ...data[0] } });
+      }
+
+      case "portfolio_refresh": {
+        // 刷新所有用户资产组合（从 portfolio_items → user_portfolio）
+        const refreshRes = await fetch(
+          `${Deno.env.get("PROJECT_URL") || "https://xybpcsmjjcnkjwfsuder.supabase.co"}/rest/v1/rpc/refresh_all_portfolios`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": providedKey,
+              "Authorization": `Bearer ${providedKey}`,
+            },
+          }
+        );
+
+        if (!refreshRes.ok) {
+          const err = await refreshRes.text();
+          return jsonResponse({ success: false, error: "portfolio_refresh RPC failed: " + err }, 500);
+        }
+
+        const data = await refreshRes.json();
+        return jsonResponse({ success: true, data: { action: "portfolio_refresh", ...data[0] } });
       }
 
       default:
