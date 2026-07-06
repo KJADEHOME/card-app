@@ -46,6 +46,9 @@
         .tag.nm{background:#E8F5E9;color:#2E7D32}
         .tag.lp{background:#FFF3E0;color:#E65100}
         .tag.mp{background:#FFF3E0;color:#BF360C}
+        .tag.platform{background:linear-gradient(135deg,#E8F5E9,#C8E6C9);color:#2E7D32;font-weight:700;border:1px solid #A5D6A7}
+        .tag.verified{background:linear-gradient(135deg,#E3F2FD,#BBDEFB);color:#1565C0;font-weight:600;border:1px solid #90CAF9}
+        .platform-badge{display:inline-flex;align-items:center;gap:2px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;background:linear-gradient(135deg,#4CAF50,#66BB6A);color:white;margin-right:4px}
         
         .card-price-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f5}
         .card-price{font-size:17px;font-weight:800;color:#E74C3C}
@@ -132,8 +135,9 @@
         <button class="search-btn" onclick="doSearch()">搜索</button>
     </div>
     
-    <div class="filters" id="filters">
+        <div class="filters" id="filters">
         <div class="filter-chip active" data-cat="" onclick="filterBy(this)">全部</div>
+        <div class="filter-chip" data-cat="platform" onclick="filterBy(this)" style="border-color:#4CAF50;color:#4CAF50;background:#E8F5E9">🛡️自营</div>
         <div class="filter-chip" data-cat="pokemon" onclick="filterBy(this)">宝可梦</div>
         <div class="filter-chip" data-cat="yugioh" onclick="filterBy(this)">游戏王</div>
         <div class="filter-chip" data-cat="magic" onclick="filterBy(this)">万智牌</div>
@@ -228,16 +232,23 @@
             document.getElementById('cardGrid').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
             
-            let query = db.from('consignments').select('*').eq('status', 'active');
+            // Use market_list_with_seller view (includes seller info + platform badge)
+            let query = db.from('market_list_with_seller').select('*');
             
-            if (currentCategory) query = query.eq('card_category', currentCategory);
+            // Filter: "platform" means is_platform_sale=true
+            if (currentCategory === 'platform') {
+                query = query.eq('is_platform_sale', true);
+            } else if (currentCategory) {
+                query = query.eq('card_category', currentCategory);
+            }
             
             const search = document.getElementById('searchInput').value.trim();
             if (search) query = query.or(`card_name.ilike.%${search}%,series.ilike.%${search}%`);
             
-            if (currentSort === 'newest') query = query.order('created_at', { ascending: false });
-            else if (currentSort === 'price_asc') query = query.order('asking_price', { ascending: true });
-            else query = query.order('asking_price', { ascending: false });
+            if (currentSort === 'newest') query = query.order('seller_weight', { ascending: false }).order('listed_at', { ascending: false });
+            else if (currentSort === 'price_asc') query = query.order('seller_weight', { ascending: false }).order('asking_price', { ascending: true });
+            else if (currentSort === 'platform') query = query.order('seller_weight', { ascending: false }).order('listed_at', { ascending: false });
+            else query = query.order('seller_weight', { ascending: false }).order('asking_price', { ascending: false });
             
             const { data, error } = await query.limit(50);
             
@@ -259,18 +270,20 @@
             document.getElementById('cardGrid').style.display = 'grid';
             document.getElementById('cardGrid').innerHTML = listings.map(c => {
                 const condClass = (c.condition || 'NM').toLowerCase();
+                const isPlatform = c.is_platform_sale;
+                const badge = isPlatform ? '<span class="platform-badge">🛡️自营</span>' : (c.merchant_verified ? '<span class="tag verified">✅认证</span>' : '');
                 return `
                 <div class="card-item" onclick="openDetail('${c.id}')">
                     <img class="card-img" src="${c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(c.card_name)}" loading="lazy">
                     <div class="card-body">
-                        <div class="card-name">${esc(c.card_name)}</div>
+                        <div class="card-name">${badge}${esc(c.card_name)}</div>
                         <div class="card-meta">
                             <span class="tag rarity">${esc(c.rarity || 'N')}</span>
                             <span class="tag ${condClass}">${esc(c.condition || 'NM')}</span>
                         </div>
                         <div class="card-price-row">
                             <div class="card-price"><span class="unit">¥</span>${(c.asking_price || 0).toFixed(2)}</div>
-                            <button class="buy-btn" onclick="event.stopPropagation();buyCard('${c.id}')">购买</button>
+                            <button class="buy-btn" onclick="event.stopPropagation();buyCard('${c.id}')">${isPlatform ? '自营购买' : '购买'}</button>
                         </div>
                     </div>
                 </div>`;
@@ -307,40 +320,45 @@
             const c = listings.find(x => x.id === id);
             if (!c) return;
             const isMine = currentUser && currentUser.id === c.seller_id;
+            const isPlatform = c.is_platform_sale;
+            const sellerDisplay = c.merchant_name || c.seller_name || ('卖家 #' + (c.seller_id || '').slice(0,8));
+            const sellerBadgeHTML = isPlatform ? '<span style="background:linear-gradient(135deg,#4CAF50,#66BB6A);color:white;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700">🛡️平台自营</span>' : (c.merchant_verified ? '<span style="background:#E3F2FD;color:#1565C0;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">✅认证商家</span>' : '');
             
             document.getElementById('modalContent').innerHTML = `
                 <img class="modal-img" src="${c.card_image || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(c.card_name)}">
                 <div class="modal-body">
-                    <div class="modal-name">${esc(c.card_name)}</div>
+                    <div class="modal-name">${sellerBadgeHTML} ${esc(c.card_name)}</div>
                     <div class="modal-series">${esc(c.series || '未知系列')} · ${esc(c.card_category || '-')}</div>
                     <div class="modal-tags">
                         <span class="modal-tag rarity">${esc(c.rarity || 'N')}</span>
                         <span class="modal-tag condition">品相 ${esc(c.condition || 'NM')}</span>
+                        ${isPlatform ? '<span class="modal-tag" style="background:linear-gradient(135deg,#C8E6C9,#A5D6A7);color:#2E7D32;font-weight:700">🛡️自营正品保障</span>' : ''}
                         ${(c.tags || []).map(t => `<span class="modal-tag" style="background:#F0F0F8;color:#666">${esc(t)}</span>`).join('')}
                     </div>
+                    ${isPlatform ? '<div style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9);padding:12px;border-radius:12px;margin-top:12px;font-size:13px;color:#2E7D32;line-height:1.6"><strong>🛡️ 平台自营保障</strong><br>✅ 正品鉴定 · 🚚 统一发货 · 💰 全额入账 · 🔄 无忧退换</div>' : ''}
                     <div class="modal-desc">
                         <div class="modal-desc-label">📝 卖家描述</div>
                         ${c.description || '卖家未填写详细描述'}
                     </div>
                     <div class="seller-info">
-                        <div class="seller-avatar">卖</div>
-                        <div><div class="seller-name">卖家 #${(c.seller_id || '').slice(0,8)}</div></div>
+                        <div class="seller-avatar" style="${isPlatform ? 'background:linear-gradient(135deg,#4CAF50,#66BB6A)' : ''}">${isPlatform ? '🛡' : '卖'}</div>
+                        <div><div class="seller-name">${esc(sellerDisplay)}</div>${c.sale_source === 'live_sync' ? '<div style="font-size:11px;color:#E65100">📺 直播间同步上架</div>' : ''}</div>
                     </div>
                     <div class="fee-breakdown">
                         <div class="fee-line"><span>卡牌价格</span><span>¥${(c.asking_price || 0).toFixed(2)}</span></div>
                         <div class="fee-line"><span>运费</span><span>${c.shipping_fee > 0 ? '¥' + c.shipping_fee + '（买家付）' : '包邮'}</span></div>
-                        <div class="fee-line"><span>平台服务费 (${c.platform_fee_pct || 8}%)</span><span style="color:#E74C3C">-¥${(c.platform_fee || 0).toFixed(2)}</span></div>
+                        ${isPlatform ? '<div class="fee-line"><span>平台自营</span><span style="color:#4CAF50;font-weight:700">0手续费 🛡️</span></div>' : '<div class="fee-line"><span>平台服务费 (${c.platform_fee_pct || 8}%)</span><span style="color:#E74C3C">-¥${(c.platform_fee || 0).toFixed(2)}</span></div>'}
                         <div class="fee-line total"><span>你需支付</span><span style="color:#E74C3C">¥${((c.asking_price || 0) + (c.shipping_fee || 0)).toFixed(2)}</span></div>
                     </div>
                 </div>
                 <div class="modal-bottom">
                     <div class="modal-price-info">
-                        <div class="modal-price-label">售价</div>
+                        <div class="modal-price-label">${isPlatform ? '🛡️自营价' : '售价'}</div>
                         <div class="modal-price-value">¥${(c.asking_price || 0).toFixed(2)}</div>
-                        <div class="modal-price-shipping">${c.shipping_fee > 0 ? '含运费 ¥' + c.shipping_fee : '包邮'}</div>
+                        <div class="modal-price-shipping">${c.shipping_fee > 0 ? '含运费 ¥' + c.shipping_fee : (isPlatform ? '自营包邮' : '包邮')}</div>
                     </div>
-                    <button class="modal-buy-btn" onclick="buyCard('${c.id}')" ${isMine ? 'disabled' : ''}>
-                        ${isMine ? '自己的商品' : '立即购买'}
+                    <button class="modal-buy-btn" onclick="buyCard('${c.id}')" ${isMine ? 'disabled' : ''} style="${isPlatform ? 'background:linear-gradient(135deg,#4CAF50,#2E7D32);box-shadow:0 4px 16px rgba(76,175,80,.35)' : ''}">
+                        ${isMine ? '自己的商品' : (isPlatform ? '🛡️自营购买' : '立即购买')}
                     </button>
                 </div>
             `;
