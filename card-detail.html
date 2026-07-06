@@ -63,6 +63,33 @@
         .btn-primary { flex: 1; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
         .btn-secondary { padding: 15px 20px; background: #f0f0f0; border: none; border-radius: 12px; font-size: 20px; cursor: pointer; }
         .loading { text-align: center; padding: 100px 20px; color: #999; }
+        /* P8: mark_price section */
+        .mark-price-section { background: white; padding: 20px; margin-bottom: 15px; border-top: 3px solid #5B4AE0; }
+        .mark-price-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+        .mark-price-value { font-size: 36px; font-weight: 800; color: #5B4AE0; }
+        .mark-price-sub { font-size: 13px; color: #888; margin-top: 6px; }
+        .activity-bar { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+        .activity-dots { display: flex; gap: 4px; }
+        .activity-dot { width: 10px; height: 10px; border-radius: 50%; background: #e0e0e0; }
+        .activity-dot.active { background: #5B4AE0; }
+        .activity-label { font-size: 13px; color: #666; }
+        .weights-row { display: flex; gap: 15px; margin-top: 12px; flex-wrap: wrap; }
+        .weight-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+        .weight-bar-bg { width: 60px; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+        .weight-bar-fill { height: 100%; border-radius: 4px; }
+        .stability-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-top: 8px; }
+        .stability-badge.stable { background: #e8f5e9; color: #388e3c; }
+        .stability-badge.smoothed { background: #fff3e0; color: #f57c00; }
+        .stability-badge.capped { background: #fce8e8; color: #c62828; }
+        .stability-badge.initial { background: #e3f2fd; color: #1976d2; }
+        .price-sources { background: white; padding: 20px; margin-bottom: 15px; }
+        .source-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        .source-row:last-child { border-bottom: none; }
+        .source-name { color: #666; }
+        .source-value { font-weight: 600; }
+        .source-weight { color: #999; font-size: 12px; }
+        .source-active { color: #388e3c; font-size: 12px; }
+        .source-inactive { color: #ccc; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -92,6 +119,7 @@
         let currentUser = null;
         let isFav = false;
         let cardMarketPrice = null;
+        let markPriceData = null;
 
         async function loadDetail() {
             if (!cardId) {
@@ -127,10 +155,13 @@
                 updateFavButton();
             }
             
-            // Load market price from card_prices
-            await loadMarketPrice(data.name, data.series, data.rarity);
-            
-            renderDetail(data);
+        // Load market price from card_prices
+        await loadMarketPrice(data.name, data.series, data.rarity);
+        
+        // P8: Load mark_price from card_market via RPC
+        await loadMarkPrice(data.name, data.series, data.rarity);
+        
+        renderDetail(data);
         }
         
         // Load current market price & trend from card_prices
@@ -148,6 +179,23 @@
                 }
             } catch (e) {
                 console.log('No market price data for:', cardName);
+            }
+        }
+        
+        // Load mark_price from card_market via RPC
+        async function loadMarkPrice(cardName, series, rarity) {
+            try {
+                const { data, error } = await db.rpc('get_mark_price_with_explanation', {
+                    p_card_name: cardName,
+                    p_series: series || '',
+                    p_rarity: rarity || 'N',
+                    p_market: 'CN'
+                });
+                if (data && data[0]) {
+                    markPriceData = data[0];
+                }
+            } catch (e) {
+                console.log('No mark_price data for:', cardName, e);
             }
         }
         
@@ -184,6 +232,78 @@
                         ${changePct > 0 ? `<span class="asset-tag orange">📈 今日 +${changePct.toFixed(1)}%</span>` : ''}
                         ${changePct < 0 ? `<span class="asset-tag green">📉 今日 ${changePct.toFixed(1)}%</span>` : ''}
                         <span class="asset-tag purple">📅 ${new Date(mp.updated_at).toLocaleDateString('zh-CN')}</span>
+                    </div>
+                `;
+            }
+
+            // P8: mark_price section
+            let markPriceHTML = '';
+            if (markPriceData && markPriceData.mark_price) {
+                const mp = markPriceData;
+                const levelText = mp.activity_level === 'high' ? '高活跃' : mp.activity_level === 'medium' ? '中活跃' : '低活跃';
+                const levelColor = mp.activity_level === 'high' ? '#e74c3c' : mp.activity_level === 'medium' ? '#f57c00' : '#27ae60';
+                const stabilityText = mp.stability_flag === 'STABLE' ? '稳定' : mp.stability_flag === 'SMOOTHED' ? '已平滑' : mp.stability_flag === 'CAPPED' ? '已限幅' : '初始';
+                const stabilityClass = mp.stability_flag === 'STABLE' ? 'stable' : mp.stability_flag === 'SMOOTHED' ? 'smoothed' : mp.stability_flag === 'CAPPED' ? 'capped' : 'initial';
+
+                markPriceHTML = `
+                    <div class="mark-price-section">
+                        <div class="mark-price-label">市场平滑价（mark_price）</div>
+                        <div class="mark-price-value">¥${parseFloat(mp.mark_price).toLocaleString()}</div>
+                        <div class="mark-price-sub">
+                            final_price: ¥${currentCard.price} ·
+                            activity_score: ${parseFloat(mp.activity_score).toFixed(3)}
+                        </div>
+                        <div class="activity-bar">
+                            <div class="activity-dots">
+                                <div class="activity-dot ${mp.activity_level === 'low' ? 'active' : ''}"></div>
+                                <div class="activity-dot ${mp.activity_level === 'medium' ? 'active' : ''}"></div>
+                                <div class="activity-dot ${mp.activity_level === 'high' ? 'active' : ''}"></div>
+                            </div>
+                            <span class="activity-label" style="color:${levelColor}">${levelText}</span>
+                        </div>
+                        <div class="weights-row">
+                            <div class="weight-item">
+                                <span class="source-name">live</span>
+                                <div class="weight-bar-bg">
+                                    <div class="weight-bar-fill" style="width:${parseFloat(mp.w_live)*100}%;background:#e74c3c;"></div>
+                                </div>
+                                <span class="source-weight">${(parseFloat(mp.w_live)*100).toFixed(0)}%</span>
+                            </div>
+                            <div class="weight-item">
+                                <span class="source-name">market</span>
+                                <div class="weight-bar-bg">
+                                    <div class="weight-bar-fill" style="width:${parseFloat(mp.w_market)*100}%;background:#27ae60;"></div>
+                                </div>
+                                <span class="source-weight">${(parseFloat(mp.w_market)*100).toFixed(0)}%</span>
+                            </div>
+                            <div class="weight-item">
+                                <span class="source-name">ai</span>
+                                <div class="weight-bar-bg">
+                                    <div class="weight-bar-fill" style="width:${parseFloat(mp.w_ai)*100}%;background:#f57c00;"></div>
+                                </div>
+                                <span class="source-weight">${(parseFloat(mp.w_ai)*100).toFixed(0)}%</span>
+                            </div>
+                        </div>
+                        <div class="stability-badge ${stabilityClass}">${stabilityText}</div>
+                    </div>
+
+                    <div class="price-sources">
+                        <div class="section-title">💰 价格来源状态</div>
+                        <div class="source-row">
+                            <span class="source-name">live_price</span>
+                            <span class="source-value">${mp.price_sources_status.live_price.value ? '¥' + parseFloat(mp.price_sources_status.live_price.value).toLocaleString() : '—'}</span>
+                            <span class="${mp.price_sources_status.live_price.active ? 'source-active' : 'source-inactive'}">${mp.price_sources_status.live_price.active ? '✓ 参与加权' : '✗ 未参与'}</span>
+                        </div>
+                        <div class="source-row">
+                            <span class="source-name">market_price</span>
+                            <span class="source-value">${mp.price_sources_status.market_price.value ? '¥' + parseFloat(mp.price_sources_status.market_price.value).toLocaleString() : '—'}</span>
+                            <span class="${mp.price_sources_status.market_price.active ? 'source-active' : 'source-inactive'}">${mp.price_sources_status.market_price.active ? '✓ 参与加权' : '✗ 未参与'}</span>
+                        </div>
+                        <div class="source-row">
+                            <span class="source-name">ai_price</span>
+                            <span class="source-value">${mp.price_sources_status.ai_price.value ? '¥' + parseFloat(mp.price_sources_status.ai_price.value).toLocaleString() : '—'}</span>
+                            <span class="${mp.price_sources_status.ai_price.active ? 'source-active' : 'source-inactive'}">${mp.price_sources_status.ai_price.active ? '✓ 参与加权' : '✗ 未参与'}</span>
+                        </div>
                     </div>
                 `;
             }
@@ -226,6 +346,8 @@
                     <div style="font-size:20px;font-weight:700;color:var(--rise);">挂牌价 ¥${card.price}</div>
                     ${priceHTML}
                 </div>
+                
+                ${markPriceHTML}
                 
                 ${trendHTML}
                 
