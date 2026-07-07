@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卡域 CardRealm — Production Readiness Audit Report</title>
+<style>
+:root { --purple: #5B4AE0; --red: #dc2626; --orange: #ea580c; --yellow: #ca8a04; --green: #16a34a; --gray: #6b7280; --bg: #f8f9fa; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: #1a1a2e; line-height: 1.6; }
+.container { max-width: 960px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 28px; color: var(--purple); margin-bottom: 8px; }
+h2 { font-size: 20px; color: #1a1a2e; border-bottom: 2px solid var(--purple); padding-bottom: 8px; margin: 24px 0 12px; }
+h3 { font-size: 16px; color: #374151; margin: 16px 0 8px; }
+.subtitle { color: var(--gray); font-size: 14px; margin-bottom: 20px; }
+.meta { background: white; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; gap: 24px; }
+.meta-item { text-align: center; }
+.meta-label { font-size: 12px; color: var(--gray); }
+.meta-value { font-size: 24px; font-weight: bold; }
+.score-card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; text-align: center; border: 3px solid; }
+.score-grade { font-size: 64px; font-weight: 900; }
+.score-pct { font-size: 20px; color: var(--gray); }
+.phase { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+.phase-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.phase-num { background: var(--purple); color: white; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+.phase-title { font-size: 18px; font-weight: 600; }
+.severity-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.severity-critical { background: #fee2e2; color: var(--red); }
+.severity-high { background: #ffedd5; color: var(--orange); }
+.severity-medium { background: #fef9c3; color: var(--yellow); }
+.severity-low { background: #dcfce7; color: var(--green); }
+.severity-info { background: #e5e7eb; color: var(--gray); }
+.finding { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin: 8px 0; }
+.finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.finding-title { font-weight: 600; font-size: 14px; }
+.finding-detail { font-size: 13px; color: #4b5563; }
+.finding-file { font-size: 12px; color: var(--gray); margin-top: 4px; }
+.finding-impact { font-size: 12px; color: var(--orange); margin-top: 4px; }
+.status-pass { color: var(--green); font-weight: 600; }
+.status-fail { color: var(--red); font-weight: 600; }
+.status-warn { color: var(--yellow); font-weight: 600; }
+.checklist { list-style: none; padding: 0; }
+.checklist li { padding: 4px 0; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.check-icon { font-size: 14px; }
+.summary-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.summary-table th { background: var(--purple); color: white; padding: 8px; font-size: 13px; text-align: left; }
+.summary-table td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid #e5e7eb; }
+.summary-table tr:hover td { background: #f3f4f6; }
+.priority-list { list-style: none; padding: 0; counter-reset: priority; }
+.priority-list li { padding: 8px 12px; margin: 4px 0; border-radius: 8px; font-size: 14px; counter-increment: priority; display: flex; align-items: center; gap: 8px; }
+.priority-list li::before { content: counter(priority); background: var(--red); color: white; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+.priority-critical { background: #fee2e2; }
+.priority-high { background: #ffedd5; }
+.priority-medium { background: #fef9c3; }
+.tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; background: #e5e7eb; color: #4b5563; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🃏 卡域 CardRealm — Production Readiness Audit</h1>
+<p class="subtitle">审计日期: 2026-07-07 · 审计人: 冰沙 🧊 · 项目: card-app (KJADEHOME/card-app)</p>
+
+<div class="meta">
+  <div class="meta-item"><div class="meta-label">核心表</div><div class="meta-value">64</div></div>
+  <div class="meta-item"><div class="meta-label">前端页面</div><div class="meta-value">37</div></div>
+  <div class="meta-item"><div class="meta-label">RPC函数</div><div class="meta-value">92</div></div>
+  <div class="meta-item"><div class="meta-label">Edge函数</div><div class="meta-value">4</div></div>
+  <div class="meta-item"><div class="meta-label">迁移文件</div><div class="meta-value">35</div></div>
+</div>
+
+<div class="score-card" style="border-color: var(--orange);">
+  <div style="font-size:14px;color:var(--gray);margin-bottom:4px;">Production Score</div>
+  <div class="score-grade" style="color: var(--orange);">B</div>
+  <div class="score-pct">完成度 72% — 修复后可上线</div>
+  <div style="font-size:13px;color:var(--gray);margin-top:8px;">存在 5 个 CRITICAL 阻塞问题 + 8 个 HIGH 问题需修复后上线</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 1: 系统结构检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">1</div>
+    <div class="phase-title">系统结构检查 — SYSTEM HEALTH REPORT</div>
+  </div>
+
+  <h3>前端页面清单 (37个)</h3>
+  <table class="summary-table">
+    <tr><th>类别</th><th>页面</th><th>状态</th></tr>
+    <tr><td>核心功能</td><td>index.html (扫卡入口), home.html, collection.html, dashboard.html, profile.html</td><td class="status-pass">✅ 可访问</td></tr>
+    <tr><td>市场/交易</td><td>market.html, marketplace.html, market_feed.html, my-listings.html, sell.html, publish.html, card-detail.html</td><td class="status-pass">✅ 可访问</td></tr>
+    <tr><td>资产</td><td>my-assets.html, my-orders.html, my-reservations.html, order-detail.html, order-confirm.html</td><td class="status-pass">✅ 可访问</td></tr>
+    <tr><td>用户</td><td>login.html, wallet.html, points.html, notifications.html, message.html, feedback.html</td><td class="status-pass">✅ 可访问</td></tr>
+    <tr><td>社区</td><td>community.html, scan-history.html</td><td class="status-pass">✅ 可访问</td></tr>
+    <tr><td>商城</td><td>shop.html, product-detail.html, platform-store.html, recharge.html</td><td class="status-pass">✅ 可访问</td></tr>
+    <tr><td>管理后台</td><td>admin.html, admin-users.html, admin-orders.html, admin-merchant.html, admin-recharge.html</td><td class="status-warn">⚠️ 无统一鉴权</td></tr>
+    <tr><td>平台管理</td><td>admin-platform-login.html, admin-platform-publish.html</td><td class="status-pass">✅ 独立管理员系统</td></tr>
+  </table>
+
+  <h3>关键发现</h3>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">🚨 deploy_payload.json 泄露 Moonshot API密钥</span>
+      <span class="severity-badge severity-critical">CRITICAL</span>
+    </div>
+    <div class="finding-detail">文件包含完整旧版 ai-scan Edge Function 源码，内嵌硬编码 Moonshot API密钥 <code>sk-zvSdmpMBWUpUOxfWjDyfod4dlGAnEkHnhC3P5UdcRRMFsojk</code> 作为fallback值</div>
+    <div class="finding-file">文件: deploy_payload.json</div>
+    <div class="finding-impact">影响: 任何有仓库访问权限的人可获得第三方AI服务密钥，可能产生费用</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ Anon Key 硬编码在30+ HTML文件中</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">Supabase anon key <code>sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7</code> 在30+个HTML文件中重复硬编码，而非统一配置</div>
+    <div class="finding-file">文件: 30+ HTML files</div>
+    <div class="finding-impact">影响: anon key是公开设计可接受的，但分散硬编码导致更新困难、维护成本高</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ home.html 使用 JWT anon key 而非 publishable key</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">home.html 使用完整 JWT token <code>eyJhbGci...</code> 而非简短的 publishable key 格式，增加了暴露风险</div>
+    <div class="finding-file">文件: home.html:1068</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 临时迁移脚本留在仓库中</span>
+      <span class="severity-badge severity-low">LOW</span>
+    </div>
+    <div class="finding-detail">0034_fix_batch1.sql, 0034_fix_batch2.sql, 0034_fix_public_prefix.sql 等临时修复文件仍在仓库中</div>
+    <div class="finding-file">文件: supabase/migrations/0034_fix_*.sql</div>
+    <div class="finding-impact">影响: 不影响功能，但增加仓库混乱度</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> 前端页面全部可访问（37个HTML）</li>
+    <li><span class="check-icon">✅</span> PWA配置完整（manifest.json + service-worker.js）</li>
+    <li><span class="check-icon">❌</span> API密钥泄露（deploy_payload.json）</li>
+    <li><span class="check-icon">✅</span> 数据库连接稳定（Supabase正常响应）</li>
+    <li><span class="check-icon">❌</span> Supabase权限存在问题（profiles RLS "Allow all"）</li>
+    <li><span class="check-icon">⚠️</span> 环境变量——anon key设计上可公开，但分散硬编码</li>
+    <li><span class="check-icon">❌</span> 硬编码第三方密钥（Moonshot API key）</li>
+    <li><span class="check-icon">⚠️</span> 测试/临时文件残留</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 2: 数据库生产检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">2</div>
+    <div class="phase-title">数据库生产检查 — DATABASE AUDIT REPORT</div>
+  </div>
+
+  <h3>核心表数据量</h3>
+  <table class="summary-table">
+    <tr><th>表</th><th>行数</th><th>RLS</th><th>外键</th><th>风险</th></tr>
+    <tr><td>profiles</td><td>3</td><td class="status-fail">❌ "Allow all"</td><td>—</td><td class="severity-badge severity-critical">CRITICAL</td></tr>
+    <tr><td>cards</td><td>11</td><td>✅</td><td class="status-fail">❌ 无外键</td><td class="severity-badge severity-high">HIGH</td></tr>
+    <tr><td>card_market</td><td>56</td><td>✅</td><td class="status-fail">❌ 无外键</td><td class="severity-badge severity-high">HIGH</td></tr>
+    <tr><td>card_prices</td><td>—</td><td>✅</td><td class="status-fail">❌ 无外键</td><td class="severity-badge severity-medium">MEDIUM</td></tr>
+    <tr><td>price_history</td><td>25</td><td>✅</td><td class="status-fail">❌ 无外键</td><td class="severity-badge severity-medium">MEDIUM</td></tr>
+    <tr><td>user_collections</td><td>0</td><td>✅</td><td>✅</td><td><span class="tag">OK</span></td></tr>
+    <tr><td>portfolio_items</td><td>0</td><td>✅</td><td>✅</td><td><span class="tag">OK</span></td></tr>
+    <tr><td>user_portfolio</td><td>0</td><td>✅</td><td>✅</td><td><span class="tag">OK</span></td></tr>
+    <tr><td>consignments</td><td>0</td><td>✅</td><td>✅</td><td><span class="tag">OK</span></td></tr>
+    <tr><td>platform_cards</td><td>1</td><td>✅</td><td>✅</td><td><span class="tag">OK</span></td></tr>
+    <tr><td>sealed_products</td><td>0</td><td class="status-warn">⚠️ write_rpc=true</td><td>✅</td><td class="severity-badge severity-high">HIGH</td></tr>
+    <tr><td>sealed_product_orders</td><td>0</td><td class="status-warn">⚠️ write_rpc=true</td><td>✅</td><td class="severity-badge severity-high">HIGH</td></tr>
+    <tr><td>merchandise</td><td>0</td><td class="status-warn">⚠️ write_rpc=true</td><td>✅</td><td class="severity-badge severity-high">HIGH</td></tr>
+    <tr><td>merchandise_orders</td><td>0</td><td class="status-warn">⚠️ write_rpc=true</td><td>✅</td><td class="severity-badge severity-high">HIGH</td></tr>
+    <tr><td>admins</td><td>1</td><td>✅ service_role only</td><td class="status-fail">❌ 无外键</td><td class="severity-badge severity-low">LOW</td></tr>
+    <tr><td>payment_orders</td><td>0</td><td class="status-fail">❌ update=true</td><td>✅</td><td class="severity-badge severity-critical">CRITICAL</td></tr>
+    <tr><td>system_flags</td><td>—</td><td class="status-fail">❌ RLS未启用</td><td>—</td><td class="severity-badge severity-medium">MEDIUM</td></tr>
+    <tr><td>pre_orders</td><td>1</td><td>✅</td><td>✅</td><td><span class="tag">OK</span></td></tr>
+  </table>
+
+  <h3>关键发现</h3>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">🚨 profiles RLS策略 "Allow all" — 任何人可操作任何用户数据</span>
+      <span class="severity-badge severity-critical">CRITICAL</span>
+    </div>
+    <div class="finding-detail">profiles 表只有一个RLS策略 <code>"Allow all" cmd=ALL qual=true</code>，意味着任何认证用户可 SELECT/INSERT/UPDATE/DELETE 任何用户的profile。可修改他人username、role、points等。</div>
+    <div class="finding-file">表: public.profiles → policy "Allow all"</div>
+    <div class="finding-impact">影响: 任何用户可冒充管理员(role=admin)、修改他人积分、删除他人资料</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">🚨 payment_orders update策略 qual=true — 任何人可更新支付订单</span>
+      <span class="severity-badge severity-critical">CRITICAL</span>
+    </div>
+    <div class="finding-detail">payment_orders 的 update RLS策略 <code>payment_orders_update_own qual=true</code> 允许任何认证用户更新任何支付订单的状态和金额</div>
+    <div class="finding-impact">影响: 用户可将自己的订单标记为已支付、修改金额、伪造支付状态</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ sealed_products/merchandise write_rpc RLS策略过于宽松</span>
+      <span class="severity-badge severity-high">HIGH</span>
+    </div>
+    <div class="finding-detail">sealed_products, sealed_product_orders, merchandise, merchandise_orders 的write策略 <code>qual=true</code>，虽然RPC使用SECURITY DEFINER绕过RLS，但直接通过Supabase JS客户端调用仍可写入</div>
+    <div class="finding-impact">影响: 恶意用户可通过直接API调用创建/修改/删除盲盒商品和周边商品</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 核心表无外键约束</span>
+      <span class="severity-badge severity-high">HIGH</span>
+    </div>
+    <div class="finding-detail">cards, card_market, card_prices, price_history, admins, products 表没有 FOREIGN KEY 约束</div>
+    <div class="finding-impact">影响: 可能产生孤儿数据（如card_market记录引用不存在的card）</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ user_collections 重复RLS策略</span>
+      <span class="severity-badge severity-low">LOW</span>
+    </div>
+    <div class="finding-detail">两个完全相同的策略 "Users manage own collections" 和 "Users own their collections"，都是 cmd=ALL, qual=(auth.uid() = user_id)</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ card_market 价格数据完整</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">56条记录, 0条final_price=0, 1条mark_price=NULL, 0条locked。价格真值规则正常运行。</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> 主键设计 — 所有表都有UUID主键</li>
+    <li><span class="check-icon">❌</span> 外键关系 — 6个核心表无外键</li>
+    <li><span class="check-icon">✅</span> NULL异常 — 关键字段(final_price, total_asset_value)有DEFAULT 0</li>
+    <li><span class="check-icon">✅</span> 重复数据 — 无大量重复</li>
+    <li><span class="check-icon">✅</span> 索引合理 — card_market有复合索引(card_name+series+rarity+market)</li>
+    <li><span class="check-icon">❌</span> RLS权限 — profiles "Allow all" + payment_orders update=true</li>
+    <li><span class="check-icon">❌</span> 用户数据隔离 — profiles所有人可访问所有人</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 3: AI识卡系统检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">3</div>
+    <div class="phase-title">AI识卡系统检查 — AI CARD MODULE REPORT</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ AI失败不阻塞用户 — Fallback-First设计</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">ai-scan v4.1 采用 "Fallback-First" 设计：Gemini API失败 → 返回status="failed" + 手动录入提示；JSON解析失败 → 正则提取；甚至hash计算失败也返回fallback而非500错误。任何AI失败不影响主系统。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 三级状态返回机制</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">success (TCG, confidence≥0.5) → 自动入库; partial (NON_TCG/低confidence) → 人工确认; failed (UNKNOWN/ERROR) → 手动录入。前端总是收到200+可用数据。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ Gemini API降级策略</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">主模型 gemini-2.5-flash → 429限流时降级到 gemini-2.5-flash-lite</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 防刷机制完整</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">SHA-256图片hash去重 + 7天缓存 + 每日扫描次数限制 + AI成本预算 + 60秒时间戳防重放</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ Edge Function verify_jwt=false — 无认证要求</span>
+      <span class="severity-badge severity-high">HIGH</span>
+    </div>
+    <div class="finding-detail">deploy_payload.json 设置 <code>verify_jwt: false</code>，意味着任何人无需登录即可调用ai-scan Edge Function，消耗AI成本</div>
+    <div class="finding-impact">影响: 虽然有rate limit和budget check，但这些依赖X-User-Id头（可伪造）</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ card-images 存储桶无限制</span>
+      <span class="severity-badge severity-high">HIGH</span>
+    </div>
+    <div class="finding-detail">card-images桶: public=true, file_size_limit=null, allowed_mime_types=null。card-scans桶有限制(5MB+类型检查)，但card-images桶完全开放。</div>
+    <div class="finding-impact">影响: 任何人可上传任意大小/类型的文件到card-images桶</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 图片大小前端验证不足</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">Edge Function仅检查 <code>image.length < 100</code>（太短），没有检查上限。理论上可发送数十MB的base64图片。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 非卡牌图片有分类处理</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">Gemini prompt明确分类为 TCG / NON_TCG / UNKNOWN 三类，NON_TCG返回partial需人工确认，UNKNOWN返回failed需手动录入</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> Gemini API异常处理 — 三层fallback</li>
+    <li><span class="check-icon">✅</span> API失败不导致页面崩溃 — 前端总是收到200</li>
+    <li><span class="check-icon">⚠️</span> 图片大小限制 — 仅检查下限100字符</li>
+    <li><span class="check-icon">✅</span> 非卡牌图片处理 — NON_TCG分类</li>
+    <li><span class="check-icon">✅</span> 重复识别处理 — SHA-256 hash + 7天缓存</li>
+    <li><span class="check-icon">✅</span> 识别失败提示 — manual entry fallback</li>
+    <li><span class="check-icon">❌</span> Edge Function无JWT认证</li>
+    <li><span class="check-icon">❌</span> card-images桶无安全限制</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 4: 资产系统检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">4</div>
+    <div class="phase-title">资产系统检查 — ASSET ENGINE REPORT</div>
+  </div>
+
+  <h3>价格同步触发器链</h3>
+  <table class="summary-table">
+    <tr><th>触发器</th><th>表</th><th>事件</th><th>状态</th></tr>
+    <tr><td>trg_card_market_price</td><td>card_market</td><td>BEFORE INSERT/UPDATE</td><td class="status-pass">✅</td></tr>
+    <tr><td>trg_update_mark_price</td><td>card_market</td><td>UPDATE</td><td class="status-pass">✅</td></tr>
+    <tr><td>trg_update_market_state</td><td>card_market</td><td>BEFORE INSERT/UPDATE</td><td class="status-pass">✅</td></tr>
+    <tr><td>trg_log_price_changes</td><td>card_market</td><td>UPDATE</td><td class="status-pass">✅</td></tr>
+    <tr><td>trg_market_to_portfolio</td><td>card_market</td><td>UPDATE</td><td class="status-pass">✅</td></tr>
+    <tr><td>trg_portfolio_auto_refresh</td><td>portfolio_items</td><td>INSERT/UPDATE</td><td class="status-pass">✅</td></tr>
+    <tr><td>trg_mark_platform_stock</td><td>user_collections</td><td>INSERT/UPDATE</td><td class="status-pass">✅</td></tr>
+  </table>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 价格真值规则三层防护正常</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">触发器 + CHECK约束 + verify函数三级防护。final_price = live_price → market_price → ai_estimate → 0。56条记录中0条final_price=0。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 价格锁定机制完整</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">price_locked/locked_price字段存在，触发器自动处理锁定/解锁。目前0条locked记录。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 1条 card_market mark_price 为 NULL</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">56条记录中1条mark_price=NULL。由于final_price有fallback规则不影响用户，但mark_price缺失可能影响mark_price→portfolio同步。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ portfolio_items 关联方式为 card_name而非ID</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">portfolio_items 通过 card_name 关联card_market（而非card_market_id）。card_name字符串匹配可能因重名卡牌导致错误关联。</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> 价格同步正常 — 5个触发器链完整</li>
+    <li><span class="check-icon">✅</span> 盈亏计算正确 — profit_loss = current_price - avg_buy_price</li>
+    <li><span class="check-icon">✅</span> 价格为空有fallback — final_price规则兜底</li>
+    <li><span class="check-icon">⚠️</span> 删除卡牌影响 — portfolio_items通过card_name关联，card_market删除后portfolio失去价格源</li>
+    <li><span class="check-icon">⚠️</span> mark_price NULL — 1条记录缺失</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 5: 商品系统检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">5</div>
+    <div class="phase-title">商品系统检查 — SHOP MODULE REPORT</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 管理员发布权限通过RPC SECURITY DEFINER保证</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">admin_create_sealed_product, admin_create_merchandise 等RPC函数使用SECURITY DEFINER + 验证admins表状态。但RLS策略 write_rpc=true 允许直接API写入绕过RPC验证。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 普通用户理论上可直接创建平台商品</span>
+      <span class="severity-badge severity-high">HIGH</span>
+    </div>
+    <div class="finding-detail">sealed_products RLS策略 <code>write_sealed_products_rpc cmd=ALL qual=true</code>，普通认证用户可通过 Supabase JS SDK 直接 INSERT sealed_products，绕过admin_create_sealed_product RPC中的admin验证。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 三层市场体系视图完整</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">three_tier_product_catalog + primary_market_store + secondary_market_list + merchandise_store + platform_store_list 视图全部存在并正常工作</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ market_tier CHECK约束强制标记</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">card_market, user_collections, platform_cards, consignments 都有 market_tier='secondary' CHECK约束</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> 管理员发布权限 — RPC验证admin身份</li>
+    <li><span class="check-icon">❌</span> 普通用户不能发布平台商品 — RLS write=true 可绕过</li>
+    <li><span class="check-icon">✅</span> 商品状态：draft → published/active → sold_out → closed</li>
+    <li><span class="check-icon">✅</span> available_quantity生成列正确 (stock - reserved - sold)</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 6: 订单系统检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">6</div>
+    <div class="phase-title">订单系统检查 — ORDER SYSTEM REPORT</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 一级市场订单状态机完整</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">sealed_product_orders: pending → confirmed → paid → shipping → delivered。cancel从pending/confirmed可取消。admin_confirm_sealed_order支持confirm/ship/deliver三种操作。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 库存锁定机制正确</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">创建订单→ reserved_quantity+N; 取消→ reserved_quantity-N; 发货→ sold_quantity+N, reserved_quantity-N。原子操作。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 订单号生成有前缀区分</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">一级市场 SP-YYYYMMDDHHMMSS-XXXX, 周边市场 MC-YYYYMMDDHHMMSS-XXXX, 二级预约 PO-前缀</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 二级市场订单状态机较复杂但未完全测试</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">orders表26列，状态包含 pending→paid→shipping→delivered→completed + cancel/refund路径。consignments和orders的关系需要更多测试数据验证。</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> 订单状态机 — 三套(一级/二级/周边)各有完整流程</li>
+    <li><span class="check-icon">✅</span> 防重复订单 — 订单号含时间戳+UUID</li>
+    <li><span class="check-icon">✅</span> 库存锁定 — reserved/sold/available三字段</li>
+    <li><span class="check-icon">✅</span> 用户取消订单 — cancel RPC释放库存</li>
+    <li><span class="check-icon">⚠️</span> 异常订单恢复 — 需管理员手动处理，无自动超时机制</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 7: 支付系统准备检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">7</div>
+    <div class="phase-title">支付系统准备检查 — PAYMENT READINESS REPORT</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ payment_orders结构完整</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">17列: id, user_id, order_id关联, amount, status(pending/success/failed), payment_method, transaction_id, created_at等。预留了支付回调和幂等设计。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">🚨 payment_orders update RLS qual=true</span>
+      <span class="severity-badge severity-critical">CRITICAL</span>
+    </div>
+    <div class="finding-detail">payment_orders_update_own策略qual=true，允许任何认证用户更新任何支付订单，包括标记为success、修改amount。在接入真实支付前必须修复。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 三套订单表都有payment_status字段</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">sealed_product_orders, merchandise_orders, orders 都有 payment_status (unpaid/paid/refunded) + transaction_id 字段预留</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> order_id关联 — payment_orders有order_id外键</li>
+    <li><span class="check-icon">✅</span> amount字段 — NUMERIC类型精确</li>
+    <li><span class="check-icon">✅</span> status字段 — pending/success/failed</li>
+    <li><span class="check-icon">❌</span> 支付回调接口 — 未预留（依赖RPC process_payment_success）</li>
+    <li><span class="check-icon">✅</span> 幂等设计 — transaction_id唯一标识</li>
+    <li><span class="check-icon">⚠️</span> 未接入真实支付 — 正确，但RLS需先修复</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 8: 安全检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">8</div>
+    <div class="phase-title">安全检查 — SECURITY REPORT</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">🚨 管理员权限 — profiles RLS允许任何用户修改role</span>
+      <span class="severity-badge severity-critical">CRITICAL</span>
+    </div>
+    <div class="finding-detail">profiles "Allow all"策略允许任何认证用户UPDATE任何profile，包括将role改为admin。攻击者可通过一条UPDATE语句获得管理员权限。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ XSS风险 — 多处innerHTML使用用户数据</span>
+      <span class="severity-badge severity-high">HIGH</span>
+    </div>
+    <div class="finding-detail">admin-merchant.html, admin.html, admin-platform-publish.html等管理页面使用innerHTML渲染用户数据(card_name, username)未做HTML转义</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ SQL注入风险 — Edge Function通过RPC调用，无直接SQL拼接</span>
+      <span class="severity-badge severity-low">LOW</span>
+    </div>
+    <div class="finding-detail">Edge Function使用callRPC()调用PostgREST，参数通过JSON传递。前端也是通过Supabase JS SDK操作，不存在SQL拼接风险。但92个SECURITY DEFINER函数的输入验证需要逐一审查。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 旧管理后台页面(auth.users管理员)仍存在</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">admin.html, admin-users.html, admin-orders.html, admin-recharge.html, admin-merchant.html 使用auth.uid()验证管理员身份，而新的独立管理员系统使用admins表+session_token。两套系统并存可能导致权限混乱。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ admin session_token有效且未过期</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">平台管理员platform_admin有活跃session_token(token_expires_at > now())。如果此token在前端代码中可见或被猜测，可能被利用。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 图片存储部分安全</span>
+      <span class="severity-badge severity-info">PARTIAL</span>
+    </div>
+    <div class="finding-detail">card-scans桶有5MB限制+类型检查(jpeg/png/webp)。但card-images桶完全开放(无大小限制+无类型检查)</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">❌</span> 管理员权限 — profiles RLS可被提权</li>
+    <li><span class="check-icon">❌</span> 用户权限 — profiles所有人可操作所有人</li>
+    <li><span class="check-icon">❌</span> API暴露 — payment_orders update, sealed_products write</li>
+    <li><span class="check-icon">✅</span> SQL注入 — 无拼接风险</li>
+    <li><span class="check-icon">❌</span> XSS — innerHTML未转义</li>
+    <li><span class="check-icon">❌</span> 文件上传 — card-images桶无限制</li>
+    <li><span class="check-icon">⚠️</span> 双管理员系统并存</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 9: 性能检查 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">9</div>
+    <div class="phase-title">性能检查 — PERFORMANCE REPORT</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">✅ 索引覆盖关键查询路径</span>
+      <span class="severity-badge severity-info">OK</span>
+    </div>
+    <div class="finding-detail">card_market有(card_name+series+rarity+market)复合索引, consignments有(seller_id, status)索引, portfolio_items有(user_id)索引</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 92个SECURITY DEFINER函数 — 大量函数可能影响启动时间</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">92个SECURITY DEFINER函数在数据库中注册。Supabase启动时需要加载所有函数定义，可能影响冷启动时间。建议清理不再使用的旧函数。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 三层市场UNION ALL视图可能影响查询性能</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">three_tier_product_catalog视图UNION ALL三个表(sealed_products + platform_cards + merchandise)，每次查询扫描三表。建议按market_tier分页查询而非全量视图。</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding-header">
+      <span class="finding-title">⚠️ 前端CSS/JS内联在HTML中 — 无独立CSS文件</span>
+      <span class="severity-badge severity-medium">MEDIUM</span>
+    </div>
+    <div class="finding-detail">所有37个HTML文件将CSS和JS内联在页面中，无法利用浏览器缓存。首次加载较慢，切换页面时重复加载相同样式。</div>
+  </div>
+
+  <ul class="checklist">
+    <li><span class="check-icon">✅</span> 首页加载 — PWA + 内联代码(约200KB/页)</li>
+    <li><span class="check-icon">✅</span> 卡牌搜索 — 复合索引覆盖</li>
+    <li><span class="check-icon">✅</span> Dashboard — portfolio_items按user_id索引</li>
+    <li><span class="check-icon">⚠️</span> UNION ALL视图 — 大数据量时需优化</li>
+    <li><span class="check-icon">⚠️</span> 无独立CSS/JS缓存</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- Phase 10: 最终上线评分 -->
+<!-- ============================================================ -->
+<div class="phase">
+  <div class="phase-header">
+    <div class="phase-num">10</div>
+    <div class="phase-title">最终上线评分 — FINAL PRODUCTION SCORE</div>
+  </div>
+
+  <div class="score-card" style="border-color: var(--orange); text-align:center;">
+    <div style="font-size:14px;color:var(--gray);">Production Score</div>
+    <div class="score-grade" style="color: var(--orange);">B</div>
+    <div class="score-pct">完成度 72% — 修复后上线</div>
+  </div>
+
+  <h3>📊 当前完成度</h3>
+  <table class="summary-table">
+    <tr><th>模块</th><th>完成度</th><th>关键问题</th></tr>
+    <tr><td>AI识卡系统</td><td>85%</td><td>Edge Function无JWT认证</td></tr>
+    <tr><td>价格/资产系统</td><td>90%</td><td>1条mark_price NULL</td></tr>
+    <tr><td>三层市场体系</td><td>80%</td><td>RLS策略过宽</td></tr>
+    <tr><td>订单系统</td><td>75%</td><td>无自动超时恢复</td></tr>
+    <tr><td>支付系统</td><td>60%</td><td>RLS严重问题</td></tr>
+    <tr><td>安全/权限</td><td>40%</td><td>profiles "Allow all"</td></tr>
+    <tr><td>前端页面</td><td>85%</td><td>XSS风险 + 内联代码</td></tr>
+  </table>
+
+  <h3>🚫 阻塞上线问题 (CRITICAL)</h3>
+  <ol class="priority-list">
+    <li class="priority-critical"><strong>profiles RLS "Allow all"</strong> — 任何用户可修改任何profile → 提权为admin。修复: 改为 <code>(auth.uid() = id)</code> + 管理员service_role策略</li>
+    <li class="priority-critical"><strong>payment_orders update RLS qual=true</strong> — 任何用户可伪造支付状态。修复: 改为 <code>(auth.uid() = user_id)</code></li>
+    <li class="priority-critical"><strong>sealed_products/merchandise write RLS qual=true</strong> — 任何用户可创建平台商品。修复: 改为service_role only策略</li>
+    <li class="priority-critical"><strong>deploy_payload.json泄露Moonshot API密钥</strong> — 删除此文件或移除硬编码密钥</li>
+    <li class="priority-critical"><strong>card-images存储桶无限制</strong> — 设置file_size_limit=10MB + allowed_mime_types</li>
+  </ol>
+
+  <h3>⚠️ HIGH优先修复 (上线前应修复)</h3>
+  <ol class="priority-list" style="counter-reset: priority 5;">
+    <li class="priority-high"><strong>innerHTML XSS风险</strong> — 添加HTML转义函数esc()，对所有用户数据渲染使用textContent或转义后innerHTML</li>
+    <li class="priority-high"><strong>ai-scan Edge Function verify_jwt=false</strong> — 改为verify_jwt:true，要求认证调用</li>
+    <li class="priority-high"><strong>双管理员系统并存</strong> — 统一为admins表系统，旧admin页面添加admins验证</li>
+    <li class="priority-high"><strong>核心表无外键</strong> — 至少为card_market添加cards外键</li>
+    <li class="priority-high"><strong>图片大小上限验证</strong> — Edge Function添加image.length上限检查(如10MB)</li>
+    <li class="priority-high"><strong>price-updater auth fallback</strong> — SERVICE_ROLE_KEY为空时跳过认证。修复: 必须设置secret或默认拒绝</li>
+    <li class="priority-high"><strong>system_flags RLS未启用</strong> — ALTER TABLE system_flags ENABLE ROW LEVEL SECURITY</li>
+    <li class="priority-high"><strong>重复RLS策略清理</strong> — user_collections删除重复策略</li>
+  </ol>
+
+  <h3>📋 下一步执行任务</h3>
+  <table class="summary-table">
+    <tr><th>#</th><th>任务</th><th>严重级</th><th>预估时间</th></tr>
+    <tr><td>1</td><td>修复profiles RLS → 改为用户只能操作自己数据</td><td>CRITICAL</td><td>5分钟</td></tr>
+    <tr><td>2</td><td>修复payment_orders/sealed/merchandise RLS → service_role only</td><td>CRITICAL</td><td>10分钟</td></tr>
+    <tr><td>3</td><td>删除deploy_payload.json或移除硬编码密钥</td><td>CRITICAL</td><td>2分钟</td></tr>
+    <tr><td>4</td><td>设置card-images存储桶限制(10MB+类型)</td><td>CRITICAL</td><td>5分钟</td></tr>
+    <tr><td>5</td><td>添加HTML转义函数修复XSS</td><td>HIGH</td><td>30分钟</td></tr>
+    <tr><td>6</td><td>ai-scan设置verify_jwt=true</td><td>HIGH</td><td>5分钟</td></tr>
+    <tr><td>7</td><td>启用system_flags RLS</td><td>HIGH</td><td>2分钟</td></tr>
+    <tr><td>8</td><td>统一管理员验证系统</td><td>HIGH</td><td>60分钟</td></tr>
+    <tr><td>9</td><td>添加图片大小上限</td><td>HIGH</td><td>10分钟</td></tr>
+    <tr><td>10</td><td>清理临时文件+重复RLS策略</td><td>LOW</td><td>10分钟</td></tr>
+  </table>
+
+</div>
+
+</div>
+</body>
+</html>
