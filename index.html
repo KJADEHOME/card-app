@@ -419,7 +419,7 @@
     </div>
 
     <!-- Hidden File Input for Upload -->
-    <input type="file" id="aiFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFileUpload(event)">
+    <input type="file" id="aiFileInput" accept="image/jpeg,image/png,image/webp" capture="environment" style="display:none" onchange="handleFileUpload(event)">
 
     <!-- Camera Scan Modal -->
     <div class="scan-modal" id="cameraModal">
@@ -808,6 +808,27 @@
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
+
+            // SH-004: Front-end pre-check
+            const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+            if (file.size === 0) {
+                alert('文件为空，请重新选择');
+                event.target.value = '';
+                return;
+            }
+            if (file.size > MAX_SIZE) {
+                alert('图片不能超过5MB，请压缩后重新上传');
+                event.target.value = '';
+                return;
+            }
+            if (!ALLOWED_MIME.includes(file.type)) {
+                alert('仅支持 JPG/PNG/WebP 格式，不支持 ' + (file.type || '未知格式'));
+                event.target.value = '';
+                return;
+            }
+
             document.getElementById('cameraModal').classList.remove('show');
             if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
             const reader = new FileReader();

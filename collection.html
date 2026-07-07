@@ -276,7 +276,7 @@
                 <option value="SEC">Secret (SEC)</option>
             </select>
             <input type="number" class="input" id="price" placeholder="价格 (¥) *">
-            <input type="file" id="img" accept="image/*" style="display: none;">
+            <input type="file" id="img" accept="image/jpeg,image/png,image/webp" style="display: none;">
             <div class="img-upload" id="preview" onclick="document.getElementById('img').click()">📷 点击上传卡牌图片</div>
             <textarea class="input" id="desc" placeholder="卡牌状态、交易方式等..." style="min-height: 60px; resize: vertical;"></textarea>
             <div class="btn-row">
@@ -395,15 +395,22 @@
         // 图片预览
         document.getElementById('img').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('preview').innerHTML = '';
-                    document.getElementById('preview').style.backgroundImage = 'url(' + e.target.result + ')';
-                    document.getElementById('preview').style.backgroundSize = 'cover';
-                };
-                reader.readAsDataURL(file);
-            }
+            if (!file) return;
+
+            // SH-004: Front-end pre-check
+            var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+            var MAX_SIZE = 5 * 1024 * 1024;
+            if (file.size === 0) { alert('文件为空'); e.target.value = ''; return; }
+            if (file.size > MAX_SIZE) { alert('图片不能超过5MB'); e.target.value = ''; return; }
+            if (!ALLOWED_MIME.includes(file.type)) { alert('仅支持 JPG/PNG/WebP 格式'); e.target.value = ''; return; }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('preview').innerHTML = '';
+                document.getElementById('preview').style.backgroundImage = 'url(' + e.target.result + ')';
+                document.getElementById('preview').style.backgroundSize = 'cover';
+            };
+            reader.readAsDataURL(file);
         });
         
         // 发布卡牌（保存到 market_listings）

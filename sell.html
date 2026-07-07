@@ -153,7 +153,7 @@
                     <div class="upload-hint">支持 JPG、PNG，最大 10MB</div>
                 </div>
             </div>
-            <input type="file" id="cardPhoto" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+            <input type="file" id="cardPhoto" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handlePhotoUpload(event)">
         </div>
         
         <!-- 卡牌信息 -->
@@ -423,9 +423,21 @@
         function handlePhotoUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-            
-            if (file.size > 10 * 1024 * 1024) {
-                showToast('图片太大，请压缩后重试');
+
+            // SH-004: Front-end pre-check
+            var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+            var MAX_SIZE = 5 * 1024 * 1024;
+
+            if (file.size === 0) {
+                showToast('文件为空，请重新选择');
+                return;
+            }
+            if (file.size > MAX_SIZE) {
+                showToast('图片不能超过5MB，请压缩后重试');
+                return;
+            }
+            if (!ALLOWED_MIME.includes(file.type)) {
+                showToast('仅支持 JPG/PNG/WebP 格式');
                 return;
             }
             

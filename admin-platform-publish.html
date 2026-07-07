@@ -96,7 +96,7 @@
                 </div>
                 <img id="imagePreview" class="upload-preview" style="display:none;">
             </div>
-            <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageUpload(this)">
+            <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleImageUpload(this)">
             <input type="hidden" id="cardImageUrl">
 
             <div class="form-row" style="margin-top: 16px;">
@@ -224,6 +224,13 @@
         function handleImageUpload(input) {
             const file = input.files[0];
             if (!file) return;
+
+            // SH-004: Front-end pre-check
+            var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+            var MAX_SIZE = 5 * 1024 * 1024;
+            if (file.size === 0) { showMsg('文件为空', 'error'); input.value = ''; return; }
+            if (file.size > MAX_SIZE) { showMsg('图片不能超过5MB', 'error'); input.value = ''; return; }
+            if (!ALLOWED_MIME.includes(file.type)) { showMsg('仅支持 JPG/PNG/WebP 格式', 'error'); input.value = ''; return; }
 
             uploadedFile = file;
             const reader = new FileReader();

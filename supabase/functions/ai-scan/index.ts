@@ -28,6 +28,105 @@ function jsonResponse(body, status) {
   });
 }
 
+// ============================================================
+// SH-004: Image upload security validation
+// Prevent: oversized files, wrong MIME types, disguised files, empty files
+// ============================================================
+const MAX_BASE64_LENGTH = 5 * 1024 * 1024 * 1.37; // 5MB × 1.37 (base64 expansion)
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// Known file magic bytes (first 4-12 bytes that identify real file type)
+const MAGIC_BYTES = {
+  jpeg: [0xFF, 0xD8, 0xFF],        // JPEG: FF D8 FF
+  png:  [0x89, 0x50, 0x4E, 0x47],  // PNG:  89 50 4E 47 (\x89PNG)
+  webp: [0x52, 0x49, 0x46, 0x46],  // WebP: RIFF... (first 4 bytes)
+};
+
+function validateImageSecurity(rawImage) {
+  // --- Layer 1: Size limit ---
+  if (rawImage.length > MAX_BASE64_LENGTH) {
+    return { ok: false, error: "图片大小超过5MB限制，请压缩后重新上传", code: "SIZE_EXCEEDED" };
+  }
+
+  // --- Layer 2: MIME type whitelist ---
+  // Extract MIME from data URI prefix if present, e.g. "data:image/png;base64,..."
+  let declaredMime = "image/jpeg"; // default for camera capture (canvas.toDataURL)
+  if (rawImage.startsWith("data:")) {
+    const mimeMatch = rawImage.match(/^data:([^;,]+)/);
+    if (mimeMatch) {
+      declaredMime = mimeMatch[1].toLowerCase();
+    }
+  }
+
+  if (!ALLOWED_MIME_TYPES.includes(declaredMime)) {
+    const blocked = declaredMime;
+    return {
+      ok: false,
+      error: "不支持此图片格式(" + blocked + ")，仅支持 JPG/PNG/WebP",
+      code: "MIME_BLOCKED"
+    };
+  }
+
+  // --- Layer 3 & 4: Decode and check for empty/disguised files ---
+  let cleanBase64 = rawImage;
+  if (rawImage.includes(",")) {
+    cleanBase64 = rawImage.split(",")[1] || rawImage;
+  }
+
+  let decodedBytes;
+  try {
+    decodedBytes = atob(cleanBase64);
+  } catch {
+    return { ok: false, error: "图片数据编码异常，无法解码", code: "INVALID_BASE64" };
+  }
+
+  // Empty file check
+  if (decodedBytes.length === 0) {
+    return { ok: false, error: "图片文件为空，请重新拍照或选择图片", code: "EMPTY_FILE" };
+  }
+
+  // Abnormally small file (likely not a real photo)
+  if (decodedBytes.length < 100) {
+    return { ok: false, error: "图片数据异常(过小)，请重新上传", code: "ABNORMAL_SIZE" };
+  }
+
+  // Magic bytes verification — check decoded binary header matches declared MIME
+  const header = new Uint8Array(12);
+  for (let i = 0; i < Math.min(decodedBytes.length, 12); i++) {
+    header[i] = decodedBytes.charCodeAt(i);
+  }
+
+  let magicMatch = false;
+  if (declaredMime === "image/jpeg") {
+    // JPEG: FF D8 FF (could be FF D8 FF E0 for JFIF, or FF D8 FF E1 for EXIF)
+    magicMatch = header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF;
+  } else if (declaredMime === "image/png") {
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    magicMatch = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
+  } else if (declaredMime === "image/webp") {
+    // WebP: RIFF....WEBP
+    magicMatch = header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46;
+    // Further verify "WEBP" at offset 8
+    if (magicMatch && decodedBytes.length >= 12) {
+      magicMatch = decodedBytes.charCodeAt(8) === 0x57 &&
+                   decodedBytes.charCodeAt(9) === 0x45 &&
+                   decodedBytes.charCodeAt(10) === 0x42 &&
+                   decodedBytes.charCodeAt(11) === 0x50;
+    }
+  }
+
+  if (!magicMatch) {
+    // Declared MIME doesn't match actual binary content — likely a disguised file
+    return {
+      ok: false,
+      error: "图片文件格式与声明不一致(疑似伪装文件)，请上传真实图片",
+      code: "MAGIC_MISMATCH"
+    };
+  }
+
+  return { ok: true, declaredMime };
+}
+
 // Compute SHA-256 hash of image
 async function computeImageHash(base64Image) {
   try {
@@ -130,6 +229,20 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
+    // SH-004: Image upload security validation
+    const securityCheck = validateImageSecurity(image);
+    if (!securityCheck.ok) {
+      console.error("[ai-scan] Image security check failed:", securityCheck.code, securityCheck.error);
+      return jsonResponse({
+        success: false,
+        error: securityCheck.error,
+        security_code: securityCheck.code,
+      }, 400);
+    }
+
+    // Use validated MIME type for Gemini (more reliable than string prefix guessing)
+    const validatedMimeType = securityCheck.declaredMime;
+
     // Compute image hash
     const imageHash = await computeImageHash(image);
     if (!imageHash) {
@@ -223,9 +336,8 @@ Deno.serve(async (req) => {
     if (image.includes(",")) {
       cleanBase64 = image.split(",")[1] || image;
     }
-    let mimeType = "image/jpeg";
-    if (image.startsWith("data:image/png")) mimeType = "image/png";
-    else if (image.startsWith("data:image/webp")) mimeType = "image/webp";
+    // Use validated MIME from security check (replaces old prefix-guessing logic)
+    const mimeType = validatedMimeType;
 
     // ============================================================
     // Step 5: Call Gemini API (with fallback on failure)

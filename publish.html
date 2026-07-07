@@ -104,7 +104,7 @@
 
         <div class="form-group">
             <label data-i18n="label_image">Card Image *</label>
-            <input type="file" id="cardImage" accept="image/*" style="display: none;">
+            <input type="file" id="cardImage" accept="image/jpeg,image/png,image/webp" style="display: none;">
             <div class="image-upload" id="imagePreview" onclick="document.getElementById('cardImage').click()">
                 <span style="font-size: 40px;">📷</span>
                 <span style="color: #999; margin-top: 10px;" data-i18n="upload_hint">Tap to upload card image</span>
@@ -373,16 +373,23 @@
 
         document.getElementById('cardImage').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('imagePreview');
-                    preview.classList.add('has-image');
-                    preview.style.backgroundImage = 'url(' + e.target.result + ')';
-                    preview.innerHTML = '';
-                };
-                reader.readAsDataURL(file);
-            }
+            if (!file) return;
+
+            // SH-004: Front-end pre-check
+            var ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+            var MAX_SIZE = 5 * 1024 * 1024;
+            if (file.size === 0) { alert('文件为空'); e.target.value = ''; return; }
+            if (file.size > MAX_SIZE) { alert('图片不能超过5MB'); e.target.value = ''; return; }
+            if (!ALLOWED_MIME.includes(file.type)) { alert('仅支持 JPG/PNG/WebP 格式'); e.target.value = ''; return; }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.classList.add('has-image');
+                preview.style.backgroundImage = 'url(' + e.target.result + ')';
+                preview.innerHTML = '';
+            };
+            reader.readAsDataURL(file);
         });
 
         async function onNameInput(value) {
