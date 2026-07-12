@@ -119,7 +119,16 @@
     <div class="toast" id="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
+    // SH-001B Batch 3: fail-closed guard
+    if (!window.RiskControl) {
+        document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#666"><h2>⚠️ 安全模块加载失败</h2><p>请刷新页面重试</p></div>';
+        throw new Error('RiskControl not loaded');
+    }
+    const escapeHtml = RiskControl.escapeHtml;
+    const safeUrl = RiskControl.safeUrl;
+
     const db = window.supabase.createClient(
         'https://xybpcsmjjcnkjwfsuder.supabase.co',
         'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
@@ -129,7 +138,6 @@
     let quantity = 1;
     let currentUser = null;
 
-    function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
     function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
     function isLiveProduct(p) { return p.source === 'tiktok' || p.source === 'live'; }
 
@@ -151,14 +159,18 @@
     }
 
     function renderProduct() {
-        document.getElementById('heroImg').style.backgroundImage = `url('${esc(product.image_url)}')`;
+        // SH-001B: Set hero image via safeUrl
+        const heroUrl = safeUrl(product.image_url);
+        if (heroUrl) {
+            document.getElementById('heroImg').style.backgroundImage = `url('${heroUrl}')`;
+        }
         document.getElementById('productName').textContent = product.title;
 
         // 标签
         const tags = [];
         const isLive = isLiveProduct(product);
         if (isLive) tags.push('<span class="product-tag live">🔴 直播同款</span>');
-        if (product.tags) product.tags.forEach(t => { tags.push(`<span class="product-tag">${esc(t)}</span>`); });
+        if (product.tags) product.tags.forEach(t => { tags.push(`<span class="product-tag">${escapeHtml(t)}</span>`); });
         document.getElementById('productTags').innerHTML = tags.join('');
 
         // 价格
@@ -256,10 +268,10 @@
         document.getElementById('modalIcon').textContent = '📋';
         document.getElementById('modalTitle').textContent = '预约成功！';
         document.getElementById('modalDesc').innerHTML =
-            `${data.message}<br><br>
-             商品: <strong>${esc(product.title)}</strong> x ${quantity}<br>
+            `${escapeHtml(data.message)}<br><br>
+             商品: <strong>${escapeHtml(product.title)}</strong> x ${quantity}<br>
              当前库存: ${product.stock}<br>
-             已预约人数: <strong>${data.total_reserved}</strong>`;
+             已预约人数: <strong>${escapeHtml(String(data.total_reserved))}</strong>`;
         document.getElementById('resultModal').classList.add('show');
 
         // 刷新预约统计

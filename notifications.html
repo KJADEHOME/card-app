@@ -107,10 +107,15 @@
         <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+
+        let notifData = [];
 
         const TYPE_ICONS = {
             order: { icon: '📦', cls: 'order' },
@@ -148,20 +153,32 @@
                 }
 
                 const list = document.getElementById('notifList');
-                list.innerHTML = data.map(n => {
+                notifData = data;
+                list.innerHTML = data.map((n, idx) => {
                     const typeInfo = TYPE_ICONS[n.type] || TYPE_ICONS.system;
                     return `
-                        <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="handleNotif('${n.id}', '${n.action_url || ''}')">
+                        <div class="notif-item ${n.is_read ? '' : 'unread'}" data-notif-idx="${idx}">
                             <div class="notif-icon ${typeInfo.cls}">${typeInfo.icon}</div>
                             <div class="notif-body">
-                                <div class="notif-title">${n.title}</div>
-                                <div class="notif-content">${n.content || ''}</div>
+                                <div class="notif-title">${escapeHtml(n.title)}</div>
+                                <div class="notif-content">${escapeHtml(n.content || '')}</div>
                                 <div class="notif-time">${formatTime(n.created_at)}</div>
                             </div>
                             ${n.is_read ? '' : '<div class="notif-dot"></div>'}
                         </div>
                     `;
                 }).join('');
+                
+                // 事件委托: 点击通知项
+                list.onclick = function(e) {
+                    const item = e.target.closest('.notif-item');
+                    if (!item) return;
+                    const idx = parseInt(item.dataset.notifIdx);
+                    const n = notifData[idx];
+                    if (n) {
+                        handleNotif(n.id, n.action_url || '');
+                    }
+                };
             } catch (e) {
                 console.error('Load notifications error:', e);
                 document.getElementById('notifList').innerHTML = '<div class="empty-state"><div class="empty-title">加载失败</div></div>';
@@ -171,8 +188,16 @@
         async function handleNotif(id, url) {
             try {
                 await db.from('notifications').update({ is_read: true }).eq('id', id);
-                if (url) window.location.href = url;
-                else loadNotifications((await db.auth.getSession()).data.session.user.id);
+                if (url) {
+                    const safe = safeUrl(url);
+                    if (safe) {
+                        window.location.href = safe;
+                    } else {
+                        console.warn('Blocked unsafe notification URL');
+                    }
+                } else {
+                    loadNotifications((await db.auth.getSession()).data.session.user.id);
+                }
             } catch (e) { console.error(e); }
         }
 

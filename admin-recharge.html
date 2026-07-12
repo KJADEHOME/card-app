@@ -128,8 +128,17 @@
 
     <div class="toast" id="toast"></div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
+        // Fail-closed: RiskControl 必须存在
+        if (!window.RiskControl || !RiskControl.escapeHtml) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#f44336;font-size:16px;">安全模块加载失败，页面已停止渲染。<br>请检查网络或刷新重试。</div>';
+            throw new Error('RiskControl module not loaded - refusing to render');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const isValidUUID = RiskControl.isValidUUID;
+
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         let currentUser = null;
         let currentTab = 'pending';
@@ -213,31 +222,45 @@
                 const statusClass = status === 'pending' ? 'status-pending' : status === 'rejected' ? 'status-rejected' : 'status-completed';
 
                 return `
-                    <div class="request-item" data-id="${item.id}">
+                    <div class="request-item" data-id="${escapeHtml(item.id)}">
                         <div class="request-header">
                             <div class="request-user">
-                                <div class="user-avatar">${uid.substring(0, 2).toUpperCase()}</div>
+                                <div class="user-avatar">${escapeHtml(uid.substring(0, 2).toUpperCase())}</div>
                                 <div class="user-info">
-                                    <div class="user-name">用户 ${uid}... <span class="status-badge ${statusClass}">${statusLabel}</span></div>
-                                    <div class="user-id">${time}</div>
+                                    <div class="user-name">用户 ${escapeHtml(uid)}... <span class="status-badge ${statusClass}">${escapeHtml(statusLabel)}</span></div>
+                                    <div class="user-id">${escapeHtml(time)}</div>
                                 </div>
                             </div>
                             <div class="request-amount">+¥${parseFloat(item.amount).toFixed(2)}</div>
                         </div>
                         <div class="request-detail">
-                            <div><span class="label">备注码：</span><span class="remark-code">${remarkCode}</span></div>
+                            <div><span class="label">备注码：</span><span class="remark-code">${escapeHtml(remarkCode)}</span></div>
                             <div><span class="label">当前余额：</span><span class="value">¥${parseFloat(item.balance_after || 0).toFixed(2)}</span></div>
-                            <div><span class="label">说明：</span><span class="value">${item.description || '充值'}</span></div>
+                            <div><span class="label">说明：</span><span class="value">${escapeHtml(item.description || '充值')}</span></div>
                         </div>
                         ${showActions ? `
                         <div class="request-actions">
-                            <button class="btn btn-approve" onclick="approve('${item.id}', this)">✅ 确认到账</button>
-                            <button class="btn btn-reject" onclick="reject('${item.id}', this)">❌ 拒绝</button>
+                            <button class="btn btn-approve" data-transaction-id="${escapeHtml(item.id)}" data-action="approve">✅ 确认到账</button>
+                            <button class="btn btn-reject" data-transaction-id="${escapeHtml(item.id)}" data-action="reject">❌ 拒绝</button>
                         </div>
                         ` : ''}
                     </div>
                 `;
             }).join('');
+
+            // 事件委托: 批准/拒绝按钮
+            container.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const txId = this.getAttribute('data-transaction-id');
+                    const action = this.getAttribute('data-action');
+                    if (!isValidUUID(txId)) { showToast('非法交易ID'); return; }
+                    if (action === 'approve') {
+                        approve(txId, this);
+                    } else if (action === 'reject') {
+                        reject(txId, this);
+                    }
+                });
+            });
         }
 
         async function approve(txId, btn) {

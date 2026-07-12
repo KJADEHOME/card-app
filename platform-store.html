@@ -89,13 +89,14 @@
             <div class="banner-desc">所有卡牌均由平台直发，正品保证。当前为预约购买模式，下单后锁定价格，无需立即支付。</div>
         </div>
 
-        <div class="filters">
-            <div class="filter-chip active" data-cat="" onclick="filterBy(this)">全部</div>
-            <div class="filter-chip" data-cat="pokemon" onclick="filterBy(this)">宝可梦</div>
-            <div class="filter-chip" data-cat="yugioh" onclick="filterBy(this)">游戏王</div>
-            <div class="filter-chip" data-cat="magic" onclick="filterBy(this)">万智牌</div>
-            <div class="filter-chip" data-cat="onepiece" onclick="filterBy(this)">海贼王</div>
-            <div class="filter-chip" data-cat="lorcana" onclick="filterBy(this)">Lorcana</div>
+        <!-- 筛选 (事件委托，无内联onclick) -->
+        <div class="filters" id="filterBar">
+            <div class="filter-chip active" data-cat="">全部</div>
+            <div class="filter-chip" data-cat="pokemon">宝可梦</div>
+            <div class="filter-chip" data-cat="yugioh">游戏王</div>
+            <div class="filter-chip" data-cat="magic">万智牌</div>
+            <div class="filter-chip" data-cat="onepiece">海贼王</div>
+            <div class="filter-chip" data-cat="lorcana">Lorcana</div>
         </div>
 
         <div id="cardGrid" class="card-grid">
@@ -103,10 +104,10 @@
         </div>
     </div>
 
-    <!-- 详情弹窗 -->
-    <div class="modal-overlay" id="detailModal" onclick="closeModal(event)">
-        <div class="modal" onclick="event.stopPropagation()">
-            <div class="modal-close" onclick="closeModal()">&times;</div>
+    <!-- 详情弹窗 (无内联onclick) -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-close" id="modalCloseBtn">&times;</div>
             <div id="modalContent"></div>
         </div>
     </div>
@@ -122,146 +123,283 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
     <script>
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
-        let currentUser = null;
-        let products = [];
-        let currentCategory = '';
+    /* ===== Fail-closed: DOM API (replaceChildren/createElement/textContent) ===== */
+    if (!window.RiskControl) {
+        var _wrap = document.createElement('div');
+        _wrap.style.cssText = 'text-align:center;padding:80px 20px;color:#999;';
+        var _ic = document.createElement('div');
+        _ic.style.fontSize = '48px';
+        _ic.textContent = '\u26A0\uFE0F';
+        var _tx = document.createElement('div');
+        _tx.style.marginTop = '12px';
+        _tx.textContent = '\u5b89\u5168\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u91cd\u8bd5';
+        _wrap.appendChild(_ic);
+        _wrap.appendChild(_tx);
+        document.body.replaceChildren(_wrap);
+        throw new Error('RiskControl module not loaded');
+    }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const { data: { user } } = await db.auth.getUser();
-            currentUser = user;
-            loadProducts();
-        });
+    var escapeHtml = RiskControl.escapeHtml;
+    var safeUrl = RiskControl.safeUrl;
+    var isValidUUID = RiskControl.isValidUUID;
+    var validateAction = RiskControl.validateAction;
 
-        async function loadProducts() {
-            const grid = document.getElementById('cardGrid');
-            grid.innerHTML = '<div class="empty"><span class="loading"></span><br>加载中...</div>';
+    var db = window.supabase.createClient(
+        'https://xybpcsmjjcnkjwfsuder.supabase.co',
+        'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
+    );
+    var currentUser = null;
+    var products = [];
+    var currentCategory = '';
 
-            try {
-                const { data, error } = await db.rpc('get_platform_card_list', {
-                    p_status: 'active',
-                    p_card_category: currentCategory || null,
-                    p_limit: 100,
-                    p_offset: 0
-                });
+    /* 分类白名单 */
+    var VALID_CATEGORIES = ['', 'pokemon', 'yugioh', 'magic', 'onepiece', 'lorcana'];
 
-                if (error) throw error;
-                products = data || [];
+    /* 数值校验辅助 */
+    function safePrice(v) {
+        var n = Number(v);
+        return (Number.isFinite(n) && n >= 0) ? n.toFixed(2) : '--';
+    }
+    function safeInt(v) {
+        var n = Number(v);
+        return (Number.isInteger(n) && n >= 0) ? String(n) : '--';
+    }
+    function isPriceValid(v) {
+        var n = Number(v);
+        return Number.isFinite(n) && n >= 0;
+    }
+    function isIntValid(v) {
+        var n = Number(v);
+        return Number.isInteger(n) && n >= 0;
+    }
 
-                if (products.length === 0) {
-                    grid.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>暂无官方卡牌，敬请期待</div>';
-                    return;
-                }
+    function showToast(msg) {
+        var toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 3000);
+    }
 
-                grid.innerHTML = products.map(p => `
-                    <div class="card-item" onclick="openDetail('${p.id}')">
-                        <div class="card-img-wrap">
-                            <img class="card-img" src="${p.card_image_url || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(p.name)}" loading="lazy">
-                            <span class="card-source-badge">官方发行</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="card-name">${esc(p.name)}</div>
-                            <div class="card-meta">${esc(p.set_name || p.card_category || '-')}</div>
-                            <div class="card-price-row">
-                                <div class="card-price"><span class="unit">¥</span>${(p.final_price || p.listing_price || 0).toFixed(2)}</div>
-                            </div>
-                            <div class="stock-tag">库存 ${p.available_quantity} · 已预约 ${p.reserved_quantity}</div>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                grid.innerHTML = '<div class="empty">加载失败: ' + esc(err.message || err) + '</div>';
-            }
-        }
+    document.addEventListener('DOMContentLoaded', async function() {
+        var { data: { user } } = await db.auth.getUser();
+        currentUser = user;
+        loadProducts();
+    });
 
-        function filterBy(el) {
-            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
-            currentCategory = el.dataset.cat;
-            loadProducts();
-        }
+    async function loadProducts() {
+        var grid = document.getElementById('cardGrid');
+        grid.innerHTML = '<div class="empty"><span class="loading"></span><br>加载中...</div>';
 
-        function openDetail(id) {
-            const p = products.find(x => x.id === id);
-            if (!p) return;
+        try {
+            var { data, error } = await db.rpc('get_platform_card_list', {
+                p_status: 'active',
+                p_card_category: currentCategory || null,
+                p_limit: 100,
+                p_offset: 0
+            });
 
-            const canReserve = currentUser && p.available_quantity > 0;
+            if (error) throw error;
+            products = data || [];
 
-            document.getElementById('modalContent').innerHTML = `
-                <img class="modal-img" src="${p.card_image_url || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(p.name)}">
-                <div class="modal-name">${esc(p.name)}</div>
-                <div class="modal-series">${esc(p.set_name || '-')} · ${esc(p.card_category || '-')}</div>
-                <div class="modal-tags">
-                    <span class="modal-tag platform">🛡️ 官方发行</span>
-                    <span class="modal-tag">${esc(p.rarity || 'N')}</span>
-                    <span class="modal-tag">品相 ${esc(p.condition || 'NM')}</span>
-                </div>
-                <div class="modal-desc">
-                    <strong>卡牌描述</strong><br>
-                    ${esc(p.description) || '平台官方发行卡牌，正品保障，统一发货。'}
-                </div>
-                <div class="modal-price-info">
-                    <span class="modal-price">¥${(p.final_price || p.listing_price || 0).toFixed(2)}</span>
-                    <span class="modal-mark-price">市场价 ¥${(p.mark_price || p.listing_price || 0).toFixed(2)}</span>
-                </div>
-                <div class="modal-stock">
-                    ${p.available_quantity > 0 ? `✅ 可预约库存：${p.available_quantity} 件` : '❌ 暂时缺货'}
-                    ${p.reserved_quantity > 0 ? ` · 已预约 ${p.reserved_quantity} 件` : ''}
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-outline" onclick="closeModal()">再看看</button>
-                    <button class="btn" onclick="reserveCard('${p.id}')" ${!canReserve ? 'disabled' : ''}>
-                        ${!currentUser ? '请先登录' : p.available_quantity <= 0 ? '已售罄' : '立即预约'}
-                    </button>
-                </div>
-            `;
-            document.getElementById('detailModal').classList.add('show');
-        }
-
-        function closeModal(e) {
-            if (e && e.target !== document.getElementById('detailModal')) return;
-            document.getElementById('detailModal').classList.remove('show');
-        }
-
-        async function reserveCard(platformCardId) {
-            if (!currentUser) {
-                localStorage.setItem('redirectAfterLogin', 'platform-store.html');
-                showToast('请先登录');
-                setTimeout(() => window.location.href = 'login.html', 1000);
+            if (products.length === 0) {
+                grid.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>暂无官方卡牌，敬请期待</div>';
                 return;
             }
 
-            try {
-                const { data, error } = await db.rpc('create_pre_order', {
-                    p_user_id: currentUser.id,
-                    p_platform_card_id: platformCardId,
-                    p_quantity: 1,
-                    p_source: 'platform_store'
-                });
+            grid.innerHTML = products.map(function(p) {
+                var pidValid = isValidUUID(p.id);
+                var priceStr = safePrice(p.final_price || p.listing_price);
+                var stockStr = safeInt(p.available_quantity);
+                var reservedStr = safeInt(p.reserved_quantity);
 
-                if (error) throw error;
-                if (!data || !data.success) throw new Error((data && data.error) || '预约失败');
+                var html = '<div class="card-item"' + (pidValid ? ' data-product-id="' + escapeHtml(p.id) + '"' : '') + '>';
+                html += '<div class="card-img-wrap">';
+                html += '<img class="card-img" data-img-url="' + escapeHtml(p.card_image_url || '') + '" alt="' + escapeHtml(p.name || '') + '" loading="lazy">';
+                html += '<span class="card-source-badge">官方发行</span>';
+                html += '</div>';
+                html += '<div class="card-body">';
+                html += '<div class="card-name">' + escapeHtml(p.name) + '</div>';
+                html += '<div class="card-meta">' + escapeHtml(p.set_name || p.card_category || '-') + '</div>';
+                html += '<div class="card-price-row">';
+                html += '<div class="card-price"><span class="unit">¥</span>' + priceStr + '</div>';
+                html += '</div>';
+                html += '<div class="stock-tag">库存 ' + stockStr + ' · 已预约 ' + reservedStr + '</div>';
+                html += '</div>';
+                html += '</div>';
+                return html;
+            }).join('');
 
-                showToast(`✅ 预约成功！订单号 ${data.order_no}，锁定价格 ¥${(data.reserved_price || 0).toFixed(2)}`);
-                closeModal();
-                loadProducts();
-            } catch (err) {
-                showToast('❌ ' + (err.message || err));
+            /* ===== 图片URL: safeUrl验证 + DOM API设置 ===== */
+            grid.querySelectorAll('.card-img[data-img-url]').forEach(function(img) {
+                var rawUrl = img.dataset.imgUrl;
+                var safe = safeUrl(rawUrl);
+                if (safe) {
+                    img.src = safe;
+                } else {
+                    img.style.display = 'none';
+                }
+            });
+        } catch (err) {
+            grid.innerHTML = '<div class="empty">' + escapeHtml(err.message || String(err)) + '</div>';
+        }
+    }
+
+    function openDetail(id) {
+        /* UUID校验 */
+        if (!isValidUUID(id)) return;
+        /* 从内存集合按真实ID查找 */
+        var p = products.find(function(x) { return x.id === id; });
+        if (!p) return;
+
+        var stockVal = Number(p.available_quantity);
+        var stockValid = isIntValid(p.available_quantity) && stockVal > 0;
+        var priceVal = Number(p.final_price || p.listing_price);
+        var priceValid = isPriceValid(p.final_price || p.listing_price);
+        var canReserve = currentUser && stockValid && priceValid;
+
+        var priceStr = safePrice(p.final_price || p.listing_price);
+        var markPriceStr = safePrice(p.mark_price || p.listing_price);
+        var stockStr = safeInt(p.available_quantity);
+        var reservedStr = safeInt(p.reserved_quantity);
+
+        var html = '';
+        html += '<img class="modal-img" data-img-url="' + escapeHtml(p.card_image_url || '') + '" alt="' + escapeHtml(p.name || '') + '">';
+        html += '<div class="modal-name">' + escapeHtml(p.name) + '</div>';
+        html += '<div class="modal-series">' + escapeHtml(p.set_name || '-') + ' · ' + escapeHtml(p.card_category || '-') + '</div>';
+        html += '<div class="modal-tags">';
+        html += '<span class="modal-tag platform">🛡️ 官方发行</span>';
+        html += '<span class="modal-tag">' + escapeHtml(p.rarity || 'N') + '</span>';
+        html += '<span class="modal-tag">品相 ' + escapeHtml(p.condition || 'NM') + '</span>';
+        html += '</div>';
+        html += '<div class="modal-desc">';
+        html += '<strong>卡牌描述</strong><br>';
+        html += escapeHtml(p.description) || '平台官方发行卡牌，正品保障，统一发货。';
+        html += '</div>';
+        html += '<div class="modal-price-info">';
+        html += '<span class="modal-price">¥' + priceStr + '</span>';
+        html += '<span class="modal-mark-price">市场价 ¥' + markPriceStr + '</span>';
+        html += '</div>';
+        html += '<div class="modal-stock">';
+        if (stockValid) {
+            html += '✅ 可预约库存：' + stockStr + ' 件';
+        } else {
+            html += '❌ 暂时缺货';
+        }
+        if (Number(p.reserved_quantity) > 0) {
+            html += ' · 已预约 ' + reservedStr + ' 件';
+        }
+        html += '</div>';
+        html += '<div class="modal-actions">';
+        html += '<button class="btn btn-outline modal-close-action">再看看</button>';
+        var btnLabel = !currentUser ? '请先登录' : (!stockValid ? '已售罄' : '立即预约');
+        if (canReserve) {
+            html += '<button class="btn reserve-btn" data-product-id="' + escapeHtml(p.id) + '">' + escapeHtml(btnLabel) + '</button>';
+        } else {
+            html += '<button class="btn reserve-btn" disabled>' + escapeHtml(btnLabel) + '</button>';
+        }
+        html += '</div>';
+
+        document.getElementById('modalContent').innerHTML = html;
+
+        /* ===== 弹窗图片: safeUrl + DOM API ===== */
+        var modalImg = document.querySelector('#modalContent .modal-img');
+        if (modalImg) {
+            var safe = safeUrl(modalImg.dataset.imgUrl);
+            if (safe) {
+                modalImg.src = safe;
+            } else {
+                modalImg.style.display = 'none';
             }
         }
 
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+        document.getElementById('detailModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('detailModal').classList.remove('show');
+    }
+
+    async function reserveCard(platformCardId) {
+        /* UUID校验 */
+        if (!isValidUUID(platformCardId)) { showToast('无效的商品ID'); return; }
+
+        if (!currentUser) {
+            localStorage.setItem('redirectAfterLogin', 'platform-store.html');
+            showToast('请先登录');
+            setTimeout(function() { window.location.href = 'login.html'; }, 1000);
+            return;
         }
 
-        function esc(s) {
-            if (s == null) return '';
-            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        /* 从内存集合按真实ID查找 */
+        var p = products.find(function(x) { return x.id === platformCardId; });
+        if (!p) { showToast('未找到该商品'); return; }
+
+        /* 提交前校验: 库存和价格 */
+        var stockValid = isIntValid(p.available_quantity) && Number(p.available_quantity) > 0;
+        var priceValid = isPriceValid(p.final_price || p.listing_price);
+        if (!stockValid) { showToast('商品已售罄'); return; }
+        if (!priceValid) { showToast('商品价格异常，无法预约'); return; }
+
+        try {
+            var { data, error } = await db.rpc('create_pre_order', {
+                p_user_id: currentUser.id,
+                p_platform_card_id: platformCardId,
+                p_quantity: 1,
+                p_source: 'platform_store'
+            });
+
+            if (error) throw error;
+            if (!data || !data.success) throw new Error((data && data.error) || '预约失败');
+
+            var reservedPrice = safePrice(data.reserved_price);
+            showToast('✅ 预约成功！订单号 ' + (data.order_no || '--') + '，锁定价格 ¥' + reservedPrice);
+            closeModal();
+            loadProducts();
+        } catch (err) {
+            showToast('❌ ' + (err.message || String(err)));
         }
+    }
+
+    /* ===== 事件委托: 筛选 ===== */
+    document.getElementById('filterBar').addEventListener('click', function(e) {
+        var chip = e.target.closest('.filter-chip');
+        if (!chip) return;
+        var cat = chip.dataset.cat || '';
+        if (!validateAction(cat, VALID_CATEGORIES)) return;
+        document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        currentCategory = cat;
+        loadProducts();
+    });
+
+    /* ===== 事件委托: 卡片点击打开详情 ===== */
+    document.getElementById('cardGrid').addEventListener('click', function(e) {
+        var card = e.target.closest('.card-item');
+        if (!card) return;
+        var productId = card.dataset.productId;
+        if (!isValidUUID(productId)) return;
+        openDetail(productId);
+    });
+
+    /* ===== 事件委托: 弹窗内按钮 ===== */
+    document.getElementById('modalContent').addEventListener('click', function(e) {
+        var closeBtn = e.target.closest('.modal-close-action');
+        if (closeBtn) { closeModal(); return; }
+        var reserveBtn = e.target.closest('.reserve-btn[data-product-id]');
+        if (reserveBtn) {
+            var productId = reserveBtn.dataset.productId;
+            if (!isValidUUID(productId)) { showToast('无效的商品ID'); return; }
+            reserveCard(productId);
+        }
+    });
+
+    /* ===== 事件委托: 弹窗关闭 ===== */
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+    document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
     </script>
 </body>
 </html>

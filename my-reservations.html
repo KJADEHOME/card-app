@@ -52,6 +52,7 @@
         .cancel-btn:active { background: #fff5f5; }
         .view-btn { padding: 5px 14px; border-radius: 14px; border: 1px solid #5B4AE0; color: #5B4AE0; background: white; font-size: 12px; cursor: pointer; text-decoration: none; }
         .view-btn:active { background: #f8f8ff; }
+        .view-btn.disabled { pointer-events: none; opacity: 0.5; }
 
         .loading { text-align: center; padding: 80px 20px; color: #999; }
         .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #5B4AE0; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
@@ -82,13 +83,13 @@
         <div class="stat-item"><div class="stat-num" id="convertedCount">--</div><div class="stat-label">已转化</div></div>
     </div>
 
-    <!-- Tab 筛选 -->
-    <div class="tab-bar">
-        <div class="tab-chip active" data-status="" onclick="filterByStatus('')">全部</div>
-        <div class="tab-chip" data-status="pending" onclick="filterByStatus('pending')">等待中<span class="count" id="tabPending">0</span></div>
-        <div class="tab-chip" data-status="notified" onclick="filterByStatus('notified')">已通知<span class="count" id="tabNotified">0</span></div>
-        <div class="tab-chip" data-status="converted" onclick="filterByStatus('converted')">已转化<span class="count" id="tabConverted">0</span></div>
-        <div class="tab-chip" data-status="cancelled" onclick="filterByStatus('cancelled')">已取消<span class="count" id="tabCancelled">0</span></div>
+    <!-- Tab 筛选 (事件委托，无内联onclick) -->
+    <div class="tab-bar" id="tabBar">
+        <div class="tab-chip active" data-status="">全部</div>
+        <div class="tab-chip" data-status="pending">等待中<span class="count" id="tabPending">0</span></div>
+        <div class="tab-chip" data-status="notified">已通知<span class="count" id="tabNotified">0</span></div>
+        <div class="tab-chip" data-status="converted">已转化<span class="count" id="tabConverted">0</span></div>
+        <div class="tab-chip" data-status="cancelled">已取消<span class="count" id="tabCancelled">0</span></div>
     </div>
 
     <!-- 预约列表 -->
@@ -108,32 +109,69 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
     <script>
-    const db = window.supabase.createClient(
+    /* ===== Fail-closed: DOM API (replaceChildren/createElement/textContent) ===== */
+    if (!window.RiskControl) {
+        var _wrap = document.createElement('div');
+        _wrap.style.cssText = 'text-align:center;padding:80px 20px;color:#999;';
+        var _ic = document.createElement('div');
+        _ic.style.fontSize = '48px';
+        _ic.textContent = '\u26A0\uFE0F';
+        var _tx = document.createElement('div');
+        _tx.style.marginTop = '12px';
+        _tx.textContent = '\u5b89\u5168\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u91cd\u8bd5';
+        _wrap.appendChild(_ic);
+        _wrap.appendChild(_tx);
+        document.body.replaceChildren(_wrap);
+        throw new Error('RiskControl module not loaded');
+    }
+
+    var escapeHtml = RiskControl.escapeHtml;
+    var safeUrl = RiskControl.safeUrl;
+    var isValidUUID = RiskControl.isValidUUID;
+    var validateAction = RiskControl.validateAction;
+
+    var db = window.supabase.createClient(
         'https://xybpcsmjjcnkjwfsuder.supabase.co',
         'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
     );
 
-    let currentFilter = '';
-    let allReservations = [];
-    let currentUser = null;
+    var currentFilter = '';
+    var allReservations = [];
+    var currentUser = null;
 
-    function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-    function showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+    /* 状态/来源枚举白名单 */
+    var VALID_STATUSES = ['pending', 'notified', 'converted', 'cancelled'];
+    var VALID_SOURCES = ['tiktok', 'live', 'shop'];
+    var STATUS_MAP = { pending: '等待中', notified: '已通知', converted: '已转化', cancelled: '已取消' };
+    var SOURCE_MAP = { tiktok: '直播', live: '直播', shop: '商城' };
+
+    function showToast(m) { var t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 2500); }
+
+    /* 数值校验辅助函数 */
+    function safePrice(v) {
+        var n = Number(v);
+        return (Number.isFinite(n) && n >= 0) ? n.toFixed(2) : '--';
+    }
+    function safeInt(v) {
+        var n = Number(v);
+        return (Number.isInteger(n) && n >= 0) ? String(n) : '--';
+    }
 
     async function init() {
-        const { data: { user } } = await db.auth.getUser();
+        var { data: { user } } = await db.auth.getUser();
         if (!user) { location.href = 'login.html'; return; }
         currentUser = user;
         await loadReservations();
     }
 
     async function loadReservations() {
-        const list = document.getElementById('reservationList');
+        var list = document.getElementById('reservationList');
         list.innerHTML = '<div class="loading"><div class="spinner"></div><div>加载中...</div></div>';
 
-        const pStatus = currentFilter || null;
-        const { data, error } = await db.rpc('get_user_reservations', {
+        var pStatus = currentFilter || null;
+        var { data, error } = await db.rpc('get_user_reservations', {
             p_user_id: currentUser.id,
             p_status: pStatus
         });
@@ -143,56 +181,86 @@
             return;
         }
 
-        const reservations = data?.reservations || [];
+        var reservations = (data && data.reservations) || [];
         allReservations = reservations;
         renderList(reservations);
 
-        // 如果加载全部，更新统计（需要额外请求一次无过滤的）
+        /* 如果加载全部，更新统计 */
         if (!currentFilter) {
             updateStats(reservations);
         }
     }
 
     function renderList(reservations) {
-        const list = document.getElementById('reservationList');
+        var list = document.getElementById('reservationList');
         if (!reservations || reservations.length === 0) {
-            list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>暂无预约记录<br><small>去 <a href="shop.html" style="color:#5B4AE0;">商城</a> 看看吧</small></div>`;
+            list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>暂无预约记录<br><small>去 <a href="shop.html" style="color:#5B4AE0;">商城</a> 看看吧</small></div>';
             return;
         }
 
-        list.innerHTML = reservations.map(r => {
-            const statusMap = { pending: '等待中', notified: '已通知', converted: '已转化', cancelled: '已取消' };
-            const srcMap = { tiktok: '直播', live: '直播', shop: '商城' };
-            const isPending = r.status === 'pending';
-            const isLive = r.source === 'tiktok' || r.source === 'live';
+        list.innerHTML = reservations.map(function(r) {
+            /* 枚举白名单校验 */
+            var status = VALID_STATUSES.indexOf(r.status) !== -1 ? r.status : 'pending';
+            var source = VALID_SOURCES.indexOf(r.source) !== -1 ? r.source : 'shop';
+            var isPending = status === 'pending';
+            var isLive = source === 'tiktok' || source === 'live';
 
-            return `
-            <div class="res-card">
-                <div class="res-img" style="background-image:url('${esc(r.product_image) || ''}')"></div>
-                <div class="res-info">
-                    <div class="res-name">${esc(r.product_title)}</div>
-                    <div class="res-meta">
-                        <span class="status-badge ${r.status}">${statusMap[r.status]}</span>
-                        <span class="source-tag ${r.source}">${srcMap[r.source]}</span>
-                        ${isLive ? ' 🔴 直播同款' : ''}
-                    </div>
-                    <div class="res-price">¥${r.product_price?.toFixed(2) || '--'}</div>
-                    <div class="res-meta">
-                        x${r.quantity} · 库存 ${r.product_stock}
-                        · ${new Date(r.created_at).toLocaleDateString('zh-CN')}
-                    </div>
-                    <div class="res-actions">
-                        <a href="product-detail.html?id=${r.product_id}" class="view-btn">查看详情</a>
-                        ${isPending ? `<button class="cancel-btn" onclick="cancelReservation('${r.id}')">取消预约</button>` : ''}
-                    </div>
-                </div>
-            </div>`;
+            /* 数值校验 */
+            var priceStr = safePrice(r.product_price);
+            var qtyStr = safeInt(r.quantity);
+            var stockStr = safeInt(r.product_stock);
+
+            /* UUID校验 */
+            var resIdValid = isValidUUID(r.id);
+            var productIdValid = isValidUUID(r.product_id);
+
+            /* 日期安全格式化 */
+            var dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('zh-CN') : '--';
+
+            /* 构建HTML — 所有动态文本均通过escapeHtml */
+            var html = '<div class="res-card">';
+            html += '<div class="res-img" data-img-url="' + escapeHtml(r.product_image || '') + '"></div>';
+            html += '<div class="res-info">';
+            html += '<div class="res-name">' + escapeHtml(r.product_title) + '</div>';
+            html += '<div class="res-meta">';
+            html += '<span class="status-badge ' + escapeHtml(status) + '">' + escapeHtml(STATUS_MAP[status]) + '</span>';
+            html += '<span class="source-tag ' + escapeHtml(source) + '">' + escapeHtml(SOURCE_MAP[source]) + '</span>';
+            html += isLive ? ' 🔴 直播同款' : '';
+            html += '</div>';
+            html += '<div class="res-price">¥' + priceStr + '</div>';
+            html += '<div class="res-meta">x' + qtyStr + ' · 库存 ' + stockStr + ' · ' + escapeHtml(dateStr) + '</div>';
+            html += '<div class="res-actions">';
+            /* 产品链接仅在UUID有效时生成 */
+            html += productIdValid
+                ? '<a href="product-detail.html?id=' + escapeHtml(r.product_id) + '" class="view-btn">查看详情</a>'
+                : '<span class="view-btn disabled">查看详情</span>';
+            /* 取消按钮仅在预约ID为合法UUID时渲染 */
+            if (isPending && resIdValid) {
+                html += '<button class="cancel-btn" data-reservation-id="' + escapeHtml(r.id) + '">取消预约</button>';
+            }
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+            return html;
         }).join('');
+
+        /* ===== 图片URL: safeUrl验证 + DOM API设置 ===== */
+        list.querySelectorAll('.res-img[data-img-url]').forEach(function(el) {
+            var rawUrl = el.dataset.imgUrl;
+            var safe = safeUrl(rawUrl);
+            if (safe) {
+                el.style.backgroundImage = "url('" + safe + "')";
+            } else {
+                el.style.display = 'none';
+            }
+        });
     }
 
     function updateStats(reservations) {
-        const counts = { pending: 0, notified: 0, converted: 0, cancelled: 0 };
-        reservations.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+        var counts = { pending: 0, notified: 0, converted: 0, cancelled: 0 };
+        reservations.forEach(function(r) {
+            if (VALID_STATUSES.indexOf(r.status) !== -1) counts[r.status]++;
+        });
 
         document.getElementById('pendingCount').textContent = counts.pending;
         document.getElementById('notifiedCount').textContent = counts.notified;
@@ -205,16 +273,24 @@
 
     function filterByStatus(status) {
         currentFilter = status;
-        document.querySelectorAll('.tab-chip').forEach(c => c.classList.remove('active'));
-        const target = document.querySelector(`.tab-chip[data-status="${status}"]`);
+        document.querySelectorAll('.tab-chip').forEach(function(c) { c.classList.remove('active'); });
+        var target = document.querySelector('.tab-chip[data-status="' + status + '"]');
         if (target) target.classList.add('active');
         loadReservations();
     }
 
     async function cancelReservation(resId) {
+        /* UUID校验: 防止伪造ID */
+        if (!isValidUUID(resId)) { showToast('无效的预约ID'); return; }
+
+        /* 从内存集合按真实ID查找 */
+        var reservation = allReservations.find(function(r) { return r.id === resId; });
+        if (!reservation) { showToast('未找到该预约记录'); return; }
+        if (reservation.status !== 'pending') { showToast('该预约无法取消'); return; }
+
         if (!confirm('确定取消这个预约吗？')) return;
 
-        const { data, error } = await db.rpc('cancel_reservation', {
+        var { data, error } = await db.rpc('cancel_reservation', {
             p_reservation_id: resId,
             p_user_id: currentUser.id
         });
@@ -225,6 +301,25 @@
         showToast('已取消预约');
         loadReservations();
     }
+
+    /* ===== 事件委托: Tab筛选 ===== */
+    document.getElementById('tabBar').addEventListener('click', function(e) {
+        var chip = e.target.closest('.tab-chip');
+        if (!chip) return;
+        var status = chip.dataset.status || '';
+        /* validateAction白名单校验 */
+        if (!validateAction(status, ['', 'pending', 'notified', 'converted', 'cancelled'])) return;
+        filterByStatus(status);
+    });
+
+    /* ===== 事件委托: 取消预约按钮 ===== */
+    document.getElementById('reservationList').addEventListener('click', function(e) {
+        var btn = e.target.closest('.cancel-btn');
+        if (!btn) return;
+        var resId = btn.dataset.reservationId;
+        if (!isValidUUID(resId)) { showToast('无效的预约ID'); return; }
+        cancelReservation(resId);
+    });
 
     init();
     </script>

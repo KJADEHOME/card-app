@@ -543,7 +543,62 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
     <script>
+    /* ===== Fail-closed: DOM API (replaceChildren/createElement/textContent) ===== */
+    if (!window.RiskControl) {
+        var _wrap = document.createElement('div');
+        _wrap.style.cssText = 'text-align:center;padding:80px 20px;color:#999;';
+        var _ic = document.createElement('div');
+        _ic.style.fontSize = '48px';
+        _ic.textContent = '\u26A0\uFE0F';
+        var _tx = document.createElement('div');
+        _tx.style.marginTop = '12px';
+        _tx.textContent = '\u5b89\u5168\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u91cd\u8bd5';
+        _wrap.appendChild(_ic);
+        _wrap.appendChild(_tx);
+        document.body.replaceChildren(_wrap);
+        throw new Error('RiskControl module not loaded');
+    }
+
+    var escapeHtml = RiskControl.escapeHtml;
+
+    /* 数值校验辅助 */
+    function safeNum(v) {
+        var n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+    }
+    function safePct(v) {
+        var n = Number(v);
+        if (!Number.isFinite(n)) return '--';
+        if (n < -100) n = -100;
+        if (n > 1000) n = 1000;
+        return n.toFixed(1) + '%';
+    }
+    function safePriceDisplay(v) {
+        var n = Number(v);
+        return (Number.isFinite(n) && n >= 0) ? n.toLocaleString() : '--';
+    }
+    function safeIntDisplay(v) {
+        var n = Number(v);
+        return (Number.isInteger(n) && n >= 0) ? n.toLocaleString() : '--';
+    }
+    function safeRetention(v) {
+        var n = Number(v);
+        if (!Number.isFinite(n)) return '--';
+        if (n < 0) n = 0;
+        if (n > 100) n = 100;
+        return n.toFixed(0) + '%';
+    }
+    function safePctSigned(v) {
+        var n = Number(v);
+        if (!Number.isFinite(n)) return '--';
+        if (n < -100) n = -100;
+        if (n > 1000) n = 1000;
+        var sign = n > 0 ? '+' : '';
+        return sign + n.toFixed(1) + '%';
+    }
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
@@ -565,19 +620,21 @@
         };
 
         function renderOverview(data) {
-            document.getElementById('risingCount').textContent = data.rising || '--';
-            document.getElementById('fallingCount').textContent = data.falling || '--';
-            document.getElementById('volumeCount').textContent = (data.total || data.volume || 0).toLocaleString();
+            document.getElementById('risingCount').textContent = safeIntDisplay(data.rising);
+            document.getElementById('fallingCount').textContent = safeIntDisplay(data.falling);
+            document.getElementById('volumeCount').textContent = safeIntDisplay(data.total || data.volume);
             document.getElementById('risingChange').textContent = '较昨日 ' + (data.risingChange || '--');
             document.getElementById('fallingChange').textContent = '较昨日 ' + (data.fallingChange || '--');
             document.getElementById('volumeChange').textContent = '较昨日 ' + (data.volumeChange || '--');
         }
         
         function renderTradeStats(data) {
-            document.getElementById('tradeOrders').textContent = (data.today_orders || 0).toLocaleString();
-            document.getElementById('tradeGMV').textContent = '¥' + ((data.today_gmv || 0) / 10000).toFixed(1) + '万';
-            document.getElementById('tradeFees').textContent = '¥' + (data.today_fees || 0).toFixed(0);
-            document.getElementById('activeListings').textContent = (data.active_listings || 0).toLocaleString();
+            document.getElementById('tradeOrders').textContent = safeIntDisplay(data.today_orders);
+            var gmv = Number(data.today_gmv);
+            document.getElementById('tradeGMV').textContent = (Number.isFinite(gmv) && gmv >= 0) ? '¥' + (gmv / 10000).toFixed(1) + '万' : '--';
+            var fees = Number(data.today_fees);
+            document.getElementById('tradeFees').textContent = (Number.isFinite(fees) && fees >= 0) ? '¥' + fees.toFixed(0) : '--';
+            document.getElementById('activeListings').textContent = safeIntDisplay(data.active_listings);
         }
 
         function renderRankList(list, containerId, type) {
@@ -586,27 +643,32 @@
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:12px;">暂无数据（等待价格更新）</div>';
                 return;
             }
-            container.innerHTML = list.map((item, i) => `
-                <div class="rank-item">
-                    <div class="rank-num ${i < 3 ? 'top' : ''}">${i + 1}</div>
-                    <div class="rank-info">
-                        <div class="rank-name">${item.name || item.card_name || ''}</div>
-                        <div class="rank-tag">${item.tag || item.series || ''}${item.rarity ? ' · ' + item.rarity : ''}</div>
-                    </div>
-                    <div class="rank-pct ${type}">${item.pct || ''}</div>
-                </div>
-            `).join('');
+            container.innerHTML = list.map(function(item, i) {
+                var name = escapeHtml(item.name || item.card_name || '');
+                var tagRaw = item.tag || item.series || '';
+                if (item.rarity) tagRaw = tagRaw ? tagRaw + ' · ' + item.rarity : item.rarity;
+                var tag = escapeHtml(tagRaw);
+                var pct = escapeHtml(item.pct || '');
+                return '<div class="rank-item">' +
+                    '<div class="rank-num ' + (i < 3 ? 'top' : '') + '">' + (i + 1) + '</div>' +
+                    '<div class="rank-info">' +
+                    '<div class="rank-name">' + name + '</div>' +
+                    '<div class="rank-tag">' + tag + '</div>' +
+                    '</div>' +
+                    '<div class="rank-pct ' + escapeHtml(type) + '">' + pct + '</div>' +
+                    '</div>';
+            }).join('');
         }
 
         function renderKeywords() {
             const container = document.getElementById('keywordsCard');
-            container.innerHTML = demoData.keywords.map((kw, i) => `
-                <div class="keyword-item">
-                    <div class="keyword-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
-                    <div class="keyword-text">${kw.name}</div>
-                    <div class="keyword-trend">↑ ${kw.trend}</div>
-                </div>
-            `).join('');
+            container.innerHTML = demoData.keywords.map(function(kw, i) {
+                return '<div class="keyword-item">' +
+                    '<div class="keyword-rank ' + (i < 3 ? 'top' : '') + '">' + (i + 1) + '</div>' +
+                    '<div class="keyword-text">' + escapeHtml(kw.name) + '</div>' +
+                    '<div class="keyword-trend">↑ ' + escapeHtml(kw.trend) + '</div>' +
+                    '</div>';
+            }).join('');
         }
 
         function renderTradeTop() {
@@ -616,16 +678,20 @@
                 container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">暂无成交数据</div>';
                 return;
             }
-            container.innerHTML = list.map((item, i) => `
-                <div class="trade-item">
-                    <div class="trade-rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
-                    <div class="trade-info">
-                        <div class="trade-name">${item.name}</div>
-                        <div class="trade-tag">${item.tag || ''} · ${item.condition || 'NM'}</div>
-                    </div>
-                    <div class="trade-price">¥${(item.price || 0).toLocaleString()}</div>
-                </div>
-            `).join('');
+            container.innerHTML = list.map(function(item, i) {
+                var name = escapeHtml(item.name || '');
+                var tag = escapeHtml(item.tag || '');
+                var cond = escapeHtml(item.condition || 'NM');
+                var priceStr = safePriceDisplay(item.price);
+                return '<div class="trade-item">' +
+                    '<div class="trade-rank ' + (i < 3 ? 'top' : '') + '">' + (i + 1) + '</div>' +
+                    '<div class="trade-info">' +
+                    '<div class="trade-name">' + name + '</div>' +
+                    '<div class="trade-tag">' + tag + ' · ' + cond + '</div>' +
+                    '</div>' +
+                    '<div class="trade-price">¥' + priceStr + '</div>' +
+                    '</div>';
+            }).join('');
         }
 
         function renderVolume(data) {
@@ -634,24 +700,49 @@
                 container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:13px;">暂无数据</div>';
                 return;
             }
-            const max = Math.max(...data);
-            const min = Math.min(...data);
+            /* 数值校验: 过滤无效值 */
+            var validData = data.map(function(v) { return Number(v); }).filter(function(n) { return Number.isFinite(n) && n >= 0; });
+            if (validData.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:13px;">暂无数据</div>';
+                return;
+            }
+            const max = Math.max.apply(null, validData);
+            const min = Math.min.apply(null, validData);
             const range = max - min || 1;
-            container.innerHTML = data.map((v, i) => {
-                const height = ((v - min) / range * 120 + 20) + 'px';
-                return `<div class="volume-bar" style="height:${height}" title="${v}笔"></div>`;
-            }).join('');
+            container.innerHTML = '';
+            validData.forEach(function(v) {
+                var bar = document.createElement('div');
+                bar.className = 'volume-bar';
+                bar.style.height = ((v - min) / range * 120 + 20) + 'px';
+                /* title用setAttribute, 不依赖模板字符串 */
+                bar.setAttribute('title', v + '笔');
+                container.appendChild(bar);
+            });
         }
 
         function renderChart(data) {
-            const max = Math.max(...data);
-            const min = Math.min(...data);
-            const range = max - min || 1;
             const container = document.getElementById('chartArea');
-            container.innerHTML = data.map((v, i) => {
-                const height = ((v - min) / range * 120 + 20) + 'px';
-                return `<div class="chart-bar" style="height:${height}" title="${v}"></div>`;
-            }).join('');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:13px;">暂无数据</div>';
+                return;
+            }
+            var validData = data.map(function(v) { return Number(v); }).filter(function(n) { return Number.isFinite(n) && n >= 0; });
+            if (validData.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:13px;">暂无数据</div>';
+                return;
+            }
+            const max = Math.max.apply(null, validData);
+            const min = Math.min.apply(null, validData);
+            const range = max - min || 1;
+            container.innerHTML = '';
+            validData.forEach(function(v) {
+                var bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.style.height = ((v - min) / range * 120 + 20) + 'px';
+                /* title用setAttribute, 不依赖模板字符串 */
+                bar.setAttribute('title', String(v));
+                container.appendChild(bar);
+            });
         }
 
         // Chart tab switching
@@ -706,12 +797,14 @@
                     .limit(5);
 
                 if (riseData && riseData.length > 0) {
-                    demoData.riseList = riseData.map(r => ({
-                        name: r.card_name,
-                        tag: (r.series || '') + (r.rarity && r.rarity !== 'N' ? ' · ' + r.rarity : ''),
-                        pct: '+' + r.change_percent.toFixed(1) + '%',
-                        price: r.current_price
-                    }));
+                    demoData.riseList = riseData.map(function(r) {
+                        return {
+                            name: r.card_name,
+                            tag: (r.series || '') + (r.rarity && r.rarity !== 'N' ? ' · ' + r.rarity : ''),
+                            pct: safePctSigned(r.change_percent),
+                            price: r.current_price
+                        };
+                    });
                 }
                 renderRankList(demoData.riseList, 'riseList', 'rise');
 
@@ -726,12 +819,14 @@
                     .limit(5);
 
                 if (fallData && fallData.length > 0) {
-                    demoData.fallList = fallData.map(f => ({
-                        name: f.card_name,
-                        tag: (f.series || '') + (f.rarity && f.rarity !== 'N' ? ' · ' + f.rarity : ''),
-                        pct: f.change_percent.toFixed(1) + '%',
-                        price: f.current_price
-                    }));
+                    demoData.fallList = fallData.map(function(f) {
+                        return {
+                            name: f.card_name,
+                            tag: (f.series || '') + (f.rarity && f.rarity !== 'N' ? ' · ' + f.rarity : ''),
+                            pct: safePctSigned(f.change_percent),
+                            price: f.current_price
+                        };
+                    });
                 }
                 renderRankList(demoData.fallList, 'fallList', 'fall');
 
@@ -745,13 +840,15 @@
                     .limit(10);
 
                 if (topData && topData.length > 0) {
-                    demoData.tradeTop = topData.map((t, i) => ({
-                        name: t.card_name,
-                        tag: (t.series || ''),
-                        condition: (t.rarity !== 'N' ? t.rarity : 'NM'),
-                        price: t.current_price,
-                        change: t.change_percent ? (t.change_percent > 0 ? '+' : '') + t.change_percent.toFixed(1) + '%' : '--'
-                    }));
+                    demoData.tradeTop = topData.map(function(t) {
+                        return {
+                            name: t.card_name,
+                            tag: (t.series || ''),
+                            condition: (t.rarity !== 'N' ? t.rarity : 'NM'),
+                            price: t.current_price,
+                            change: safePctSigned(t.change_percent)
+                        };
+                    });
                 }
                 renderTradeTop();
 
@@ -782,11 +879,16 @@
                 }
                 renderVolume(demoData.volume7);
 
-                // Update notice
+                // Update notice — DOM API, not innerHTML
                 const notice = document.querySelector('.notice');
-                if (notice && overviewData?.last_updated) {
-                    const t = new Date(overviewData.last_updated);
-                    notice.innerHTML = `<span>📢</span> 价格数据更新于 ${t.toLocaleString('zh-CN')}`;
+                if (notice && overviewData && overviewData.last_updated) {
+                    var t = new Date(overviewData.last_updated);
+                    /* 使用 DOM API 构建, 不依赖 innerHTML */
+                    while (notice.firstChild) notice.removeChild(notice.firstChild);
+                    var noticeSpan = document.createElement('span');
+                    noticeSpan.textContent = '📢';
+                    notice.appendChild(noticeSpan);
+                    notice.appendChild(document.createTextNode(' 价格数据更新于 ' + t.toLocaleString('zh-CN')));
                 }
 
             } catch (e) {
@@ -823,14 +925,15 @@
                 }
 
                 const today = data.today;
-                document.getElementById('growthDAU').textContent = (today.dau || 0).toLocaleString();
-                document.getElementById('growthMAU').textContent = (today.mau || 0).toLocaleString();
-                document.getElementById('growthAsset').textContent = '¥' + ((today.total_asset || 0) / 10000).toFixed(1) + '万';
-                document.getElementById('growthScans').textContent = (today.ai_scans || 0).toLocaleString();
-                document.getElementById('growthRetention').textContent = (today.retention_d1 || 0).toFixed(0) + '%';
-                document.getElementById('growthNewUsers').textContent = (today.new_users || 0).toLocaleString();
-                document.getElementById('growthCollectionUsers').textContent = (today.active_collection_users || 0).toLocaleString();
-                document.getElementById('growthWatchUsers').textContent = (today.watchlist_users || 0).toLocaleString();
+                document.getElementById('growthDAU').textContent = safeIntDisplay(today.dau);
+                document.getElementById('growthMAU').textContent = safeIntDisplay(today.mau);
+                var assetVal = Number(today.total_asset);
+                document.getElementById('growthAsset').textContent = (Number.isFinite(assetVal) && assetVal >= 0) ? '¥' + (assetVal / 10000).toFixed(1) + '万' : '--';
+                document.getElementById('growthScans').textContent = safeIntDisplay(today.ai_scans);
+                document.getElementById('growthRetention').textContent = safeRetention(today.retention_d1);
+                document.getElementById('growthNewUsers').textContent = safeIntDisplay(today.new_users);
+                document.getElementById('growthCollectionUsers').textContent = safeIntDisplay(today.active_collection_users);
+                document.getElementById('growthWatchUsers').textContent = safeIntDisplay(today.watchlist_users);
 
                 // Update volume chart with trend data
                 if (data.trend && data.trend.length > 0) {
@@ -839,7 +942,7 @@
                 }
 
                 // Update total trades from growth stats
-                document.getElementById('tradeOrders').textContent = (today.total_trades || 0).toLocaleString();
+                document.getElementById('tradeOrders').textContent = safeIntDisplay(today.total_trades);
             } catch (e) {
                 console.warn('Growth stats load error:', e.message);
             }

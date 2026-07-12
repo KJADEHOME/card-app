@@ -130,14 +130,30 @@
         </div>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
+        // Fail-closed: RiskControl 必须存在
+        if (!window.RiskControl || !RiskControl.escapeHtml) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#f44336;font-size:16px;">安全模块加载失败，页面已停止渲染。<br>请检查网络或刷新重试。</div>';
+            throw new Error('RiskControl module not loaded - refusing to render');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const isValidUUID = RiskControl.isValidUUID;
+        const validateAction = RiskControl.validateAction;
+
+        // 动作白名单
+        const RESOLUTION_WHITELIST = ['buyer', 'seller', 'compromise'];
+        const REFUND_WHITELIST = ['approve', 'reject'];
+        const ORDER_ACTION_WHITELIST = ['view', 'intervene', 'cancel', 'resolve', 'refund', 'close'];
+
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         let currentPage = 1;
         const PAGE_SIZE = 20;
         let currentOrderId = null;
         let currentOrderStatus = null;
+        let orderDataCache = {}; // { uuid: orderObject } — 内存数据存储
 
         async function init() {
             const { data: { user } } = await db.auth.getUser();
@@ -187,23 +203,37 @@
             };
 
             document.getElementById('orderTable').innerHTML = data.map(o => {
+                orderDataCache[o.id] = o; // 缓存到内存
                 const statusInfo = STATUS_BADGE[o.status] || { text: o.status, cls: '' };
                 return `
                     <tr>
-                        <td style="font-size:12px;color:#999;">${o.order_no}</td>
-                        <td>${o.buyer?.username || o.buyer_id?.substring(0, 8) || '-'}</td>
-                        <td>${o.seller?.username || o.seller_id?.substring(0, 8) || '-'}</td>
-                        <td>${o.consignments?.card_name || '商品'}</td>
+                        <td style="font-size:12px;color:#999;">${escapeHtml(o.order_no)}</td>
+                        <td>${escapeHtml(o.buyer?.username || o.buyer_id?.substring(0, 8) || '-')}</td>
+                        <td>${escapeHtml(o.seller?.username || o.seller_id?.substring(0, 8) || '-')}</td>
+                        <td>${escapeHtml(o.consignments?.card_name || '商品')}</td>
                         <td style="font-weight:600;">¥${o.total_amount.toFixed(2)}</td>
-                        <td><span class="badge ${statusInfo.cls}">${statusInfo.text}</span></td>
+                        <td><span class="badge ${statusInfo.cls}">${escapeHtml(statusInfo.text)}</span></td>
                         <td style="font-size:12px;color:#999;">${new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
                         <td>
-                            <button class="btn-sm btn-view" onclick="viewOrder('${o.id}')">查看</button>
-                            ${o.status === 'disputed' ? `<button class="btn-sm btn-intervene" onclick="interveneOrder('${o.id}')">介入</button>` : ''}
+                            <button class="btn-sm btn-view" data-order-id="${o.id}" data-action="view">查看</button>
+                            ${o.status === 'disputed' ? `<button class="btn-sm btn-intervene" data-order-id="${o.id}" data-action="intervene">介入</button>` : ''}
                         </td>
                     </tr>
                 `;
             }).join('');
+
+            // 事件委托: 订单表格
+            const table = document.getElementById('orderTable');
+            table.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const orderId = this.getAttribute('data-order-id');
+                    const action = this.getAttribute('data-action');
+                    if (!isValidUUID(orderId)) { alert('非法订单ID'); return; }
+                    if (!validateAction(action, ORDER_ACTION_WHITELIST)) { alert('非法操作'); return; }
+                    if (action === 'view') viewOrder(orderId);
+                    else if (action === 'intervene') interveneOrder(orderId);
+                });
+            });
 
             renderPagination(count);
         }
@@ -267,7 +297,7 @@
                     <h3>订单信息</h3>
                     <div class="info-row">
                         <span class="info-label">订单编号</span>
-                        <span class="info-value">${order.order_no}</span>
+                        <span class="info-value">${escapeHtml(order.order_no)}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">创建时间</span>
@@ -275,12 +305,12 @@
                     </div>
                     <div class="info-row">
                         <span class="info-label">当前状态</span>
-                        <span class="info-value">${getStatusText(order.status)}</span>
+                        <span class="info-value">${escapeHtml(getStatusText(order.status))}</span>
                     </div>
                     ${order.shipping_company ? `
                     <div class="info-row">
                         <span class="info-label">物流信息</span>
-                        <span class="info-value">${order.shipping_company} - ${order.tracking_no || '无'}</span>
+                        <span class="info-value">${escapeHtml(order.shipping_company)} - ${escapeHtml(order.tracking_no || '无')}</span>
                     </div>
                     ` : ''}
                 </div>
@@ -289,7 +319,7 @@
                     <h3>状态流程</h3>
                     <div class="status-timeline">
                         ${statusTimeline.map(s => `
-                            <div class="status-step ${s.active ? 'active' : 'inactive'}">${s.text}</div>
+                            <div class="status-step ${s.active ? 'active' : 'inactive'}">${escapeHtml(s.text)}</div>
                         `).join('')}
                     </div>
                 </div>
@@ -298,11 +328,11 @@
                     <h3>买家信息</h3>
                     <div class="info-row">
                         <span class="info-label">用户名</span>
-                        <span class="info-value">${order.buyer?.username || '-'}</span>
+                        <span class="info-value">${escapeHtml(order.buyer?.username || '-')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">邮箱</span>
-                        <span class="info-value">${order.buyer?.email || '-'}</span>
+                        <span class="info-value">${escapeHtml(order.buyer?.email || '-')}</span>
                     </div>
                 </div>
 
@@ -310,11 +340,11 @@
                     <h3>卖家信息</h3>
                     <div class="info-row">
                         <span class="info-label">用户名</span>
-                        <span class="info-value">${order.seller?.username || '-'}</span>
+                        <span class="info-value">${escapeHtml(order.seller?.username || '-')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">邮箱</span>
-                        <span class="info-value">${order.seller?.email || '-'}</span>
+                        <span class="info-value">${escapeHtml(order.seller?.email || '-')}</span>
                     </div>
                 </div>
 
@@ -322,7 +352,7 @@
                     <h3>商品信息</h3>
                     <div class="info-row">
                         <span class="info-label">商品名称</span>
-                        <span class="info-value">${order.consignments?.card_name || '商品'}</span>
+                        <span class="info-value">${escapeHtml(order.consignments?.card_name || '商品')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">金额</span>
@@ -341,7 +371,7 @@
                     <h3>争议信息</h3>
                     <div class="info-row">
                         <span class="info-label">争议原因</span>
-                        <span class="info-value">${order.dispute_reason}</span>
+                        <span class="info-value">${escapeHtml(order.dispute_reason)}</span>
                     </div>
                 </div>
                 ` : ''}
@@ -389,23 +419,47 @@
             let html = '';
 
             if (order.status === 'disputed') {
-                html += `<button class="btn-sm btn-success" onclick="resolveDispute('${order.id}', 'buyer')">支持买家</button>`;
-                html += `<button class="btn-sm btn-success" onclick="resolveDispute('${order.id}', 'seller')">支持卖家</button>`;
-                html += `<button class="btn-sm btn-warning" onclick="resolveDispute('${order.id}', 'compromise')">折中方案</button>`;
+                html += `<button class="btn-sm btn-success" data-order-id="${escapeHtml(order.id)}" data-action="resolve" data-resolution="buyer">支持买家</button>`;
+                html += `<button class="btn-sm btn-success" data-order-id="${escapeHtml(order.id)}" data-action="resolve" data-resolution="seller">支持卖家</button>`;
+                html += `<button class="btn-sm btn-warning" data-order-id="${escapeHtml(order.id)}" data-action="resolve" data-resolution="compromise">折中方案</button>`;
             }
 
             if (['pending', 'paid'].includes(order.status)) {
-                html += `<button class="btn-sm btn-danger" onclick="cancelOrder('${order.id}')">取消订单</button>`;
+                html += `<button class="btn-sm btn-danger" data-order-id="${escapeHtml(order.id)}" data-action="cancel">取消订单</button>`;
             }
 
             if (order.status === 'refund_requested') {
-                html += `<button class="btn-sm btn-success" onclick="processRefund('${order.id}', 'approve')">同意退款</button>`;
-                html += `<button class="btn-sm btn-danger" onclick="processRefund('${order.id}', 'reject')">拒绝退款</button>`;
+                html += `<button class="btn-sm btn-success" data-order-id="${escapeHtml(order.id)}" data-action="refund" data-refund="approve">同意退款</button>`;
+                html += `<button class="btn-sm btn-danger" data-order-id="${escapeHtml(order.id)}" data-action="refund" data-refund="reject">拒绝退款</button>`;
             }
 
-            html += `<button class="btn-sm" style="background:#999;color:white;" onclick="closeModal()">关闭</button>`;
+            html += `<button class="btn-sm" style="background:#999;color:white;" data-action="close">关闭</button>`;
 
             document.getElementById('modalFooter').innerHTML = html;
+
+            // 事件委托: Modal footer
+            document.getElementById('modalFooter').querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const action = this.getAttribute('data-action');
+                    const orderId = this.getAttribute('data-order-id');
+
+                    if (action === 'close') { closeModal(); return; }
+                    if (!isValidUUID(orderId)) { alert('非法订单ID'); return; }
+                    if (!validateAction(action, ORDER_ACTION_WHITELIST)) { alert('非法操作'); return; }
+
+                    if (action === 'resolve') {
+                        const resolution = this.getAttribute('data-resolution');
+                        if (!validateAction(resolution, RESOLUTION_WHITELIST)) { alert('非法处理方案'); return; }
+                        resolveDispute(orderId, resolution);
+                    } else if (action === 'cancel') {
+                        cancelOrder(orderId);
+                    } else if (action === 'refund') {
+                        const refundAction = this.getAttribute('data-refund');
+                        if (!validateAction(refundAction, REFUND_WHITELIST)) { alert('非法退款操作'); return; }
+                        processRefund(orderId, refundAction);
+                    }
+                });
+            });
         }
 
         function closeModal() {

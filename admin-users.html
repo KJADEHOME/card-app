@@ -113,13 +113,24 @@
         </div>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
+        // Fail-closed: RiskControl 必须存在
+        if (!window.RiskControl || !RiskControl.escapeHtml) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#f44336;font-size:16px;">安全模块加载失败，页面已停止渲染。<br>请检查网络或刷新重试。</div>';
+            throw new Error('RiskControl module not loaded - refusing to render');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const isValidUUID = RiskControl.isValidUUID;
+        const validateAction = RiskControl.validateAction;
+
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         let currentPage = 1;
         const PAGE_SIZE = 20;
         let currentUserId = null;
+        let userDataCache = {}; // { uuid: userObject } — 内存数据存储
 
         async function init() {
             const { data: { user } } = await db.auth.getUser();
@@ -155,14 +166,16 @@
                 return;
             }
 
-            document.getElementById('userTable').innerHTML = data.map(u => `
+            document.getElementById('userTable').innerHTML = data.map(u => {
+                userDataCache[u.id] = u; // 缓存到内存
+                return `
                 <tr>
                     <td>
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <div class="user-avatar">${(u.username || 'U').charAt(0).toUpperCase()}</div>
+                            <div class="user-avatar">${escapeHtml((u.username || 'U').charAt(0).toUpperCase())}</div>
                             <div>
-                                <div style="font-weight:600;">${u.username || '未设置'}</div>
-                                <div style="font-size:12px;color:#999;">${u.email || ''}</div>
+                                <div style="font-weight:600;">${escapeHtml(u.username || '未设置')}</div>
+                                <div style="font-size:12px;color:#999;">${escapeHtml(u.email || '')}</div>
                             </div>
                         </div>
                     </td>
@@ -178,14 +191,28 @@
                     <td>${u.card_count || 0}</td>
                     <td>${new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
                     <td>
-                        <button class="btn-sm btn-view" onclick="viewUser('${u.id}')">查看</button>
+                        <button class="btn-sm btn-view" data-user-id="${u.id}" data-action="view">查看</button>
                         ${u.is_disabled ? 
-                            `<button class="btn-sm btn-enable" onclick="enableUser('${u.id}')">启用</button>` : 
-                            `<button class="btn-sm btn-disable" onclick="disableUser('${u.id}')">禁用</button>`
+                            `<button class="btn-sm btn-enable" data-user-id="${u.id}" data-action="enable">启用</button>` : 
+                            `<button class="btn-sm btn-disable" data-user-id="${u.id}" data-action="disable">禁用</button>`
                         }
                     </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
+
+            // 事件委托: 用户表格
+            const table = document.getElementById('userTable');
+            table.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const userId = this.getAttribute('data-user-id');
+                    const action = this.getAttribute('data-action');
+                    if (!isValidUUID(userId)) { alert('非法用户ID'); return; }
+                    if (action === 'view') viewUser(userId);
+                    else if (action === 'enable') enableUser(userId);
+                    else if (action === 'disable') disableUser(userId);
+                });
+            });
 
             renderPagination(count);
         }
@@ -253,15 +280,15 @@
                     <h3>基本信息</h3>
                     <div class="info-row">
                         <span class="info-label">用户名</span>
-                        <span class="info-value">${user.username || '未设置'}</span>
+                        <span class="info-value">${escapeHtml(user.username || '未设置')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">邮箱</span>
-                        <span class="info-value">${user.email || '未绑定'}</span>
+                        <span class="info-value">${escapeHtml(user.email || '未绑定')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">手机</span>
-                        <span class="info-value">${user.phone || '未绑定'}</span>
+                        <span class="info-value">${escapeHtml(user.phone || '未绑定')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">状态</span>
@@ -270,7 +297,7 @@
                     ${user.is_disabled ? `
                     <div class="info-row">
                         <span class="info-label">禁用原因</span>
-                        <span class="info-value">${user.disabled_reason || '无'}</span>
+                        <span class="info-value">${escapeHtml(user.disabled_reason || '无')}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">禁用时间</span>
@@ -303,22 +330,39 @@
                     <h3>最近订单 (${orders ? orders.length : 0})</h3>
                     ${orders && orders.length > 0 ? orders.map(o => `
                         <div class="info-row">
-                            <span class="info-label">${o.id.substring(0, 8)}...</span>
-                            <span class="info-value">¥${o.total_amount} (${o.status})</span>
+                            <span class="info-label">${escapeHtml(o.id.substring(0, 8))}...</span>
+                            <span class="info-value">¥${o.total_amount} (${escapeHtml(o.status)})</span>
                         </div>
                     `).join('') : '<div style="color:#999;font-size:14px;">暂无订单</div>'}
                 </div>
             `;
 
-            // Render footer buttons
+            // Render footer buttons — data-action + data-user-id, email从内存读取
             document.getElementById('modalFooter').innerHTML = `
                 ${user.is_disabled ? 
-                    `<button class="btn-sm btn-enable" onclick="enableUser('${userId}')">启用用户</button>` : 
-                    `<button class="btn-sm btn-disable" onclick="disableUser('${userId}')">禁用用户</button>`
+                    `<button class="btn-sm btn-enable" data-user-id="${escapeHtml(userId)}" data-action="enable">启用用户</button>` : 
+                    `<button class="btn-sm btn-disable" data-user-id="${escapeHtml(userId)}" data-action="disable">禁用用户</button>`
                 }
-                <button class="btn-sm btn-view" onclick="resetPassword('${user.email}')">重置密码</button>
-                <button class="btn-sm" style="background:#999;color:white;" onclick="closeModal()">关闭</button>
+                <button class="btn-sm btn-view" data-user-id="${escapeHtml(userId)}" data-action="reset">重置密码</button>
+                <button class="btn-sm" style="background:#999;color:white;" data-action="close">关闭</button>
             `;
+
+            // 事件委托: Modal footer
+            document.getElementById('modalFooter').querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const action = this.getAttribute('data-action');
+                    const uid = this.getAttribute('data-user-id');
+                    if (action === 'close') { closeModal(); return; }
+                    if (!isValidUUID(uid)) { alert('非法用户ID'); return; }
+                    if (action === 'enable') enableUser(uid);
+                    else if (action === 'disable') disableUser(uid);
+                    else if (action === 'reset') {
+                        const u = userDataCache[uid];
+                        if (!u) { alert('用户数据未找到'); return; }
+                        resetPassword(u.email);
+                    }
+                });
+            });
 
             document.getElementById('userModal').classList.add('active');
         }

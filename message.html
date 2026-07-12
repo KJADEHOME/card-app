@@ -80,13 +80,16 @@
         <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span><span>个人</span></a>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
-        
+        const escapeHtml = RiskControl.escapeHtml;
+
         let currentUser = null;
         let currentChat = null; // { sellerId, cardId, sellerName }
         let messages = [];
+        let chatListData = [];
         
         // 初始化
         (async function() {
@@ -155,17 +158,20 @@
             });
             
             // 渲染列表
-            list.innerHTML = Object.values(chats).map(chat => {
+            const chatArray = Object.values(chats);
+            chatListData = chatArray;
+            list.innerHTML = chatArray.map((chat, idx) => {
                 const msg = chat.lastMessage;
                 const time = new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
                 const preview = msg.content.length > 20 ? msg.content.substring(0, 20) + '...' : msg.content;
+                const displayName = '用户' + chat.userId.substring(0, 6);
                 
                 return `
-                    <div class="chat-item" onclick="startChat('${chat.userId}', '${msg.card_id || ''}', '用户${chat.userId.substring(0, 6)}')">
+                    <div class="chat-item" data-chat-idx="${idx}">
                         <div class="chat-avatar">👤</div>
                         <div class="chat-info">
-                            <div class="chat-name">用户${chat.userId.substring(0, 6)}</div>
-                            <div class="chat-preview">${preview}</div>
+                            <div class="chat-name">${escapeHtml(displayName)}</div>
+                            <div class="chat-preview">${escapeHtml(preview)}</div>
                         </div>
                         <div class="chat-meta">
                             <div class="chat-time">${time}</div>
@@ -174,6 +180,17 @@
                     </div>
                 `;
             }).join('');
+            
+            // 事件委托: 点击聊天项
+            list.onclick = function(e) {
+                const item = e.target.closest('.chat-item');
+                if (!item) return;
+                const idx = parseInt(item.dataset.chatIdx);
+                const chat = chatListData[idx];
+                if (chat) {
+                    startChat(chat.userId, chat.lastMessage.card_id || '', '用户' + chat.userId.substring(0, 6));
+                }
+            };
         }
         
         // 开始聊天
@@ -237,7 +254,7 @@
                 return `
                     <div class="message ${isSelf ? 'self' : 'other'}">
                         <div>
-                            <div class="message-bubble">${msg.content}</div>
+                            <div class="message-bubble">${escapeHtml(msg.content)}</div>
                             <div class="message-time">${time}</div>
                         </div>
                     </div>

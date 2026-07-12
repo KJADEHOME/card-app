@@ -8,6 +8,9 @@
  *   - stripExifData(dataUrl)     前端EXIF清理
  *   - generateImageHash(base64)  前端去重hash (SHA-256前8字节)
  *   - escapeHtml(str)            全站XSS防护
+ *   - safeUrl(url)               URL协议白名单验证
+ *   - isValidUUID(uuid)          UUID v4格式校验
+ *   - validateAction(action, wl) 动作白名单校验
  */
 
 const RiskControl = (() => {
@@ -205,6 +208,56 @@ const RiskControl = (() => {
     return str.replace(/[&<>"'/]/g, (c) => map[c]);
   }
 
+  // ========== safeUrl ==========
+
+  /**
+   * URL安全验证: 只允许 http/https 协议
+   * 拒绝 javascript:, data:text/html, vbscript: 等危险协议
+   * @param {string} url - 需验证的URL
+   * @returns {string} 安全URL或空字符串
+   */
+  function safeUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    try {
+      const parsed = new URL(trimmed, window.location.origin);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed.href;
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // ========== isValidUUID ==========
+
+  /**
+   * UUID v4 格式校验
+   * @param {string} uuid - 需校验的UUID字符串
+   * @returns {boolean} 是否合法
+   */
+  function isValidUUID(uuid) {
+    if (!uuid || typeof uuid !== 'string') return false;
+    const re = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return re.test(uuid.trim());
+  }
+
+  // ========== validateAction ==========
+
+  /**
+   * 动作白名单校验
+   * @param {string} action - 动作名称
+   * @param {string[]} whitelist - 允许的动作列表
+   * @returns {boolean} 是否合法
+   */
+  function validateAction(action, whitelist) {
+    if (!action || typeof action !== 'string') return false;
+    if (!Array.isArray(whitelist) || whitelist.length === 0) return false;
+    return whitelist.includes(action);
+  }
+
   // ========== scanRateLimit (前端计数) ==========
 
   /**
@@ -249,6 +302,9 @@ const RiskControl = (() => {
     stripExifData,
     generateImageHash,
     escapeHtml,
+    safeUrl,
+    isValidUUID,
+    validateAction,
     checkScanRate,
     incrementScanCount,
   };

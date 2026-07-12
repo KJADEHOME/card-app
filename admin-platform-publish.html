@@ -193,8 +193,17 @@
         </div>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
+        // Fail-closed: RiskControl 必须存在
+        if (!window.RiskControl || !RiskControl.escapeHtml) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#f44336;font-size:16px;">安全模块加载失败，页面已停止渲染。<br>请检查网络或刷新重试。</div>';
+            throw new Error('RiskControl module not loaded - refusing to render');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         let adminToken = localStorage.getItem('platformAdminToken');
         let uploadedFile = null;
@@ -353,18 +362,43 @@
 
                 list.innerHTML = '<div class="product-list">' + data.map(p => `
                     <div class="product-item">
-                        <img class="product-img" src="${p.card_image_url || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(p.name)}">
+                        <div class="product-img-wrap" data-img-url="${escapeHtml(p.card_image_url || '')}"></div>
                         <div class="product-body">
-                            <div class="product-name">${esc(p.name)}</div>
-                            <div class="product-meta">${esc(p.set_name || '-')}</div>
+                            <div class="product-name">${escapeHtml(p.name)}</div>
+                            <div class="product-meta">${escapeHtml(p.set_name || '-')}</div>
                             <div class="product-price">¥${(p.final_price || p.listing_price || 0).toFixed(2)}</div>
                             <div class="product-stock">库存 ${p.available_quantity}/${p.stock_quantity} · 已售 ${p.sold_quantity}</div>
                             <span class="product-badge">${p.status === 'active' ? '上架中' : p.status === 'sold_out' ? '售罄' : '已下架'}</span>
                         </div>
                     </div>
                 `).join('') + '</div>';
+
+                // 通过 DOM API 设置图片 src (safeUrl 验证)
+                list.querySelectorAll('[data-img-url]').forEach(wrap => {
+                    const rawUrl = wrap.getAttribute('data-img-url');
+                    wrap.removeAttribute('data-img-url'); // 清除 data 属性
+                    const safe = safeUrl(rawUrl);
+                    if (safe) {
+                        const img = document.createElement('img');
+                        img.className = 'product-img';
+                        img.src = safe;
+                        img.alt = '';
+                        wrap.appendChild(img);
+                    } else {
+                        // 使用固定占位图
+                        const img = document.createElement('img');
+                        img.className = 'product-img';
+                        img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="140"%3E%3Crect fill="%23f0f0f0" width="300" height="140"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23ccc" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E';
+                        wrap.appendChild(img);
+                    }
+                });
             } catch (err) {
-                document.getElementById('productList').innerHTML = '<div class="empty">加载失败: ' + esc(err.message || err) + '</div>';
+                const errDiv = document.getElementById('productList');
+                errDiv.innerHTML = '';
+                const p = document.createElement('div');
+                p.className = 'empty';
+                p.textContent = '加载失败: ' + (err.message || err);
+                errDiv.appendChild(p);
             }
         }
 
@@ -378,10 +412,6 @@
             window.location.href = 'admin-platform-login.html';
         }
 
-        function esc(s) {
-            if (s == null) return '';
-            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        }
     </script>
 </body>
 </html>

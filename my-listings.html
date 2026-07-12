@@ -109,13 +109,23 @@
     <div class="toast" id="toast"></div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
+        // SH-001B Batch 3: fail-closed guard
+        if (!window.RiskControl) {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#666"><h2>⚠️ 安全模块加载失败</h2><p>请刷新页面重试</p></div>';
+            throw new Error('RiskControl not loaded');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let currentUser = null;
         let allListings = [];
+        let currentFilteredList = [];
         let currentTab = 'active';
         
         function showToast(msg) {
@@ -123,12 +133,6 @@
             t.textContent = msg;
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 2500);
-        }
-        
-        function esc(s) {
-            const d = document.createElement('div');
-            d.textContent = s || '';
-            return d.innerHTML;
         }
         
         async function init() {
@@ -205,7 +209,8 @@
             
             empty.style.display = 'none';
             container.style.display = 'block';
-            container.innerHTML = filtered.map(c => {
+            currentFilteredList = filtered;
+            container.innerHTML = filtered.map((c, idx) => {
                 const statusMap = { active: '在售', sold: '已售', cancelled: '已取消' };
                 const statusClassMap = { active: 'status-active', sold: 'status-sold', cancelled: 'status-cancelled' };
                 
@@ -213,25 +218,25 @@
                 if (c.status === 'active') {
                     actions = `
                         <div class="list-actions">
-                            <button class="action-btn btn-cancel" onclick="cancelListing('${c.id}')">取消挂单</button>
-                            <button class="action-btn btn-view" onclick="location.href='marketplace.html'">查看市场</button>
+                            <button class="action-btn btn-cancel" data-action="cancel" data-card-idx="${idx}">取消挂单</button>
+                            <button class="action-btn btn-view" data-action="view-market">查看市场</button>
                         </div>`;
                 } else if (c.status === 'sold') {
                     actions = `
                         <div class="list-actions">
-                            <span style="font-size:12px;color:#666">售出时间: ${new Date(c.sold_at).toLocaleString('zh-CN')}</span>
+                            <span style="font-size:12px;color:#666">售出时间: ${escapeHtml(new Date(c.sold_at).toLocaleString('zh-CN'))}</span>
                         </div>`;
                 }
                 
                 return `
-                <div class="list-item">
-                    <img class="list-img" src="${c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(c.card_name)}">
+                <div class="list-item" data-card-idx="${idx}">
+                    <div class="list-img" style="background:linear-gradient(135deg,#f0f0f5,#e8e8f0);display:flex;align-items:center;justify-content:center;font-size:20px;color:#ccc">🃏</div>
                     <div class="list-info">
-                        <div class="list-name">${esc(c.card_name)}</div>
+                        <div class="list-name">${escapeHtml(c.card_name)}</div>
                         <div class="list-meta">
-                            <span class="tag rarity">${esc(c.rarity || 'N')}</span>
-                            <span class="tag">${esc(c.condition || 'NM')}</span>
-                            <span class="tag">${esc(c.series || '-')}</span>
+                            <span class="tag rarity">${escapeHtml(c.rarity || 'N')}</span>
+                            <span class="tag">${escapeHtml(c.condition || 'NM')}</span>
+                            <span class="tag">${escapeHtml(c.series || '-')}</span>
                         </div>
                         <span class="status-badge ${statusClassMap[c.status]}">${statusMap[c.status]}</span>
                         <div class="list-price-row">
@@ -242,6 +247,22 @@
                     </div>
                 </div>`;
             }).join('');
+            // SH-001B: Set images via DOM API + safeUrl
+            container.querySelectorAll('.list-item').forEach((item) => {
+                const idx = parseInt(item.dataset.cardIdx, 10);
+                const c = currentFilteredList[idx];
+                if (!c || !c.card_image) return;
+                const validated = safeUrl(c.card_image);
+                if (validated) {
+                    const placeholder = item.querySelector('.list-img');
+                    const img = document.createElement('img');
+                    img.className = 'list-img';
+                    img.src = validated;
+                    img.alt = escapeHtml(c.card_name || '');
+                    img.onerror = function() { this.style.display = 'none'; };
+                    placeholder.replaceWith(img);
+                }
+            });
         }
         
         async function cancelListing(consignmentId) {
@@ -267,6 +288,20 @@
             showToast('✅ 已取消');
             loadData();
         }
+        
+        // SH-001B: Event delegation for list actions
+        document.getElementById('listContainer').addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'cancel') {
+                const idx = parseInt(btn.dataset.cardIdx, 10);
+                const c = currentFilteredList[idx];
+                if (c) cancelListing(c.id);
+            } else if (action === 'view-market') {
+                location.href = 'marketplace.html';
+            }
+        });
         
         init();
     </script>

@@ -130,7 +130,16 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
+    // SH-001B Batch 3: fail-closed guard
+    if (!window.RiskControl) {
+        document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#666"><h2>⚠️ 安全模块加载失败</h2><p>请刷新页面重试</p></div>';
+        throw new Error('RiskControl not loaded');
+    }
+    const escapeHtml = RiskControl.escapeHtml;
+    const safeUrl = RiskControl.safeUrl;
+
     const db = window.supabase.createClient(
         'https://xybpcsmjjcnkjwfsuder.supabase.co',
         'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7'
@@ -139,10 +148,9 @@
     let currentCategory = 'all';
     let currentSearch = '';
     let currentUser = null;
+    let allProducts = [];
 
     function isLiveProduct(p) { return p.source === 'tiktok' || p.source === 'live'; }
-
-    function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
     function showToast(msg) {
         const t = document.getElementById('toast');
@@ -216,7 +224,7 @@
         const { data: resStatsRaw } = await db.rpc('get_product_reservation_stats_all');
         const resStats = resStatsRaw?.stats || {};
 
-        grid.innerHTML = data.map(p => {
+        grid.innerHTML = data.map((p, idx) => {
             let tagHtml = '';
             if (isLiveProduct(p)) tagHtml = '<div class="product-tag live">直播同款</div>';
             else if (p.tags && p.tags.includes('热门')) tagHtml = '<div class="product-tag hot">热门</div>';
@@ -230,28 +238,59 @@
             const reservedText = reservedCount > 0 ? `已预约 ${reservedCount}` : '';
 
             return `
-            <div class="product-card" onclick="goDetail('${p.id}')">
-                <div class="product-img" style="background-image:url('${esc(p.image_url) || ''}')">
+            <div class="product-card" data-product-idx="${idx}">
+                <div class="product-img" style="background:linear-gradient(135deg,#f0f0f0,#e8e8f8)">
                     ${tagHtml}
                 </div>
                 <div class="product-info">
-                    <div class="product-name">${esc(p.title)}</div>
+                    <div class="product-name">${escapeHtml(p.title)}</div>
                     <div class="product-price-row">
                         <span class="product-price">${p.price.toFixed(2)}</span>
                         ${p.original_price ? `<span class="product-original">¥${p.original_price.toFixed(2)}</span>` : ''}
                     </div>
-                    <div class="product-stock" ${stockClass}>${stockText}</div>
-                    ${soldText ? `<div class="product-sold">${soldText}</div>` : ''}
-                    ${reservedText ? `<div class="product-reserved">📋 ${reservedText}</div>` : ''}
-                    <button class="reserve-btn ${isLiveProduct(p) ? 'live-src' : ''}" onclick="event.stopPropagation();reserveProduct('${p.id}')">${isLiveProduct(p) ? '🔴 直播预约' : '预约购买'}</button>
+                    <div class="product-stock" ${stockClass}>${escapeHtml(stockText)}</div>
+                    ${soldText ? `<div class="product-sold">${escapeHtml(soldText)}</div>` : ''}
+                    ${reservedText ? `<div class="product-reserved">📋 ${escapeHtml(reservedText)}</div>` : ''}
+                    <button class="reserve-btn ${isLiveProduct(p) ? 'live-src' : ''}" data-action="reserve" data-product-idx="${idx}">${isLiveProduct(p) ? '🔴 直播预约' : '预约购买'}</button>
                 </div>
             </div>`;
         }).join('');
+        // SH-001B: Set product images via DOM API + safeUrl
+        grid.querySelectorAll('.product-card').forEach((card) => {
+            const idx = parseInt(card.dataset.productIdx, 10);
+            const p = allProducts[idx];
+            if (!p || !p.image_url) return;
+            const validated = safeUrl(p.image_url);
+            if (validated) {
+                const imgDiv = card.querySelector('.product-img');
+                imgDiv.style.backgroundImage = `url('${validated}')`;
+                imgDiv.style.backgroundSize = 'cover';
+                imgDiv.style.backgroundPosition = 'center';
+            }
+        });
     }
 
     function goDetail(productId) {
         location.href = `product-detail.html?id=${encodeURIComponent(productId)}`;
     }
+
+    // SH-001B: Event delegation for product grid
+    document.getElementById('productGrid').addEventListener('click', function(e) {
+        const reserveBtn = e.target.closest('.reserve-btn');
+        if (reserveBtn) {
+            e.stopPropagation();
+            const idx = parseInt(reserveBtn.dataset.productIdx, 10);
+            const p = allProducts[idx];
+            if (p) reserveProduct(p.id);
+            return;
+        }
+        const card = e.target.closest('.product-card');
+        if (card) {
+            const idx = parseInt(card.dataset.productIdx, 10);
+            const p = allProducts[idx];
+            if (p) goDetail(p.id);
+        }
+    });
 
     async function reserveProduct(productId) {
         if (!currentUser) {

@@ -161,14 +161,65 @@
     <div class="toast" id="toast"></div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
     <script>
+        // ============ 安全检查 (Fail-closed) ============
+        if (!window.RiskControl) {
+            var fb = document.createElement('div');
+            fb.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#F7F8FC;color:#f44336;font-size:16px;text-align:center;padding:20px;z-index:9999;';
+            fb.textContent = '安全模块加载失败，请刷新页面重试';
+            document.body.replaceChildren(fb);
+            throw new Error('RiskControl module not loaded');
+        }
+        var escapeHtml = RiskControl.escapeHtml;
+        var safeUrl = RiskControl.safeUrl;
+        var isValidUUID = RiskControl.isValidUUID;
+        var validateAction = RiskControl.validateAction;
+
+        // ============ 数值校验辅助 ============
+        function safePriceDisplay(v) {
+            var n = Number(v);
+            return Number.isFinite(n) && n >= 0 ? n.toFixed(2) : '--';
+        }
+        function safePriceRaw(v) {
+            var n = Number(v);
+            return Number.isFinite(n) && n >= 0 ? n : 0;
+        }
+
+        // ============ 图片URL安全处理 ============
+        function processSafeImages(container) {
+            var imgs = container.querySelectorAll('[data-img-url]');
+            imgs.forEach(function(img) {
+                var rawUrl = img.getAttribute('data-img-url');
+                if (!rawUrl) {
+                    img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="120"><rect width="90" height="120" fill="#f0f0f5"/></svg>');
+                    return;
+                }
+                var safe = safeUrl(rawUrl);
+                if (safe) {
+                    img.src = safe;
+                } else {
+                    img.removeAttribute('src');
+                    img.style.display = 'none';
+                }
+            });
+        }
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         const urlParams = new URLSearchParams(window.location.search);
-        const consignmentId = urlParams.get('consignment_id');
-        const orderId = urlParams.get('order_id');
+        var consignmentId = urlParams.get('consignment_id');
+        var orderId = urlParams.get('order_id');
+
+        // Validate URL params — reject invalid UUIDs
+        if (consignmentId && !isValidUUID(consignmentId)) {
+            consignmentId = null;
+        }
+        if (orderId && !isValidUUID(orderId)) {
+            orderId = null;
+        }
         
         let currentOrder = null;
         let currentConsignment = null;
@@ -198,7 +249,19 @@
             } else if (consignmentId) {
                 await loadConsignment(consignmentId);
             } else {
-                document.getElementById('orderContainer').innerHTML = '<div style="text-align:center;padding:60px;"><div style="font-size:32px;margin-bottom:12px;">❓</div><div style="color:#999;">缺少订单参数</div></div>';
+                var container = document.getElementById('orderContainer');
+                container.innerHTML = '';
+                var wrap = document.createElement('div');
+                wrap.style.cssText = 'text-align:center;padding:60px;';
+                var icon = document.createElement('div');
+                icon.style.cssText = 'font-size:32px;margin-bottom:12px;';
+                icon.textContent = '❓';
+                var msg = document.createElement('div');
+                msg.style.color = '#999';
+                msg.textContent = '缺少订单参数';
+                wrap.appendChild(icon);
+                wrap.appendChild(msg);
+                container.appendChild(wrap);
             }
         }
         
@@ -228,9 +291,21 @@
         }
         
         function renderCheckout() {
-            const c = currentConsignment;
-            const total = c.asking_price + (c.shipping_fee || 0);
-            
+            var c = currentConsignment;
+            var priceVal = safePriceRaw(c.asking_price);
+            var shippingVal = safePriceRaw(c.shipping_fee);
+            var total = priceVal + shippingVal;
+
+            // Validate price before allowing checkout
+            if (priceVal <= 0) {
+                showToast('商品价格异常，无法下单');
+                return;
+            }
+
+            var tagsHtml = (c.tags || []).map(function(t) {
+                return '<span class="card-item-tag">' + escapeHtml(String(t)) + '</span>';
+            }).join('');
+
             document.getElementById('orderContainer').innerHTML = `
                 <!-- Steps -->
                 <div class="section">
@@ -244,33 +319,31 @@
                         <div class="step"><div class="step-circle">4</div><div class="step-label">收货</div></div>
                     </div>
                 </div>
-                
+
                 <!-- Card Info -->
                 <div class="section">
                     <div class="section-title">🃏 商品信息</div>
                     <div class="card-item">
-                        <img class="card-item-img" src="${c.card_image || 'https://via.placeholder.com/90x120?text=No+Image'}" alt="${c.card_name}">
+                        <img class="card-item-img" data-img-url="${escapeHtml(c.card_image || '')}" alt="${escapeHtml(c.card_name || '')}">
                         <div class="card-item-info">
-                            <div class="card-item-name">${c.card_name}</div>
-                            <div class="card-item-meta">${c.series || '未知系列'} · ${c.rarity || 'N'} · 品相${c.condition || 'NM'}</div>
-                            <div class="card-item-tags">
-                                ${(c.tags || []).map(t => `<span class="card-item-tag">${t}</span>`).join('')}
-                            </div>
-                            <div class="card-item-price">¥${c.asking_price?.toFixed(2)}</div>
+                            <div class="card-item-name">${escapeHtml(c.card_name || '未知卡牌')}</div>
+                            <div class="card-item-meta">${escapeHtml(c.series || '未知系列')} · ${escapeHtml(c.rarity || 'N')} · 品相${escapeHtml(c.condition || 'NM')}</div>
+                            <div class="card-item-tags">${tagsHtml}</div>
+                            <div class="card-item-price">¥${safePriceDisplay(c.asking_price)}</div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Price Breakdown -->
                 <div class="section">
                     <div class="section-title">💰 费用明细</div>
                     <div class="price-row">
                         <span class="price-label">卡牌售价</span>
-                        <span class="price-value">¥${c.asking_price?.toFixed(2)}</span>
+                        <span class="price-value">¥${safePriceDisplay(c.asking_price)}</span>
                     </div>
                     <div class="price-row">
                         <span class="price-label">运费</span>
-                        <span class="price-value">${c.shipping_fee > 0 ? '¥' + c.shipping_fee?.toFixed(2) : '包邮'}</span>
+                        <span class="price-value">${shippingVal > 0 ? '¥' + safePriceDisplay(c.shipping_fee) : '包邮'}</span>
                     </div>
                     <div class="price-row">
                         <span class="price-label">平台服务费</span>
@@ -278,10 +351,10 @@
                     </div>
                     <div class="price-total">
                         <span class="price-total-label">应付总额</span>
-                        <span class="price-total-value">¥${total.toFixed(2)}</span>
+                        <span class="price-total-value">¥${safePriceDisplay(total)}</span>
                     </div>
                 </div>
-                
+
                 <!-- Shipping Address -->
                 <div class="section">
                     <div class="section-title">📍 收货地址</div>
@@ -298,7 +371,7 @@
                         <input type="text" class="form-input" id="addrDetail" placeholder="省/市/区 + 街道 + 门牌号">
                     </div>
                 </div>
-                
+
                 <!-- Payment -->
                 <div class="section">
                     <div class="section-title">💳 支付方式</div>
@@ -321,7 +394,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Escrow -->
                 <div class="section">
                     <div class="escrow-box">
@@ -332,17 +405,20 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div style="height:40px;"></div>
             `;
-            
+
+            // Process safe images
+            processSafeImages(document.getElementById('orderContainer'));
+
             // Show action bar
-            const actionBar = document.createElement('div');
+            var actionBar = document.createElement('div');
             actionBar.className = 'action-bar';
             actionBar.innerHTML = `
                 <div class="action-info">
                     <div class="action-label">应付总额</div>
-                    <div class="action-price">¥${total.toFixed(2)}</div>
+                    <div class="action-price">¥${safePriceDisplay(total)}</div>
                 </div>
                 <button class="action-btn primary" onclick="submitOrder()">确认并支付</button>
             `;
@@ -355,38 +431,56 @@
         }
         
         async function submitOrder() {
-            const name = document.getElementById('addrName')?.value.trim();
-            const phone = document.getElementById('addrPhone')?.value.trim();
-            const detail = document.getElementById('addrDetail')?.value.trim();
-            
+            var name = document.getElementById('addrName')?.value.trim();
+            var phone = document.getElementById('addrPhone')?.value.trim();
+            var detail = document.getElementById('addrDetail')?.value.trim();
+
             if (!name || !phone || !detail) {
                 showToast('请填写完整收货地址');
                 return;
             }
-            
+
+            // Validate price before submitting
+            if (!currentConsignment || !isValidUUID(currentConsignment.id)) {
+                showToast('商品信息异常，请刷新重试');
+                return;
+            }
+            var priceVal = safePriceRaw(currentConsignment.asking_price);
+            var shippingVal = safePriceRaw(currentConsignment.shipping_fee);
+            if (priceVal <= 0) {
+                showToast('商品价格异常，无法下单');
+                return;
+            }
+
             document.getElementById('loadingOverlay').classList.add('show');
-            
+
             try {
-                const orderNo = 'CR' + Date.now().toString().slice(2, 12);
-                
-                const { data, error } = await db.from('orders').insert([{
+                var orderNo = 'CR' + Date.now().toString().slice(2, 12);
+
+                var { data, error } = await db.from('orders').insert([{
                     order_no: orderNo,
                     buyer_id: currentUserId,
                     consignment_id: currentConsignment.id,
-                    total_amount: currentConsignment.asking_price + (currentConsignment.shipping_fee || 0),
+                    total_amount: priceVal + shippingVal,
                     currency: 'CNY',
                     status: 'pending',
-                    buyer_address: { name, phone, detail }
+                    buyer_address: { name: name, phone: phone, detail: detail }
                 }]).select();
-                
+
                 if (error) throw error;
-                
+
+                // Validate returned order ID before redirect
+                if (!data || !data[0] || !isValidUUID(data[0].id)) {
+                    showToast('订单创建异常，请查看订单列表');
+                    return;
+                }
+
                 // Update consignment status
                 await db.from('consignments').update({ status: 'reserved' }).eq('id', currentConsignment.id);
-                
+
                 showToast('✅ 订单创建成功！');
-                setTimeout(() => {
-                    location.href = `order.html?order_id=${data[0].id}`;
+                setTimeout(function() {
+                    location.href = 'order.html?order_id=' + encodeURIComponent(data[0].id);
                 }, 1500);
             } catch (err) {
                 console.error(err);
@@ -397,23 +491,23 @@
         }
         
         function renderOrderStatus() {
-            const o = currentOrder;
-            const c = currentConsignment;
-            const statusSteps = {
+            var o = currentOrder;
+            var c = currentConsignment;
+            var statusSteps = {
                 'pending': { step: 1, title: '等待付款', icon: '⏳', desc: '请在30分钟内完成支付，超时订单将自动取消' },
                 'paid': { step: 2, title: '已付款，等待发货', icon: '💰', desc: '资金已由平台托管，卖家发货后你会收到通知' },
-                'shipped': { step: 3, title: '已发货', icon: '📦', desc: `快递单号：${o.tracking_no || '暂无'}，请注意查收` },
+                'shipped': { step: 3, title: '已发货', icon: '📦', desc: '快递单号：' + escapeHtml(o.tracking_no || '暂无') + '，请注意查收' },
                 'delivered': { step: 3, title: '已送达', icon: '📬', desc: '请确认收货，7天后自动确认' },
                 'completed': { step: 4, title: '交易完成', icon: '✅', desc: '感谢使用卡域交易！' },
                 'cancelled': { step: 0, title: '已取消', icon: '❌', desc: '订单已取消' }
             };
-            const s = statusSteps[o.status] || statusSteps.pending;
-            
-            let actionHtml = '';
+            var s = statusSteps[o.status] || statusSteps.pending;
+
+            var actionHtml = '';
             if (isBuyer) {
                 if (o.status === 'pending') {
                     actionHtml = `
-                        <div class="action-info"><div class="action-label">应付</div><div class="action-price">¥${o.total_amount?.toFixed(2)}</div></div>
+                        <div class="action-info"><div class="action-label">应付</div><div class="action-price">¥${safePriceDisplay(o.total_amount)}</div></div>
                         <button class="action-btn primary" onclick="simulatePay()">立即支付</button>
                         <button class="action-btn secondary" onclick="cancelOrder()">取消</button>
                     `;
@@ -431,16 +525,21 @@
                     `;
                 }
             }
-            
+
+            var shippingFeeNum = Number(o.shipping_fee);
+            var addrName = o.buyer_address ? escapeHtml(o.buyer_address.name || '') : '';
+            var addrPhone = o.buyer_address ? escapeHtml(o.buyer_address.phone || '') : '';
+            var addrDetail = o.buyer_address ? escapeHtml(o.buyer_address.detail || '未填写') : '未填写';
+
             document.getElementById('orderContainer').innerHTML = `
                 <!-- Status -->
                 <div class="status-box">
                     <div class="status-icon">${s.icon}</div>
-                    <div class="status-title">${s.title}</div>
-                    <div class="status-desc">${s.desc}</div>
-                    <div class="status-time">订单号：${o.order_no} · ${formatDate(o.created_at)}</div>
+                    <div class="status-title">${escapeHtml(s.title)}</div>
+                    <div class="status-desc">${escapeHtml(s.desc)}</div>
+                    <div class="status-time">订单号：${escapeHtml(o.order_no || '--')} · ${escapeHtml(formatDate(o.created_at))}</div>
                 </div>
-                
+
                 <!-- Steps -->
                 <div class="section">
                     <div class="steps">
@@ -453,38 +552,38 @@
                         <div class="step"><div class="step-circle ${s.step >= 4 ? 'done' : s.step === 3 ? 'active' : ''}">4</div><div class="step-label ${s.step >= 4 ? 'active' : ''}">完成</div></div>
                     </div>
                 </div>
-                
+
                 <!-- Card Info -->
                 <div class="section">
                     <div class="section-title">🃏 商品信息</div>
                     <div class="card-item">
-                        <img class="card-item-img" src="${c?.card_image || 'https://via.placeholder.com/90x120'}" alt="${c?.card_name}">
+                        <img class="card-item-img" data-img-url="${escapeHtml(c ? (c.card_image || '') : '')}" alt="${escapeHtml(c ? (c.card_name || '') : '')}">
                         <div class="card-item-info">
-                            <div class="card-item-name">${c?.card_name || '未知卡牌'}</div>
-                            <div class="card-item-meta">${c?.series || ''} · ${c?.rarity || ''} · 品相${c?.condition || 'NM'}</div>
-                            <div class="card-item-price">¥${o.item_price?.toFixed(2)}</div>
+                            <div class="card-item-name">${escapeHtml(c ? (c.card_name || '未知卡牌') : '未知卡牌')}</div>
+                            <div class="card-item-meta">${escapeHtml(c ? (c.series || '') : '')} · ${escapeHtml(c ? (c.rarity || '') : '')} · 品相${escapeHtml(c ? (c.condition || 'NM') : 'NM')}</div>
+                            <div class="card-item-price">¥${safePriceDisplay(o.item_price)}</div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Price -->
                 <div class="section">
                     <div class="section-title">💰 费用明细</div>
-                    <div class="price-row"><span class="price-label">卡牌售价</span><span class="price-value">¥${o.item_price?.toFixed(2)}</span></div>
-                    <div class="price-row"><span class="price-label">运费</span><span class="price-value">${o.shipping_fee > 0 ? '¥' + o.shipping_fee?.toFixed(2) : '包邮'}</span></div>
+                    <div class="price-row"><span class="price-label">卡牌售价</span><span class="price-value">¥${safePriceDisplay(o.item_price)}</span></div>
+                    <div class="price-row"><span class="price-label">运费</span><span class="price-value">${shippingFeeNum > 0 ? '¥' + safePriceDisplay(o.shipping_fee) : '包邮'}</span></div>
                     <div class="price-row"><span class="price-label">平台服务费</span><span class="price-value">卖家承担</span></div>
-                    <div class="price-total"><span class="price-total-label">实付金额</span><span class="price-total-value">¥${o.total_amount?.toFixed(2)}</span></div>
+                    <div class="price-total"><span class="price-total-label">实付金额</span><span class="price-total-value">¥${safePriceDisplay(o.total_amount)}</span></div>
                 </div>
-                
+
                 <!-- Address -->
                 <div class="section">
                     <div class="section-title">📍 收货地址</div>
                     <div style="font-size:14px;color:#555;line-height:1.8;">
-                        <div><strong>${o.buyer_address?.name || ''}</strong> ${o.buyer_address?.phone || ''}</div>
-                        <div>${o.buyer_address?.detail || '未填写'}</div>
+                        <div><strong>${addrName}</strong> ${addrPhone}</div>
+                        <div>${addrDetail}</div>
                     </div>
                 </div>
-                
+
                 <!-- Ship form for seller -->
                 ${(isSeller && o.status === 'paid') ? `
                 <div class="section" id="shipForm" style="display:none;">
@@ -500,12 +599,15 @@
                     <button class="action-btn primary" style="width:100%;margin-top:8px;" onclick="submitShip()">确认发货</button>
                 </div>
                 ` : ''}
-                
+
                 <div style="height:40px;"></div>
             `;
-            
+
+            // Process safe images
+            processSafeImages(document.getElementById('orderContainer'));
+
             if (actionHtml) {
-                const actionBar = document.createElement('div');
+                var actionBar = document.createElement('div');
                 actionBar.className = 'action-bar';
                 actionBar.innerHTML = actionHtml;
                 document.body.appendChild(actionBar);

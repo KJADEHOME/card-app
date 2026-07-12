@@ -99,7 +99,43 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
     <script>
+        // ============ 安全检查 (Fail-closed) ============
+        if (!window.RiskControl) {
+            var fb = document.createElement('div');
+            fb.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f5f5f5;color:#f44336;font-size:16px;text-align:center;padding:20px;z-index:9999;';
+            fb.textContent = '安全模块加载失败，请刷新页面重试';
+            document.body.replaceChildren(fb);
+            throw new Error('RiskControl module not loaded');
+        }
+        var escapeHtml = RiskControl.escapeHtml;
+        var safeUrl = RiskControl.safeUrl;
+        var isValidUUID = RiskControl.isValidUUID;
+        var validateAction = RiskControl.validateAction;
+
+        // ============ 数值校验辅助 ============
+        function safePriceDisplay(v) {
+            var n = Number(v);
+            return Number.isFinite(n) && n >= 0 ? n.toFixed(2) : '--';
+        }
+
+        // ============ 图片URL安全处理 ============
+        function processSafeBgImages(container) {
+            var els = container.querySelectorAll('[data-bg-url]');
+            els.forEach(function(el) {
+                var rawUrl = el.getAttribute('data-bg-url');
+                if (!rawUrl) return;
+                var safe = safeUrl(rawUrl);
+                if (safe) {
+                    el.style.backgroundImage = "url('" + safe + "')";
+                } else {
+                    el.style.backgroundImage = 'none';
+                    el.style.display = 'none';
+                }
+            });
+        }
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
@@ -115,13 +151,14 @@
             'disputed': { text: '争议中', icon: '⚠️' }
         };
 
-        let orderId = null;
-        let order = null;
+        var orderId = null;
+        var order = null;
 
         async function init() {
-            const params = new URLSearchParams(window.location.search);
+            var params = new URLSearchParams(window.location.search);
             orderId = params.get('id');
             if (!orderId) { showError('订单ID缺失'); return; }
+            if (!isValidUUID(orderId)) { showError('无效的订单ID'); return; }
 
             const { data: { user } } = await db.auth.getUser();
             if (!user) { window.location.href = 'login.html'; return; }
@@ -148,48 +185,52 @@
         }
 
         function renderOrder() {
-            const status = STATUS_MAP[order.status] || { text: order.status, icon: '📋' };
-            const item = order.consignments || order.products;
-            const itemName = order.consignments?.card_name || order.products?.name || '商品';
-            const itemImage = order.consignments?.image_url || order.products?.image_url || '';
+            var status = STATUS_MAP[order.status] || { text: String(order.status || '未知'), icon: '📋' };
+            var itemName = (order.consignments && order.consignments.card_name) || (order.products && order.products.name) || '商品';
+            var itemImage = (order.consignments && order.consignments.image_url) || (order.products && order.products.image_url) || '';
 
-            let html = '';
+            var statusIcon = escapeHtml(status.icon);
+            var statusText = escapeHtml(status.text);
+            var unitPriceDisplay = safePriceDisplay(order.unit_price);
+            if (unitPriceDisplay === '--') unitPriceDisplay = safePriceDisplay(order.total_amount);
+
+            var html = '';
 
             // Status Timeline
             html += `
                 <div class="status-timeline">
-                    <div class="status-title">${status.icon} ${status.text}</div>
+                    <div class="status-title">${statusIcon} ${statusText}</div>
                     <div class="timeline">
                         <div class="timeline-item ${order.status !== 'cancelled' && order.status !== 'refunded' ? 'active' : ''}">
                             <div class="timeline-dot"></div>
-                            <div class="timeline-time">${formatTime(order.created_at)}</div>
+                            <div class="timeline-time">${escapeHtml(formatTime(order.created_at))}</div>
                             <div class="timeline-text">订单创建</div>
                         </div>
                         ${order.status === 'paid' || order.status === 'shipped' || order.status === 'delivered' || order.status === 'completed' ? `
                         <div class="timeline-item done">
                             <div class="timeline-dot"></div>
-                            <div class="timeline-time">${formatTime(order.paid_at)}</div>
+                            <div class="timeline-time">${escapeHtml(formatTime(order.paid_at))}</div>
                             <div class="timeline-text">支付完成</div>
                         </div>
                         ` : ''}
                         ${order.status === 'shipped' || order.status === 'delivered' || order.status === 'completed' ? `
                         <div class="timeline-item done">
                             <div class="timeline-dot"></div>
-                            <div class="timeline-time">${formatTime(order.shipped_at)}</div>
+                            <div class="timeline-time">${escapeHtml(formatTime(order.shipped_at))}</div>
                             <div class="timeline-text">卖家已发货</div>
                         </div>
                         ` : ''}
                         ${order.status === 'delivered' || order.status === 'completed' ? `
                         <div class="timeline-item done">
                             <div class="timeline-dot"></div>
-                            <div class="timeline-time">${formatTime(order.delivered_at)}</div>
+                            <div class="timeline-time">${escapeHtml(formatTime(order.delivered_at))}</div>
                             <div class="timeline-text">已送达</div>
                         </div>
                         ` : ''}
                         ${order.status === 'completed' ? `
                         <div class="timeline-item done">
                             <div class="timeline-dot"></div>
-                            <div class="timeline-time">${formatTime(order.completed_at)}</div>
+                            <div class="timeline-time">${escapeHtml(formatTime(order.completed_at))}</div>
                             <div class="timeline-text">交易完成</div>
                         </div>
                         ` : ''}
@@ -202,14 +243,14 @@
                 <div class="info-card">
                     <div class="info-title">📦 商品信息</div>
                     <div style="display:flex;gap:12px;margin-bottom:12px;">
-                        <div style="width:60px;height:60px;background:#f5f5f5;border-radius:8px;background-image:url(${itemImage});background-size:cover;background-position:center;flex-shrink:0;"></div>
+                        <div style="width:60px;height:60px;background:#f5f5f5;border-radius:8px;background-size:cover;background-position:center;flex-shrink:0;" data-bg-url="${escapeHtml(itemImage)}"></div>
                         <div style="flex:1;">
-                            <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${itemName}</div>
-                            <div style="color:#888;font-size:13px;">单价: ¥${order.unit_price?.toFixed(2) || order.total_amount.toFixed(2)}</div>
+                            <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${escapeHtml(itemName)}</div>
+                            <div style="color:#888;font-size:13px;">单价: ¥${unitPriceDisplay}</div>
                         </div>
                     </div>
-                    <div class="info-row"><span class="info-label">订单编号</span><span class="info-value">${order.order_no}</span></div>
-                    <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">${new Date(order.created_at).toLocaleString('zh-CN')}</span></div>
+                    <div class="info-row"><span class="info-label">订单编号</span><span class="info-value">${escapeHtml(order.order_no || '--')}</span></div>
+                    <div class="info-row"><span class="info-label">创建时间</span><span class="info-value">${escapeHtml(order.created_at ? new Date(order.created_at).toLocaleString('zh-CN') : '--')}</span></div>
                 </div>
             `;
 
@@ -220,8 +261,8 @@
                         <div class="tracking-title">
                             <span>🚚 物流信息</span>
                         </div>
-                        <div class="info-row"><span class="info-label">快递公司</span><span class="info-value">${order.shipping_carrier || '未知'}</span></div>
-                        <div class="info-row"><span class="info-label">快递单号</span><span class="info-value">${order.tracking_no}</span></div>
+                        <div class="info-row"><span class="info-label">快递公司</span><span class="info-value">${escapeHtml(order.shipping_carrier || '未知')}</span></div>
+                        <div class="info-row"><span class="info-label">快递单号</span><span class="info-value">${escapeHtml(order.tracking_no)}</span></div>
                         <div id="trackingList" style="margin-top:12px;">
                             <div class="loading" style="padding:20px;">加载物流轨迹中...</div>
                         </div>
@@ -233,16 +274,19 @@
             html += `
                 <div class="info-card">
                     <div class="info-title">💰 金额明细</div>
-                    <div class="info-row"><span class="info-label">商品总价</span><span class="info-value">¥${order.total_amount.toFixed(2)}</span></div>
+                    <div class="info-row"><span class="info-label">商品总价</span><span class="info-value">¥${safePriceDisplay(order.total_amount)}</span></div>
                     <div class="info-row"><span class="info-label">运费</span><span class="info-value">¥0.00</span></div>
                     <div class="info-row" style="border-top:1px solid #eee;padding-top:12px;margin-top:8px;">
                         <span class="info-label" style="font-weight:700;">实付金额</span>
-                        <span class="info-value" style="color:#5B4AE0;font-size:18px;font-weight:700;">¥${order.total_amount.toFixed(2)}</span>
+                        <span class="info-value" style="color:#5B4AE0;font-size:18px;font-weight:700;">¥${safePriceDisplay(order.total_amount)}</span>
                     </div>
                 </div>
             `;
 
-            document.getElementById('content').innerHTML = html;
+            var container = document.getElementById('content');
+            container.innerHTML = html;
+            // Process safe background images
+            processSafeBgImages(container);
         }
 
         // 加载物流轨迹（调用 Edge Function）
@@ -272,13 +316,14 @@
                 const result = await response.json();
                 
                 if (result.success && result.timeline && result.timeline.length > 0) {
-                    // 显示物流时间线
-                    trackingList.innerHTML = result.timeline.map((item, idx) => `
+                    // 显示物流时间线 — escapeHtml all dynamic content
+                    trackingList.innerHTML = result.timeline.map(function(item, idx) {
+                        return `
                         <div class="tracking-item" style="${idx === 0 ? 'background:#f0edff;padding:10px;border-radius:8px;' : ''}">
-                            <div class="tracking-time">${formatFullTime(item.time)}</div>
-                            <div class="tracking-desc" style="${idx === 0 ? 'font-weight:600;color:#5B4AE0;' : ''}">${item.status}</div>
-                        </div>
-                    `).join('');
+                            <div class="tracking-time">${escapeHtml(formatFullTime(item.time))}</div>
+                            <div class="tracking-desc" style="${idx === 0 ? 'font-weight:600;color:#5B4AE0;' : ''}">${escapeHtml(item.status)}</div>
+                        </div>`;
+                    }).join('');
                 } else {
                     // 如果没有轨迹数据，显示备用方案
                     showTrackingFallback();
@@ -292,27 +337,66 @@
 
         // 显示备用方案（链接到快递公司官网）
         function showTrackingFallback() {
-            const links = {
-                '顺丰': `https://www.sf-express.com/we/weisite/order/detail?nu=${order.tracking_no}`,
-                '中通': `https://www.zto.com/kuaidi?num=${order.tracking_no}`,
-                '圆通': `https://www.yto.net.cn/waybill/trace/${order.tracking_no}`,
-                '韵达': `https://www.yundaexc.com/zhixin/waybill?waybillNo=${order.tracking_no}`,
-                '申通': `https://www.sto.cn/query?num=${order.tracking_no}`,
-                '百世': `https://www.800best.com/express/track?no=${order.tracking_no}`,
-                '京东': `https://waybill.jd.com/waybillDetail?waybillCode=${order.tracking_no}`
+            // Known logistics domains whitelist
+            var LOGISTICS_DOMAINS = [
+                'www.sf-express.com', 'www.zto.com', 'www.yto.net.cn',
+                'www.yundaexc.com', 'www.sto.cn', 'www.800best.com',
+                'waybill.jd.com', 'www.kuaidi100.com'
+            ];
+
+            var trackingEnc = encodeURIComponent(order.tracking_no || '');
+            var links = {
+                '顺丰': 'https://www.sf-express.com/we/weisite/order/detail?nu=' + trackingEnc,
+                '中通': 'https://www.zto.com/kuaidi?num=' + trackingEnc,
+                '圆通': 'https://www.yto.net.cn/waybill/trace/' + trackingEnc,
+                '韵达': 'https://www.yundaexc.com/zhixin/waybill?waybillNo=' + trackingEnc,
+                '申通': 'https://www.sto.cn/query?num=' + trackingEnc,
+                '百世': 'https://www.800best.com/express/track?no=' + trackingEnc,
+                '京东': 'https://waybill.jd.com/waybillDetail?waybillCode=' + trackingEnc
             };
 
-            const carrier = order.shipping_carrier || '';
-            const link = links[carrier] || `https://www.kuaidi100.com/chaxun?nu=${order.tracking_no}`;
+            var carrier = order.shipping_carrier || '';
+            var link = links[carrier] || ('https://www.kuaidi100.com/chaxun?nu=' + trackingEnc);
 
-            document.getElementById('trackingList').innerHTML = `
-                <div style="text-align:center;padding:20px;">
-                    <div style="color:#888;font-size:13px;margin-bottom:12px;">点击查看完整物流轨迹</div>
-                    <a href="${link}" target="_blank" style="display:inline-block;padding:10px 20px;background:var(--primary);color:white;border-radius:20px;text-decoration:none;font-size:14px;">
-                        查看物流详情 ›
-                    </a>
-                </div>
-            `;
+            // Validate URL with safeUrl + domain whitelist
+            var safeLink = safeUrl(link);
+            var isAllowedDomain = false;
+            if (safeLink) {
+                try {
+                    var parsed = new URL(safeLink);
+                    isAllowedDomain = LOGISTICS_DOMAINS.indexOf(parsed.hostname) >= 0;
+                } catch(e) {
+                    isAllowedDomain = false;
+                }
+            }
+
+            var trackingList = document.getElementById('trackingList');
+            trackingList.innerHTML = '';
+
+            var wrapDiv = document.createElement('div');
+            wrapDiv.style.cssText = 'text-align:center;padding:20px;';
+
+            if (safeLink && isAllowedDomain) {
+                var descDiv = document.createElement('div');
+                descDiv.style.cssText = 'color:#888;font-size:13px;margin-bottom:12px;';
+                descDiv.textContent = '点击查看完整物流轨迹';
+                wrapDiv.appendChild(descDiv);
+
+                var anchor = document.createElement('a');
+                anchor.href = safeLink;
+                anchor.target = '_blank';
+                anchor.rel = 'noopener noreferrer';
+                anchor.style.cssText = 'display:inline-block;padding:10px 20px;background:var(--primary);color:white;border-radius:20px;text-decoration:none;font-size:14px;';
+                anchor.textContent = '查看物流详情 ›';
+                wrapDiv.appendChild(anchor);
+            } else {
+                var errDiv = document.createElement('div');
+                errDiv.style.cssText = 'color:#888;font-size:13px;';
+                errDiv.textContent = '物流链接不可用，请手动查询';
+                wrapDiv.appendChild(errDiv);
+            }
+
+            trackingList.appendChild(wrapDiv);
         }
 
         // 获取快递公司代码（快递100）
@@ -341,7 +425,12 @@
         }
 
         function showError(msg) {
-            document.getElementById('content').innerHTML = `<div class="empty">${msg}</div>`;
+            var container = document.getElementById('content');
+            container.innerHTML = '';
+            var div = document.createElement('div');
+            div.className = 'empty';
+            div.textContent = msg;
+            container.appendChild(div);
         }
 
         init();

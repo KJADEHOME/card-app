@@ -183,8 +183,18 @@
     
     <div class="toast" id="toast"></div>
     
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
+        // Fail-closed: RiskControl 必须存在
+        if (!window.RiskControl || !RiskControl.escapeHtml) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#f44336;font-size:16px;">安全模块加载失败，页面已停止渲染。<br>请检查网络或刷新重试。</div>';
+            throw new Error('RiskControl module not loaded - refusing to render');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+        const isValidUUID = RiskControl.isValidUUID;
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -268,15 +278,32 @@
             container.innerHTML = data.map(c => `
                 <div class="card">
                     <div style="display:flex;gap:12px;align-items:center">
-                        <img src="${c.card_image || 'https://via.placeholder.com/60x80?text=No+Img'}" style="width:60px;height:80px;object-fit:cover;border-radius:8px" loading="lazy">
+                        <div class="platform-card-img-wrap" data-img-url="${escapeHtml(c.card_image || '')}" style="width:60px;height:80px;object-fit:cover;border-radius:8px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#999">加载中</div>
                         <div style="flex:1">
-                            <div style="font-size:14px;font-weight:700">🛡️ ${c.card_name}</div>
-                            <div style="font-size:12px;color:#888;margin-top:2px">${c.series || '-'} · ${c.rarity || 'N'}</div>
+                            <div style="font-size:14px;font-weight:700">🛡️ ${escapeHtml(c.card_name)}</div>
+                            <div style="font-size:12px;color:#888;margin-top:2px">${escapeHtml(c.series || '-')} · ${escapeHtml(c.rarity || 'N')}</div>
                             <div style="font-size:16px;font-weight:800;color:#2E7D32;margin-top:4px">¥${(c.asking_price || 0).toFixed(2)}</div>
                         </div>
                     </div>
                 </div>
             `).join('');
+
+            // 通过 DOM API 设置图片 src (safeUrl 验证)
+            container.querySelectorAll('[data-img-url]').forEach(wrap => {
+                const rawUrl = wrap.getAttribute('data-img-url');
+                wrap.removeAttribute('data-img-url');
+                const safe = safeUrl(rawUrl);
+                if (safe) {
+                    const img = document.createElement('img');
+                    img.style.cssText = 'width:60px;height:80px;object-fit:cover;border-radius:8px';
+                    img.src = safe;
+                    img.alt = '';
+                    wrap.innerHTML = '';
+                    wrap.appendChild(img);
+                } else {
+                    wrap.textContent = '无图';
+                }
+            });
         }
         
         async function loadMerchants() {
@@ -290,10 +317,10 @@
             
             container.innerHTML = '<div class="user-list">' + data.map(u => `
                 <div class="user-item">
-                    <div class="user-avatar ${u.role}">${u.role === 'admin' ? '🛡' : '店'}</div>
+                    <div class="user-avatar ${escapeHtml(u.role)}">${u.role === 'admin' ? '🛡' : '店'}</div>
                     <div class="user-info">
-                        <div class="user-name">${u.merchant_name || u.username} <span class="user-badge ${u.role}">${u.merchant_badge || u.role}</span></div>
-                        <div class="user-role">认证时间: ${(u.merchant_verified_at || '-').slice(0,10)}</div>
+                        <div class="user-name">${escapeHtml(u.merchant_name || u.username)} <span class="user-badge ${escapeHtml(u.role)}">${escapeHtml(u.merchant_badge || u.role)}</span></div>
+                        <div class="user-role">认证时间: ${escapeHtml((u.merchant_verified_at || '-').slice(0,10))}</div>
                     </div>
                 </div>
             `).join('') + '</div>';
@@ -310,11 +337,11 @@
             
             container.innerHTML = data.map(s => `
                 <div class="live-session-card" style="border-left-color:${s.status === 'live' ? '#4CAF50' : s.status === 'scheduled' ? '#FF9800' : '#9E9E9E'}">
-                    <div class="live-title">${s.title}</div>
+                    <div class="live-title">${escapeHtml(s.title)}</div>
                     <div class="live-meta">
-                        <span>${s.platform}</span>
-                        <span>商家: ${s.host_merchant_name || s.host_name}</span>
-                        <span class="live-status ${s.status}">${s.status}</span>
+                        <span>${escapeHtml(s.platform)}</span>
+                        <span>商家: ${escapeHtml(s.host_merchant_name || s.host_name)}</span>
+                        <span class="live-status ${escapeHtml(s.status)}">${escapeHtml(s.status)}</span>
                     </div>
                 </div>
             `).join('');
@@ -339,12 +366,36 @@
             
             container.innerHTML = data.map(c => `
                 <div style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
-                    <img src="${c.card_image || ''}" style="width:40px;height:50px;object-fit:cover;border-radius:6px">
-                    <div style="flex:1;font-size:13px"><strong>${c.card_name}</strong><br>${c.series || '-'} · 可用${c.available_qty}张</div>
-                    <input type="number" placeholder="售价" style="width:80px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px" id="price_${c.collection_id}">
-                    <button class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="listCard('${c.collection_id}')">上架</button>
+                    <div class="bulk-card-img-wrap" data-img-url="${escapeHtml(c.card_image || '')}" style="width:40px;height:50px;object-fit:cover;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999">无图</div>
+                    <div style="flex:1;font-size:13px"><strong>${escapeHtml(c.card_name)}</strong><br>${escapeHtml(c.series || '-')} · 可用${c.available_qty}张</div>
+                    <input type="number" placeholder="售价" style="width:80px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px" id="price_${escapeHtml(c.collection_id)}">
+                    <button class="btn btn-primary" style="padding:6px 12px;font-size:12px" data-collection-id="${escapeHtml(c.collection_id)}" data-action="list">上架</button>
                 </div>
             `).join('');
+
+            // 通过 DOM API 设置图片 src (safeUrl 验证)
+            container.querySelectorAll('[data-img-url]').forEach(wrap => {
+                const rawUrl = wrap.getAttribute('data-img-url');
+                wrap.removeAttribute('data-img-url');
+                const safe = safeUrl(rawUrl);
+                if (safe) {
+                    const img = document.createElement('img');
+                    img.style.cssText = 'width:40px;height:50px;object-fit:cover;border-radius:6px';
+                    img.src = safe;
+                    img.alt = '';
+                    wrap.innerHTML = '';
+                    wrap.appendChild(img);
+                }
+            });
+
+            // 事件委托: 上架按钮
+            container.querySelectorAll('[data-action="list"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const collectionId = this.getAttribute('data-collection-id');
+                    if (!isValidUUID(collectionId)) { showToast('非法集合ID'); return; }
+                    listCard(collectionId);
+                });
+            });
         }
         
         async function listCard(collectionId) {

@@ -488,10 +488,13 @@
         <a href="profile.html" class="nav-item"><span class="nav-icon">👤</span>我的</a>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
 
         let currentUser = null;
         let currentTab = 'feed';
@@ -595,7 +598,7 @@
             }
             document.getElementById('emptyState').style.display = 'none';
 
-            container.innerHTML = posts.map(post => {
+            container.innerHTML = posts.map((post, idx) => {
                 const profit = post.estimated_price - (post.purchase_price || post.estimated_price);
                 const profitPct = post.purchase_price ? ((profit / post.purchase_price) * 100).toFixed(1) : 0;
                 const isRise = profit >= 0;
@@ -603,20 +606,20 @@
                 const name = post.author || '匿名玩家';
 
                 return `
-                    <div class="post-card" data-post-id="${post.id}">
+                    <div class="post-card" data-post-id="${escapeHtml(post.id)}">
                         <div class="post-header">
-                            <div class="post-avatar">${avatar}</div>
+                            <div class="post-avatar">${escapeHtml(avatar)}</div>
                             <div class="post-meta">
-                                <div class="post-author">${name}</div>
+                                <div class="post-author">${escapeHtml(name)}</div>
                                 <div class="post-time">${post.time || formatTime(post.created_at)}</div>
                             </div>
                         </div>
-                        <div class="post-note">${post.note || ''}</div>
-                        ${post.card_image ? `<img class="post-card-image" src="${post.card_image}" alt="card">` : ''}
+                        <div class="post-note">${escapeHtml(post.note || '')}</div>
+                        ${post.card_image ? `<img class="post-card-image" data-img-idx="${idx}" alt="card">` : ''}
                         <div class="post-info">
                             <div class="post-info-row">
-                                <span class="post-info-label">🎴 ${post.card_name || '未知卡牌'}</span>
-                                <span class="post-info-value">${post.series || ''} · ${post.rarity || ''}</span>
+                                <span class="post-info-label">🎴 ${escapeHtml(post.card_name || '未知卡牌')}</span>
+                                <span class="post-info-value">${escapeHtml(post.series || '')} · ${escapeHtml(post.rarity || '')}</span>
                             </div>
                             <div class="post-info-row">
                                 <span class="post-info-label">💰 AI估价</span>
@@ -632,15 +635,15 @@
                         </div>
                         ${profit !== 0 && post.purchase_price ? `<div style="margin-top:4px;"><span class="profit-badge ${isRise ? '' : 'neg'}">${isRise ? '📈' : '📉'} ${isRise ? '+' : ''}${profitPct}%</span></div>` : ''}
                         <div class="post-actions">
-                            <button class="post-action ${likedPosts.has(post.id) ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                            <button class="post-action ${likedPosts.has(post.id) ? 'liked' : ''}" data-action="like" data-post-id="${escapeHtml(post.id)}">
                                 <span class="icon">${likedPosts.has(post.id) ? '❤️' : '🤍'}</span>
                                 <span>${post.likes || 0}</span>
                             </button>
-                            <button class="post-action" onclick="showComments('${post.id}')">
+                            <button class="post-action" data-action="comment" data-post-id="${escapeHtml(post.id)}">
                                 <span class="icon">💬</span>
                                 <span>${post.comments || 0}</span>
                             </button>
-                            <button class="post-action" onclick="openShare('${post.id}')">
+                            <button class="post-action" data-action="share" data-post-id="${escapeHtml(post.id)}">
                                 <span class="icon">↗️</span>
                                 <span>分享</span>
                             </button>
@@ -649,6 +652,29 @@
                 `;
             }).join('');
             window._communityPosts = posts;
+
+            // DOM API: 安全设置图片 src (经 safeUrl 验证)
+            container.querySelectorAll('[data-img-idx]').forEach(img => {
+                const idx = parseInt(img.dataset.imgIdx);
+                const rawUrl = posts[idx] ? posts[idx].card_image : '';
+                const safe = safeUrl(rawUrl);
+                if (safe) {
+                    img.src = safe;
+                } else {
+                    img.style.display = 'none';
+                }
+            });
+
+            // 事件委托: 点赞/评论/分享
+            container.onclick = function(e) {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const postId = btn.dataset.postId;
+                if (action === 'like') toggleLike(postId);
+                else if (action === 'comment') showComments(postId);
+                else if (action === 'share') openShare(postId);
+            };
         }
 
         function formatTime(ts) {
@@ -716,10 +742,10 @@
                     const avatar = c.user_name ? c.user_name[0] : '👤';
                     return `
                         <div class="comment-item">
-                            <div class="comment-avatar">${avatar}</div>
+                            <div class="comment-avatar">${escapeHtml(avatar)}</div>
                             <div class="comment-body">
-                                <div class="comment-author">${c.user_name || '匿名玩家'}</div>
-                                <div class="comment-text">${escHTML(c.content)}</div>
+                                <div class="comment-author">${escapeHtml(c.user_name || '匿名玩家')}</div>
+                                <div class="comment-text">${escapeHtml(c.content)}</div>
                                 <div class="comment-time">${formatTime(c.created_at)}</div>
                             </div>
                         </div>
@@ -768,11 +794,6 @@
                 document.getElementById('commentModal').classList.remove('show');
                 currentPostId = null;
             }
-        }
-
-        function escHTML(str) {
-            if (!str) return '';
-            return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
         }
 
         function openShare(postId) {
@@ -953,18 +974,26 @@
                     return { ...c, currentPrice: curPrice, profitPct: profit, changePct: mp?.change_percent || 0 };
                 }).sort((a, b) => b.profitPct - a.profitPct);
 
-                body.innerHTML = userCardsForPost.map(c => {
+                body.innerHTML = userCardsForPost.map((c, idx) => {
                     const posPct = c.profitPct >= 0 ? '+' : '';
                     const posClass = c.profitPct >= 0 ? 'pos' : 'neg';
                     const condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
-                    return '<div class="create-card-select" onclick="selectCardForPost(' + userCardsForPost.indexOf(c) + ', this)" data-idx="' + userCardsForPost.indexOf(c) + '">' +
-                        '<div class="create-card-name">🃏 ' + c.card_name + '</div>' +
-                        '<div style="font-size:11px;color:#999;">' + (c.series || '') + ' · ' + (c.rarity || 'N') + ' · ' + (condLabels[c.condition] || c.condition || 'NM') + '</div>' +
+                    return '<div class="create-card-select" data-select-idx="' + idx + '">' +
+                        '<div class="create-card-name">🃏 ' + escapeHtml(c.card_name) + '</div>' +
+                        '<div style="font-size:11px;color:#999;">' + escapeHtml(c.series || '') + ' · ' + escapeHtml(c.rarity || 'N') + ' · ' + escapeHtml(condLabels[c.condition] || c.condition || 'NM') + '</div>' +
                         '<div class="create-card-profit ' + posClass + '">💰 入手 ¥' + (c.purchase_price || 0).toLocaleString() + ' → 当前 ¥' + c.currentPrice.toLocaleString() + ' (' + posPct + c.profitPct.toFixed(1) + '%)</div>' +
                     '</div>';
                 }).join('');
+
+                // 事件委托: 选择卡牌
+                body.onclick = function(e) {
+                    const card = e.target.closest('[data-select-idx]');
+                    if (!card) return;
+                    const idx = parseInt(card.dataset.selectIdx);
+                    selectCardForPost(idx, card);
+                };
             } catch (e) {
-                body.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">加载失败：' + e.message + '</div>';
+                body.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">加载失败：' + escapeHtml(e.message) + '</div>';
             }
         }
 

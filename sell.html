@@ -313,14 +313,24 @@
     <div class="toast" id="toast"></div>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
+        // SH-001B Batch 3: fail-closed guard
+        if (!window.RiskControl) {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#666"><h2>⚠️ 安全模块加载失败</h2><p>请刷新页面重试</p></div>';
+            throw new Error('RiskControl not loaded');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         let selectedCondition = 'NM';
         let uploadedPhotoUrl = '';
-        let selectedCollectionId = null;  // 从库存选择的卡牌ID
+        let selectedCollectionId = null;
+        let currentCollectionData = [];
         const PLATFORM_FEE_PCT = 8;
         
         function showToast(msg) {
@@ -353,64 +363,90 @@
             }
             
             const listEl = document.getElementById('collectionList');
-            listEl.innerHTML = data.map(c => `
-                <div class="collection-card" onclick="selectCollection('${c.collection_id}', '${escAttr(c.card_name)}', '${escAttr(c.series || '')}', '${escAttr(c.rarity || 'N')}', '${escAttr(c.card_category || 'pokemon')}', '${escAttr(c.condition || 'NM')}', '${escAttr(c.card_image || '')}', ${c.current_price || 0})">
-                    <img class="thumb" src="${c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${escAttr(c.card_name)}">
+            currentCollectionData = data;
+            listEl.innerHTML = data.map((c, idx) => `
+                <div class="collection-card" data-collection-idx="${idx}">
+                    <div class="thumb" style="background:linear-gradient(135deg,#f5f5f5,#e8e8f0);display:flex;align-items:center;justify-content:center;font-size:20px;color:#ccc">🃏</div>
                     <div class="info">
-                        <div class="name">${esc(c.card_name)}</div>
+                        <div class="name">${escapeHtml(c.card_name)}</div>
                         <div class="qty">可上架 ${c.available_qty}/${c.total_qty}</div>
                     </div>
                 </div>
             `).join('');
+            // SH-001B: Set images via DOM API + safeUrl
+            listEl.querySelectorAll('.collection-card').forEach((card) => {
+                const idx = parseInt(card.dataset.collectionIdx, 10);
+                const c = data[idx];
+                if (c && c.card_image) {
+                    const validated = safeUrl(c.card_image);
+                    if (validated) {
+                        const thumb = card.querySelector('.thumb');
+                        const img = document.createElement('img');
+                        img.className = 'thumb';
+                        img.src = validated;
+                        img.alt = escapeHtml(c.card_name);
+                        img.onerror = function() { this.style.display = 'none'; };
+                        thumb.replaceWith(img);
+                    }
+                }
+            });
             listEl.style.display = 'flex';
             document.getElementById('collectionPicker').style.display = 'none';
         }
         
-        function esc(s) {
-            const d = document.createElement('div');
-            d.textContent = s || '';
-            return d.innerHTML;
-        }
-        
-        function escAttr(s) {
-            return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        }
-        
-        function selectCollection(id, name, series, rarity, category, condition, image, price) {
-            selectedCollectionId = id;
+        function selectCollection(card) {
+            selectedCollectionId = card.collection_id;
             
             // 自动填充表单
-            document.getElementById('cardName').value = name;
-            document.getElementById('cardSeries').value = series;
-            document.getElementById('cardRarity').value = rarity;
-            document.getElementById('cardCategory').value = category;
+            document.getElementById('cardName').value = card.card_name;
+            document.getElementById('cardSeries').value = card.series || '';
+            document.getElementById('cardRarity').value = card.rarity || 'N';
+            document.getElementById('cardCategory').value = card.card_category || 'pokemon';
             document.querySelectorAll('.condition-option').forEach(o => {
-                o.classList.toggle('selected', o.dataset.value === condition);
+                o.classList.toggle('selected', o.dataset.value === (card.condition || 'NM'));
             });
-            selectedCondition = condition;
+            selectedCondition = card.condition || 'NM';
             
             // 建议定价
+            const price = card.current_price || 0;
             if (price > 0) {
-                const suggestedPrice = Math.round(price * 1.1); // 建议溢价10%
+                const suggestedPrice = Math.round(price * 1.1);
                 document.getElementById('askingPrice').value = suggestedPrice;
                 updateFeePreview();
             }
             
-            // 显示图片
-            if (image) {
-                uploadedPhotoUrl = image;
-                document.getElementById('photoUpload').innerHTML = `<img src="${image}" alt="卡牌照片">`;
-                document.getElementById('photoUpload').classList.add('has-photo');
+            // 显示图片 — SH-001B: DOM API + safeUrl
+            if (card.card_image) {
+                uploadedPhotoUrl = card.card_image;
+                const uploadDiv = document.getElementById('photoUpload');
+                uploadDiv.innerHTML = '';
+                const validated = safeUrl(card.card_image);
+                if (validated) {
+                    const img = document.createElement('img');
+                    img.src = validated;
+                    img.alt = '卡牌照片';
+                    uploadDiv.appendChild(img);
+                    uploadDiv.classList.add('has-photo');
+                }
             }
             
             // 更新选择指示器
-            document.getElementById('selectedCardName').textContent = name;
+            document.getElementById('selectedCardName').textContent = card.card_name;
             document.getElementById('selectedIndicator').classList.add('show');
             document.getElementById('collectionList').style.display = 'none';
             document.getElementById('collectionPicker').style.display = 'none';
             
-            showToast('已选择: ' + name);
+            showToast('已选择: ' + card.card_name);
         }
+
+        // SH-001B: Event delegation for collection card clicks
+        document.getElementById('collectionList').addEventListener('click', function(e) {
+            const cardEl = e.target.closest('.collection-card');
+            if (!cardEl) return;
+            const idx = parseInt(cardEl.dataset.collectionIdx, 10);
+            const c = currentCollectionData[idx];
+            if (c) selectCollection(c);
+        });
         
         function clearSelection() {
             selectedCollectionId = null;

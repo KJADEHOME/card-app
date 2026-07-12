@@ -200,6 +200,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
     <script src="risk-control.js"></script>
     <script>
+        // SH-001B Batch 3: fail-closed guard
+        if (!window.RiskControl) {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#666"><h2>⚠️ 安全模块加载失败</h2><p>请刷新页面重试</p></div>';
+            throw new Error('RiskControl not loaded');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -315,9 +323,9 @@
             }
             
             document.getElementById('cardGrid').style.display = 'grid';
-            document.getElementById('cardGrid').innerHTML = listings.map(c => {
+            document.getElementById('cardGrid').innerHTML = listings.map((c, idx) => {
                 const isPlatform = c._type === 'platform_card';
-                const condClass = (c.condition || 'NM').toLowerCase();
+                const condClass = escapeHtml((c.condition || 'NM').toLowerCase());
                 const sourceTag = isPlatform
                     ? '<span class="source-tag platform">🏛️官方发行</span>'
                     : '<span class="source-tag user">👤用户上传</span>';
@@ -327,30 +335,43 @@
                 const price = isPlatform ? (c.final_price || c.listing_price || 0) : (c.asking_price || 0);
                 const btnText = isPlatform ? '预约' : (c.is_platform_sale ? '自营购买' : '购买');
                 const stockText = isPlatform ? `<div style="font-size:10px;color:#888;margin-top:4px">库存 ${c.available_quantity || 0} · 已预约 ${c.reserved_quantity || 0}</div>` : '';
+                const action = isPlatform ? 'reserve' : 'buy';
                 
                 return `
-                <div class="card-item" onclick="openDetail('${c._id}')">
-                    <img class="card-img" src="${c.card_image_url || c.card_image || 'https://via.placeholder.com/300x400?text=No+Image'}" alt="${esc(c.name || c.card_name)}" loading="lazy">
+                <div class="card-item" data-card-idx="${idx}">
+                    <div class="card-img" style="background:linear-gradient(135deg,#f0f0f5,#e8e8f0)"></div>
                     <div class="card-body">
-                        <div class="card-name">${sourceTag}${badge}${esc(c.name || c.card_name)}</div>
+                        <div class="card-name">${sourceTag}${badge}${escapeHtml(c.name || c.card_name)}</div>
                         <div class="card-meta">
-                            <span class="tag rarity">${esc(c.rarity || 'N')}</span>
-                            <span class="tag ${condClass}">${esc(c.condition || 'NM')}</span>
+                            <span class="tag rarity">${escapeHtml(c.rarity || 'N')}</span>
+                            <span class="tag ${condClass}">${escapeHtml(c.condition || 'NM')}</span>
                         </div>
                         <div class="card-price-row">
                             <div class="card-price"><span class="unit">¥</span>${(price).toFixed(2)}</div>
-                            <button class="buy-btn" onclick="event.stopPropagation();${isPlatform ? `reservePlatformCard('${c._id}')` : `buyCard('${c._id}')`}">${btnText}</button>
+                            <button class="buy-btn" data-action="${action}" data-card-idx="${idx}">${btnText}</button>
                         </div>
                         ${stockText}
                     </div>
                 </div>`;
             }).join('');
-        }
-        
-        function esc(s) {
-            const d = document.createElement('div');
-            d.textContent = s || '';
-            return d.innerHTML;
+            // SH-001B: Set images via DOM API + safeUrl
+            document.getElementById('cardGrid').querySelectorAll('.card-item').forEach((item) => {
+                const idx = parseInt(item.dataset.cardIdx, 10);
+                const c = listings[idx];
+                if (!c) return;
+                const rawUrl = c.card_image_url || c.card_image;
+                const validated = rawUrl ? safeUrl(rawUrl) : '';
+                if (validated) {
+                    const placeholder = item.querySelector('.card-img');
+                    const img = document.createElement('img');
+                    img.className = 'card-img';
+                    img.src = validated;
+                    img.alt = escapeHtml(c.name || c.card_name || '');
+                    img.loading = 'lazy';
+                    img.onerror = function() { this.style.display = 'none'; };
+                    placeholder.replaceWith(img);
+                }
+            });
         }
         
         function filterBy(el) {
@@ -373,6 +394,29 @@
             if (e.key === 'Enter') doSearch();
         });
         
+        // SH-001B: Event delegation for card grid
+        document.getElementById('cardGrid').addEventListener('click', function(e) {
+            const buyBtn = e.target.closest('.buy-btn');
+            if (buyBtn) {
+                e.stopPropagation();
+                const idx = parseInt(buyBtn.dataset.cardIdx, 10);
+                const c = listings[idx];
+                if (!c) return;
+                if (buyBtn.dataset.action === 'reserve') {
+                    reservePlatformCard(c.id);
+                } else {
+                    buyCard(c.id);
+                }
+                return;
+            }
+            const cardItem = e.target.closest('.card-item');
+            if (cardItem) {
+                const idx = parseInt(cardItem.dataset.cardIdx, 10);
+                const c = listings[idx];
+                if (c) openDetail(c._id);
+            }
+        });
+        
         function openDetail(id) {
             const c = listings.find(x => x._id === id);
             if (!c) return;
@@ -391,24 +435,24 @@
             const sourceTag = '<span style="background:#F0F0F8;color:#666;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">👤用户上传</span>';
             
             document.getElementById('modalContent').innerHTML = `
-                <img class="modal-img" src="${c.card_image || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(c.card_name)}">
+                <div class="modal-img-placeholder" style="width:100%;aspect-ratio:3/4;background:linear-gradient(135deg,#f0f0f5,#e8e8f0)"></div>
                 <div class="modal-body">
-                    <div class="modal-name">${sourceTag} ${sellerBadgeHTML} ${esc(c.card_name)}</div>
-                    <div class="modal-series">${esc(c.series || '未知系列')} · ${esc(c.card_category || '-')}</div>
+                    <div class="modal-name">${sourceTag} ${sellerBadgeHTML} ${escapeHtml(c.card_name)}</div>
+                    <div class="modal-series">${escapeHtml(c.series || '未知系列')} · ${escapeHtml(c.card_category || '-')}</div>
                     <div class="modal-tags">
-                        <span class="modal-tag rarity">${esc(c.rarity || 'N')}</span>
-                        <span class="modal-tag condition">品相 ${esc(c.condition || 'NM')}</span>
+                        <span class="modal-tag rarity">${escapeHtml(c.rarity || 'N')}</span>
+                        <span class="modal-tag condition">品相 ${escapeHtml(c.condition || 'NM')}</span>
                         ${isPlatform ? '<span class="modal-tag" style="background:linear-gradient(135deg,#C8E6C9,#A5D6A7);color:#2E7D32;font-weight:700">🛡️自营正品保障</span>' : ''}
-                        ${(c.tags || []).map(t => `<span class="modal-tag" style="background:#F0F0F8;color:#666">${esc(t)}</span>`).join('')}
+                        ${(c.tags || []).map(tg => `<span class="modal-tag" style="background:#F0F0F8;color:#666">${escapeHtml(tg)}</span>`).join('')}
                     </div>
                     ${isPlatform ? '<div style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9);padding:12px;border-radius:12px;margin-top:12px;font-size:13px;color:#2E7D32;line-height:1.6"><strong>🛡️ 平台自营保障</strong><br>✅ 正品鉴定 · 🚚 统一发货 · 💰 全额入账 · 🔄 无忧退换</div>' : ''}
                     <div class="modal-desc">
                         <div class="modal-desc-label">📝 卖家描述</div>
-                        ${c.description || '卖家未填写详细描述'}
+                        ${escapeHtml(c.description || '卖家未填写详细描述')}
                     </div>
                     <div class="seller-info">
                         <div class="seller-avatar" style="${isPlatform ? 'background:linear-gradient(135deg,#4CAF50,#66BB6A)' : ''}">${isPlatform ? '🛡' : '卖'}</div>
-                        <div><div class="seller-name">${esc(sellerDisplay)}</div>${c.sale_source === 'live_sync' ? '<div style="font-size:11px;color:#E65100">📺 直播间同步上架</div>' : ''}</div>
+                        <div><div class="seller-name">${escapeHtml(sellerDisplay)}</div>${c.sale_source === 'live_sync' ? '<div style="font-size:11px;color:#E65100">📺 直播间同步上架</div>' : ''}</div>
                     </div>
                     <div class="fee-breakdown">
                         <div class="fee-line"><span>卡牌价格</span><span>¥${(c.asking_price || 0).toFixed(2)}</span></div>
@@ -423,11 +467,24 @@
                         <div class="modal-price-value">¥${(c.asking_price || 0).toFixed(2)}</div>
                         <div class="modal-price-shipping">${c.shipping_fee > 0 ? '含运费 ¥' + c.shipping_fee : (isPlatform ? '自营包邮' : '包邮')}</div>
                     </div>
-                    <button class="modal-buy-btn" onclick="buyCard('${c.id}')" ${isMine ? 'disabled' : ''} style="${isPlatform ? 'background:linear-gradient(135deg,#4CAF50,#2E7D32);box-shadow:0 4px 16px rgba(76,175,80,.35)' : ''}">
+                    <button class="modal-buy-btn" data-action="buy" data-consignment-id="${escapeHtml(c.id)}" ${isMine ? 'disabled' : ''} style="${isPlatform ? 'background:linear-gradient(135deg,#4CAF50,#2E7D32);box-shadow:0 4px 16px rgba(76,175,80,.35)' : ''}">
                         ${isMine ? '自己的商品' : (isPlatform ? '🛡️自营购买' : '立即购买')}
                     </button>
                 </div>
             `;
+            // SH-001B: Set modal image via DOM API + safeUrl
+            const modalImgUrl = safeUrl(c.card_image);
+            if (modalImgUrl) {
+                const placeholder = document.querySelector('#modalContent .modal-img-placeholder');
+                if (placeholder) {
+                    const img = document.createElement('img');
+                    img.className = 'modal-img';
+                    img.src = modalImgUrl;
+                    img.alt = escapeHtml(c.card_name || '');
+                    img.onerror = function() { this.style.display = 'none'; };
+                    placeholder.replaceWith(img);
+                }
+            }
             document.getElementById('detailModal').classList.add('show');
             document.body.style.overflow = 'hidden';
         }
@@ -436,16 +493,16 @@
             const canReserve = currentUser && (c.available_quantity || 0) > 0;
             
             document.getElementById('modalContent').innerHTML = `
-                <img class="modal-img" src="${c.card_image_url || 'https://via.placeholder.com/400x530?text=No+Image'}" alt="${esc(c.name)}">
+                <div class="modal-img-placeholder" style="width:100%;aspect-ratio:3/4;background:linear-gradient(135deg,#f0f0f5,#e8e8f0)"></div>
                 <div class="modal-body">
                     <div class="modal-name">
                         <span style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);color:white;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700">🏛️官方发行</span>
-                        ${esc(c.name)}
+                        ${escapeHtml(c.name)}
                     </div>
-                    <div class="modal-series">${esc(c.set_name || '-')} · ${esc(c.card_category || '-')}</div>
+                    <div class="modal-series">${escapeHtml(c.set_name || '-')} · ${escapeHtml(c.card_category || '-')}</div>
                     <div class="modal-tags">
-                        <span class="modal-tag rarity">${esc(c.rarity || 'N')}</span>
-                        <span class="modal-tag condition">品相 ${esc(c.condition || 'NM')}</span>
+                        <span class="modal-tag rarity">${escapeHtml(c.rarity || 'N')}</span>
+                        <span class="modal-tag condition">品相 ${escapeHtml(c.condition || 'NM')}</span>
                         <span class="modal-tag" style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9);color:#2E7D32;font-weight:700">🛡️官方正品保障</span>
                     </div>
                     <div style="background:linear-gradient(135deg,#F5F3FF,#E8E5FF);padding:12px;border-radius:12px;margin-top:12px;font-size:13px;color:#5B4AE0;line-height:1.6">
@@ -454,7 +511,7 @@
                     </div>
                     <div class="modal-desc">
                         <div class="modal-desc-label">📝 卡牌描述</div>
-                        ${c.description || '平台官方发行卡牌，正品保障，统一发货。'}
+                        ${escapeHtml(c.description || '平台官方发行卡牌，正品保障，统一发货。')}
                     </div>
                     <div class="seller-info">
                         <div class="seller-avatar" style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0)">官</div>
@@ -473,11 +530,24 @@
                         <div class="modal-price-value" style="color:#5B4AE0">¥${(c.final_price || c.listing_price || 0).toFixed(2)}</div>
                         <div class="modal-price-shipping">${(c.available_quantity || 0) > 0 ? `可预约库存 ${c.available_quantity} 件` : '暂时缺货'}</div>
                     </div>
-                    <button class="modal-buy-btn" onclick="reservePlatformCard('${c.id}')" ${!canReserve ? 'disabled' : ''} style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);box-shadow:0 4px 16px rgba(91,74,224,.35)">
+                    <button class="modal-buy-btn" data-action="reserve" data-platform-card-id="${escapeHtml(String(c.id))}" ${!canReserve ? 'disabled' : ''} style="background:linear-gradient(135deg,#5B4AE0,#7B6CF0);box-shadow:0 4px 16px rgba(91,74,224,.35)">
                         ${!currentUser ? '请先登录' : (c.available_quantity || 0) <= 0 ? '已售罄' : '立即预约'}
                     </button>
                 </div>
             `;
+            // SH-001B: Set modal image via DOM API + safeUrl
+            const modalImgUrl = safeUrl(c.card_image_url);
+            if (modalImgUrl) {
+                const placeholder = document.querySelector('#modalContent .modal-img-placeholder');
+                if (placeholder) {
+                    const img = document.createElement('img');
+                    img.className = 'modal-img';
+                    img.src = modalImgUrl;
+                    img.alt = escapeHtml(c.name || '');
+                    img.onerror = function() { this.style.display = 'none'; };
+                    placeholder.replaceWith(img);
+                }
+            }
             document.getElementById('detailModal').classList.add('show');
             document.body.style.overflow = 'hidden';
         }
@@ -488,6 +558,20 @@
                 document.body.style.overflow = '';
             }
         }
+        
+        // SH-001B: Event delegation for modal buy/reserve buttons
+        document.getElementById('modalContent').addEventListener('click', function(e) {
+            const btn = e.target.closest('.modal-buy-btn');
+            if (!btn || btn.disabled) return;
+            const action = btn.dataset.action;
+            if (action === 'buy') {
+                const id = btn.dataset.consignmentId;
+                if (id) buyCard(id);
+            } else if (action === 'reserve') {
+                const id = btn.dataset.platformCardId;
+                if (id) reservePlatformCard(id);
+            }
+        });
         
         async function buyCard(consignmentId) {
             if (!currentUser) {
@@ -521,7 +605,7 @@
             if (!data.success) {
                 document.getElementById('purchaseIcon').textContent = '❌';
                 document.getElementById('purchaseTitle').textContent = '购买失败';
-                document.getElementById('purchaseResult').innerHTML = esc(data.error);
+                document.getElementById('purchaseResult').innerHTML = escapeHtml(data.error);
                 document.getElementById('purchaseOverlay').classList.add('show');
                 return;
             }
@@ -532,8 +616,8 @@
             document.getElementById('purchaseIcon').textContent = '🎉';
             document.getElementById('purchaseTitle').textContent = '购买成功！';
             document.getElementById('purchaseResult').innerHTML = 
-                `<strong>${esc(data.card_name)}</strong><br>
-                 订单号: ${data.order_no}<br>
+                `<strong>${escapeHtml(data.card_name)}</strong><br>
+                 订单号: ${escapeHtml(data.order_no)}<br>
                  支付: ¥${data.total_amount.toFixed(2)}<br>
                  已加入你的资产`;
             document.getElementById('purchaseOverlay').classList.add('show');
@@ -572,8 +656,8 @@
                 document.getElementById('purchaseIcon').textContent = '🎉';
                 document.getElementById('purchaseTitle').textContent = '预约成功！';
                 document.getElementById('purchaseResult').innerHTML = 
-                    `<strong>${esc(c.name)}</strong><br>
-                     订单号: ${data.order_no}<br>
+                    `<strong>${escapeHtml(c.name)}</strong><br>
+                     订单号: ${escapeHtml(data.order_no)}<br>
                      锁定价格: ¥${(data.reserved_price || 0).toFixed(2)}<br>
                      当前为意向订单，无需立即支付`;
                 document.getElementById('purchaseOverlay').classList.add('show');

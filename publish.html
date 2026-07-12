@@ -191,7 +191,16 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="risk-control.js"></script>
     <script>
+        // SH-001B Batch 3: fail-closed guard
+        if (!window.RiskControl) {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#666"><h2>⚠️ 安全模块加载失败</h2><p>请刷新页面重试</p></div>';
+            throw new Error('RiskControl not loaded');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
         // ===== i18n =====
@@ -352,6 +361,8 @@
         let publishType = 'sell';
         let currentUser = null;
         let allCatalogCards = [];
+        let currentSuggestions = [];
+        let currentCatalogCards = [];
         let catalogFilter = 'all';
         let catalogSearch = '';
         let nameDebounce = null;
@@ -414,18 +425,49 @@
                     seen.add(c.name);
                     return true;
                 });
-                container.innerHTML = unique.map(card => {
-                    const hasImg = card.image_url && card.image_url.includes('supabase');
-                    const imgHtml = hasImg
-                        ? `<img src="${card.image_url}" class="suggestion-thumb" onerror="this.outerHTML='<div class=suggestion-thumb suggestion-noimg>🃏</div>'">`
-                        : '<div class="suggestion-thumb suggestion-noimg">🃏</div>';
-                    return `<div class="suggestion-item" onclick="selectSuggestion('${esc(card.name)}','${esc(card.series)}','${esc(card.rarity)}')">${imgHtml}<div class="suggestion-info"><div class="suggestion-name">${esc(card.name)}</div><div class="suggestion-meta"><span class="suggestion-rarity rarity-${card.rarity}">${card.rarity}</span> ${card.series}</div></div></div>`;
+                currentSuggestions = unique;
+                container.innerHTML = unique.map((card, idx) => {
+                    return `<div class="suggestion-item" data-card-idx="${idx}">
+                        <div class="suggestion-thumb suggestion-noimg">🃏</div>
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">${escapeHtml(card.name)}</div>
+                            <div class="suggestion-meta">
+                                <span class="suggestion-rarity rarity-${escapeHtml(card.rarity)}">${escapeHtml(card.rarity)}</span> ${escapeHtml(card.series)}
+                            </div>
+                        </div>
+                    </div>`;
                 }).join('');
+                // SH-001B: Set images via DOM API + safeUrl
+                container.querySelectorAll('.suggestion-item').forEach((item) => {
+                    const idx = parseInt(item.dataset.cardIdx, 10);
+                    const card = unique[idx];
+                    if (card && card.image_url && card.image_url.includes('supabase')) {
+                        const validated = safeUrl(card.image_url);
+                        if (validated) {
+                            const thumb = item.querySelector('.suggestion-thumb');
+                            const img = document.createElement('img');
+                            img.className = 'suggestion-thumb';
+                            img.src = validated;
+                            img.onerror = function() { this.outerHTML = '<div class="suggestion-thumb suggestion-noimg">🃏</div>'; };
+                            thumb.replaceWith(img);
+                        }
+                    }
+                });
                 container.classList.add('show');
             }, 200);
         }
 
         function hideSuggestions() { document.getElementById('suggestions').classList.remove('show'); }
+
+        // SH-001B: Event delegation for suggestion clicks
+        document.getElementById('suggestions').addEventListener('click', function(e) {
+            const item = e.target.closest('.suggestion-item');
+            if (!item) return;
+            const idx = parseInt(item.dataset.cardIdx, 10);
+            const card = currentSuggestions[idx];
+            if (!card) return;
+            selectSuggestion(card.name, card.series, card.rarity);
+        });
 
         function selectSuggestion(name, series, rarity) {
             document.getElementById('cardName').value = name;
@@ -498,13 +540,34 @@
                 grid.innerHTML = '<div class="catalog-empty">' + t('catalog_empty') + '<br><span style="font-size:12px;">' + t('catalog_empty_hint') + '</span></div>';
                 return;
             }
-            grid.innerHTML = cards.map(card => {
-                const hasImg = card.image_url && card.image_url.includes('supabase');
-                const imgHtml = hasImg
-                    ? `<img src="${card.image_url}" class="catalog-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="catalog-noimg" style="display:none">🃏</div>`
-                    : '<div class="catalog-noimg">🃏</div>';
-                return `<div class="catalog-card-wrap"><div class="catalog-card" onclick="selectFromCatalog('${esc(card.name)}','${esc(card.series)}','${esc(card.rarity)}')">${imgHtml}<div class="catalog-info"><div class="catalog-name">${esc(card.name)}</div><div class="catalog-meta"><span class="suggestion-rarity rarity-${card.rarity}">${card.rarity}</span> ${card.series}</div></div></div></div>`;
+            currentCatalogCards = cards;
+            grid.innerHTML = cards.map((card, idx) => {
+                return `<div class="catalog-card-wrap"><div class="catalog-card" data-card-idx="${idx}">
+                    <div class="catalog-noimg">🃏</div>
+                    <div class="catalog-info">
+                        <div class="catalog-name">${escapeHtml(card.name)}</div>
+                        <div class="catalog-meta">
+                            <span class="suggestion-rarity rarity-${escapeHtml(card.rarity)}">${escapeHtml(card.rarity)}</span> ${escapeHtml(card.series)}
+                        </div>
+                    </div>
+                </div></div>`;
             }).join('');
+            // SH-001B: Set images via DOM API + safeUrl
+            grid.querySelectorAll('.catalog-card').forEach((cardEl) => {
+                const idx = parseInt(cardEl.dataset.cardIdx, 10);
+                const card = cards[idx];
+                if (card && card.image_url && card.image_url.includes('supabase')) {
+                    const validated = safeUrl(card.image_url);
+                    if (validated) {
+                        const noimg = cardEl.querySelector('.catalog-noimg');
+                        const img = document.createElement('img');
+                        img.className = 'catalog-img';
+                        img.src = validated;
+                        img.onerror = function() { this.style.display = 'none'; };
+                        noimg.replaceWith(img);
+                    }
+                }
+            });
         }
 
         function selectFromCatalog(name, series, rarity) {
@@ -513,6 +576,16 @@
             document.getElementById('cardRarity').value = rarity;
             closeCatalog();
         }
+
+        // SH-001B: Event delegation for catalog card clicks
+        document.getElementById('catalogGrid').addEventListener('click', function(e) {
+            const cardEl = e.target.closest('.catalog-card');
+            if (!cardEl) return;
+            const idx = parseInt(cardEl.dataset.cardIdx, 10);
+            const card = currentCatalogCards[idx];
+            if (!card) return;
+            selectFromCatalog(card.name, card.series, card.rarity);
+        });
 
         async function publish() {
             if (!currentUser) { alert(t('login_first')); return; }
@@ -560,9 +633,6 @@
             }
         }
 
-        function esc(str) {
-            return String(str || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
-        }
     </script>
 </body>
 </html>

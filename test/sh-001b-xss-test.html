@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>SH-001B XSS Payload Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #eee; }
+        .pass { color: #27ae60; font-weight: bold; }
+        .fail { color: #e74c3c; font-weight: bold; font-size: 1.2em; }
+        .section { margin: 20px 0; padding: 15px; background: #16213e; border-radius: 8px; }
+        .section h2 { color: #e94560; margin-bottom: 10px; }
+        .test-case { margin: 8px 0; padding: 8px; background: #0f3460; border-radius: 4px; }
+        .label { color: #a8a8a8; }
+        .payload { color: #f5a623; word-break: break-all; }
+        .result { margin-top: 4px; }
+        #alertTriggered { background: #e74c3c; color: white; padding: 15px; border-radius: 8px; font-size: 1.5em; display: none; }
+    </style>
+</head>
+<body>
+    <h1>SH-001B Batch 1 - XSS Payload Test Suite</h1>
+    <div id="alertTriggered">ALERT TRIGGERED - TEST FAILED</div>
+    <div id="results"></div>
+
+    <script src="../js/risk-control.js"></script>
+    <script>
+        const escapeHtml = RiskControl.escapeHtml;
+        const safeUrl = RiskControl.safeUrl;
+        const results = document.getElementById('results');
+        let allPass = true;
+        let alertTriggered = false;
+
+        // Override alert to detect XSS execution
+        const originalAlert = window.alert;
+        window.alert = function(msg) {
+            alertTriggered = true;
+            document.getElementById('alertTriggered').style.display = 'block';
+            document.getElementById('alertTriggered').textContent = 'ALERT TRIGGERED: ' + msg;
+        };
+
+        function test(name, condition, details) {
+            const div = document.createElement('div');
+            div.className = 'test-case';
+            const status = condition ? 'PASS' : 'FAIL';
+            if (!condition) allPass = false;
+            div.innerHTML = '<span class="' + (condition ? 'pass' : 'fail') + '">[' + status + ']</span> ' +
+                '<span class="label">' + escapeHtml(name) + '</span>' +
+                (details ? '<div class="result"><span class="label">Result:</span> <span class="payload">' + escapeHtml(details) + '</span></div>' : '');
+            results.appendChild(div);
+        }
+
+        function section(title) {
+            const div = document.createElement('div');
+            div.className = 'section';
+            div.innerHTML = '<h2>' + escapeHtml(title) + '</h2>';
+            results.appendChild(div);
+            return div;
+        }
+
+        // ========== 1. escapeHtml Tests ==========
+        const escSection = section('1. escapeHtml() - Text Payload Tests');
+
+        const textPayloads = [
+            '<img src=x onerror=alert(1)>',
+            '<script>alert(1)<\/script>',
+            '"><svg onload=alert(1)>',
+            "';alert(1);//",
+            '<iframe src="javascript:alert(1)"></iframe>',
+            '<img src="x" onerror="fetch(\'http://evil.com\')">',
+            '<svg/onload=alert(1)>',
+            '"><script>document.cookie<\/script>',
+        ];
+
+        textPayloads.forEach(payload => {
+            const escaped = escapeHtml(payload);
+            // Check: no raw < > " ' in output
+            const hasRawAngle = escaped.includes('<') || escaped.includes('>');
+            const hasRawQuote = escaped.includes('"') || escaped.includes("'");
+
+            // Also verify it renders safely in DOM
+            const testDiv = document.createElement('div');
+            testDiv.innerHTML = escaped;
+            const hasScript = testDiv.querySelector('script') !== null;
+            const hasImg = testDiv.querySelector('img') !== null;
+            const hasIframe = testDiv.querySelector('iframe') !== null;
+            const hasSvg = testDiv.querySelector('svg') !== null;
+
+            const safe = !hasRawAngle && !hasRawQuote && !hasScript && !hasImg && !hasIframe && !hasSvg;
+            test('escapeHtml: ' + payload.substring(0, 40), safe, escaped);
+        });
+
+        // ========== 2. safeUrl Tests ==========
+        const urlSection = section('2. safeUrl() - URL Payload Tests');
+
+        const urlTests = [
+            { url: 'javascript:alert(1)', shouldBlock: true, desc: 'javascript: protocol' },
+            { url: 'data:text/html,<script>alert(1)<\/script>', shouldBlock: true, desc: 'data:text/html' },
+            { url: 'vbscript:alert(1)', shouldBlock: true, desc: 'vbscript: protocol' },
+            { url: 'https://example.com/" onerror="alert(1)', shouldBlock: false, desc: 'URL with injection attempt (should sanitize)' },
+            { url: 'https://xybpcsmjjcnkjwfsuder.supabase.co/storage/v1/object/public/card-images/test.jpg', shouldBlock: false, desc: 'Valid Supabase Storage URL' },
+            { url: 'http://localhost:3000/test.jpg', shouldBlock: false, desc: 'Local dev URL' },
+            { url: '', shouldBlock: true, desc: 'Empty URL' },
+            { url: null, shouldBlock: true, desc: 'Null URL' },
+            { url: 'JaVaScRiPt:alert(1)', shouldBlock: true, desc: 'Mixed case javascript:' },
+            { url: ' javascript:alert(1)', shouldBlock: true, desc: 'Leading space javascript:' },
+            { url: '//evil.com/xss', shouldBlock: false, desc: 'Protocol-relative URL (resolves to current protocol)' },
+        ];
+
+        urlTests.forEach(({ url, shouldBlock, desc }) => {
+            const result = safeUrl(url);
+            let pass;
+            if (shouldBlock) {
+                pass = (result === '' || result === null);
+            } else {
+                // For non-blocked URLs, check the result is a valid http/https URL
+                pass = result.startsWith('http://') || result.startsWith('https://');
+                // For the injection attempt, verify no raw quotes survive
+                if (desc.includes('injection')) {
+                    pass = pass && !result.includes('"') && !result.includes('onerror');
+                }
+            }
+            test('safeUrl: ' + desc, pass, 'Input: ' + url + ' | Output: ' + result);
+        });
+
+        // ========== 3. Simulated Message Rendering ==========
+        const msgSection = section('3. Simulated Message Rendering (message.html)');
+
+        const messagePayloads = [
+            '<img src=x onerror=alert(1)>',
+            '<script>alert(1)<\/script>',
+            '"><svg onload=alert(1)>',
+            "';alert(1);//",
+        ];
+
+        messagePayloads.forEach(payload => {
+            // Simulate what renderMessages does
+            const container = document.createElement('div');
+            container.innerHTML = '<div class="message-bubble">' + escapeHtml(payload) + '</div>';
+
+            // Check no scripts or event handlers
+            const hasScript = container.querySelector('script') !== null;
+            const hasImg = container.querySelector('img') !== null;
+            const hasSvg = container.querySelector('svg') !== null;
+            const hasOnerror = container.innerHTML.includes('onerror');
+            const hasOnload = container.innerHTML.includes('onload');
+
+            const safe = !hasScript && !hasImg && !hasSvg && !hasOnerror && !hasOnload;
+            test('Message render: ' + payload.substring(0, 30), safe, container.innerHTML);
+        });
+
+        // ========== 4. Simulated Notification Rendering ==========
+        const notifSection = section('4. Simulated Notification Rendering (notifications.html)');
+
+        const notifPayloads = [
+            { title: '<script>alert(1)<\/script>', content: '<img src=x onerror=alert(1)>' },
+            { title: '"><svg onload=alert(1)>', content: "';alert(1);//" },
+            { title: 'Normal Order', content: 'Your order <script>evil()<\/script> has shipped' },
+        ];
+
+        notifPayloads.forEach(({ title, content }) => {
+            const container = document.createElement('div');
+            container.innerHTML = '<div class="notif-title">' + escapeHtml(title) + '</div>' +
+                '<div class="notif-content">' + escapeHtml(content) + '</div>';
+
+            const hasScript = container.querySelector('script') !== null;
+            const hasImg = container.querySelector('img') !== null;
+            const hasSvg = container.querySelector('svg') !== null;
+            const hasOnerror = container.innerHTML.includes('onerror');
+            const hasOnload = container.innerHTML.includes('onload');
+
+            const safe = !hasScript && !hasImg && !hasSvg && !hasOnerror && !hasOnload;
+            test('Notif render: title=' + title.substring(0, 20), safe, container.innerHTML);
+        });
+
+        // ========== 5. Simulated Community Post Rendering ==========
+        const postSection = section('5. Simulated Community Post Rendering (community.html)');
+
+        const postPayloads = [
+            {
+                author: '<script>alert("xss")<\/script>',
+                note: '<img src=x onerror=alert(1)>',
+                card_name: '"><svg onload=alert(1)>',
+                series: "';alert(1);//",
+                card_image: 'javascript:alert(1)'
+            },
+            {
+                author: 'NormalUser',
+                note: 'Check this out <iframe src="javascript:alert(1)"></iframe>',
+                card_name: 'Pikachu<script>evil()<\/script>',
+                series: 'Normal',
+                card_image: 'https://xybpcsmjjcnkjwfsuder.supabase.co/storage/v1/object/public/card-images/test.jpg'
+            }
+        ];
+
+        postPayloads.forEach((post, idx) => {
+            const container = document.createElement('div');
+            const avatar = post.author ? post.author[0] : '?';
+            container.innerHTML = '<div class="post-avatar">' + escapeHtml(avatar) + '</div>' +
+                '<div class="post-author">' + escapeHtml(post.author) + '</div>' +
+                '<div class="post-note">' + escapeHtml(post.note) + '</div>' +
+                '<span class="post-info-label">' + escapeHtml(post.card_name) + '</span>' +
+                '<span class="post-info-value">' + escapeHtml(post.series) + '</span>';
+
+            // Simulate image src setting via DOM API
+            if (post.card_image) {
+                const img = document.createElement('img');
+                img.className = 'post-card-image';
+                const safe = safeUrl(post.card_image);
+                if (safe) {
+                    img.src = safe;
+                } else {
+                    img.style.display = 'none';
+                }
+                container.appendChild(img);
+            }
+
+            const hasScript = container.querySelector('script') !== null;
+            const hasImg = container.querySelector('img[src^="javascript:"]') !== null;
+            const hasSvg = container.querySelector('svg') !== null;
+            const hasIframe = container.querySelector('iframe') !== null;
+            const hasOnerror = container.innerHTML.includes('onerror');
+            const hasOnload = container.innerHTML.includes('onload');
+
+            const safe = !hasScript && !hasImg && !hasSvg && !hasIframe && !hasOnerror && !hasOnload;
+            test('Post render #' + idx + ': author=' + post.author.substring(0, 15), safe, container.innerHTML.substring(0, 200));
+        });
+
+        // ========== 6. Simulated Comment Rendering ==========
+        const commentSection = section('6. Simulated Comment Rendering (community.html)');
+
+        const commentPayloads = [
+            { user_name: '<script>alert(1)<\/script>', content: '<img src=x onerror=alert(1)>' },
+            { user_name: '"><svg onload=alert(1)>', content: "';alert(1);//" },
+            { user_name: 'NormalUser', content: 'Great card! <script>steal()<\/script>' },
+        ];
+
+        commentPayloads.forEach(({ user_name, content }) => {
+            const container = document.createElement('div');
+            const avatar = user_name ? user_name[0] : '?';
+            container.innerHTML = '<div class="comment-avatar">' + escapeHtml(avatar) + '</div>' +
+                '<div class="comment-author">' + escapeHtml(user_name) + '</div>' +
+                '<div class="comment-text">' + escapeHtml(content) + '</div>';
+
+            const hasScript = container.querySelector('script') !== null;
+            const hasImg = container.querySelector('img') !== null;
+            const hasSvg = container.querySelector('svg') !== null;
+            const hasOnerror = container.innerHTML.includes('onerror');
+            const hasOnload = container.innerHTML.includes('onload');
+
+            const safe = !hasScript && !hasImg && !hasSvg && !hasOnerror && !hasOnload;
+            test('Comment render: user=' + user_name.substring(0, 15), safe, container.innerHTML);
+        });
+
+        // ========== 7. Notification action_url safeUrl validation ==========
+        const actionSection = section('7. Notification action_url safeUrl Validation');
+
+        const actionUrls = [
+            'javascript:alert(1)',
+            'data:text/html,<script>alert(1)<\/script>',
+            'vbscript:alert(1)',
+            'https://cardrealm.top/marketplace.html',
+            'http://localhost:8080/test',
+        ];
+
+        actionUrls.forEach(url => {
+            const safe = safeUrl(url);
+            const wouldNavigate = safe !== '' && safe !== null;
+            const isDangerous = url.startsWith('javascript:') || url.startsWith('data:text/html') || url.startsWith('vbscript:');
+            const pass = isDangerous ? !wouldNavigate : wouldNavigate;
+            test('action_url: ' + url.substring(0, 40), pass, 'safeUrl result: ' + (safe || '[BLOCKED]'));
+        });
+
+        // ========== Summary ==========
+        const summarySection = section('SUMMARY');
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'test-case';
+        summaryDiv.innerHTML = '<span class="' + (allPass && !alertTriggered ? 'pass' : 'fail') + '">[' + (allPass && !alertTriggered ? 'ALL PASS' : 'FAILURES DETECTED') + ']</span> ' +
+            'Alert triggered: ' + (alertTriggered ? 'YES (XSS EXECUTED!)' : 'NO') +
+            ' | All tests passed: ' + allPass;
+        summarySection.appendChild(summaryDiv);
+
+        console.log('SH-001B XSS Test Complete. All pass:', allPass, 'Alert triggered:', alertTriggered);
+    </script>
+</body>
+</html>

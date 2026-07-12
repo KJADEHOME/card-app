@@ -522,7 +522,31 @@
     </div>
 </div>
 
+<script src="js/risk-control.js"></script>
 <script>
+// ============ 安全检查 (Fail-closed) ============
+if (!window.RiskControl) {
+    var fallback = document.createElement('div');
+    fallback.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f5f5f5;color:#f44336;font-size:16px;text-align:center;padding:20px;z-index:9999;';
+    fallback.textContent = '安全模块加载失败，请刷新页面重试';
+    document.body.replaceChildren(fallback);
+    throw new Error('RiskControl module not loaded');
+}
+var escapeHtml = RiskControl.escapeHtml;
+var safeUrl = RiskControl.safeUrl;
+var isValidUUID = RiskControl.isValidUUID;
+var validateAction = RiskControl.validateAction;
+
+// ============ 数值校验辅助 ============
+function safeIntDisplay(v) {
+    var n = Number(v);
+    return Number.isInteger(n) && n >= 0 ? n.toLocaleString() : '--';
+}
+function safeIntRaw(v, fallback) {
+    var n = Number(v);
+    return Number.isInteger(n) && n >= 0 ? n : (fallback || 0);
+}
+
 // ============ Supabase 配置 ============
 const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyMzg0NDksImV4cCI6MjA1ODgxNDQ0OX0.C0Kl_8iQnEvadBHLRfjb1-PkUdBkCHQp1aRiVLiMahY';
@@ -609,32 +633,33 @@ async function loadUserPoints() {
 // ============ 渲染积分英雄区 ============
 function renderPointsHero() {
     if (!userPoints) return;
-    const lvl = userPoints.level || 1;
-    const cfg = levelConfigs.find(l => l.level === lvl) || { title: '卡牌新手', special_badge: '🌱' };
-    const nextCfg = levelConfigs.find(l => l.level === lvl + 1);
-    const exp = userPoints.exp || 0;
-    const expRequired = cfg.exp_required || 0;
-    const expNext = nextCfg ? nextCfg.exp_required : expRequired;
-    const expPct = nextCfg ? Math.min(100, Math.round((exp - expRequired) / (expNext - expRequired) * 100)) : 100;
+    var lvl = safeIntRaw(userPoints.level, 1);
+    var cfg = levelConfigs.find(function(l) { return l.level === lvl; }) || { title: '卡牌新手', special_badge: '🌱' };
+    var nextCfg = levelConfigs.find(function(l) { return l.level === lvl + 1; });
+    var exp = safeIntRaw(userPoints.exp, 0);
+    var expRequired = safeIntRaw(cfg.exp_required, 0);
+    var expNext = nextCfg ? safeIntRaw(nextCfg.exp_required, 0) : expRequired;
+    var expDiff = expNext - expRequired;
+    var expPct = nextCfg ? (expDiff > 0 ? Math.min(100, Math.max(0, Math.round((exp - expRequired) / expDiff * 100))) : 0) : 100;
 
     document.getElementById('levelEmoji').textContent = cfg.special_badge || '🌱';
-    document.getElementById('levelTitle').textContent = cfg.title;
-    document.getElementById('levelNum').textContent = `Lv.${lvl}`;
-    document.getElementById('pointsNum').textContent = (userPoints.current_points || 0).toLocaleString();
-    document.getElementById('totalEarned').textContent = (userPoints.total_earned || 0).toLocaleString();
-    document.getElementById('totalSpent').textContent = (userPoints.total_spent || 0).toLocaleString();
-    document.getElementById('totalCheckins').textContent = (userPoints.total_checkins || 0);
-    document.getElementById('expBar').style.width = expPct + '%';
-    document.getElementById('expCurrent').textContent = `${exp} 经验`;
-    document.getElementById('expNext').textContent = nextCfg ? `升级还需 ${expNext - exp} 经验` : '已满级 🎉';
-    document.getElementById('streakNum').textContent = userPoints.checkin_streak || 0;
-    document.getElementById('streakLabel').textContent = `连续 ${userPoints.checkin_streak || 0} 天`;
+    document.getElementById('levelTitle').textContent = cfg.title || '卡牌新手';
+    document.getElementById('levelNum').textContent = 'Lv.' + lvl;
+    document.getElementById('pointsNum').textContent = safeIntDisplay(userPoints.current_points);
+    document.getElementById('totalEarned').textContent = safeIntDisplay(userPoints.total_earned);
+    document.getElementById('totalSpent').textContent = safeIntDisplay(userPoints.total_spent);
+    document.getElementById('totalCheckins').textContent = safeIntDisplay(userPoints.total_checkins);
+    document.getElementById('expBar').style.width = (Number.isFinite(expPct) ? expPct : 0) + '%';
+    document.getElementById('expCurrent').textContent = exp + ' 经验';
+    document.getElementById('expNext').textContent = nextCfg ? '升级还需 ' + Math.max(0, expNext - exp) + ' 经验' : '已满级 🎉';
+    document.getElementById('streakNum').textContent = safeIntDisplay(userPoints.checkin_streak);
+    document.getElementById('streakLabel').textContent = '连续 ' + safeIntRaw(userPoints.checkin_streak, 0) + ' 天';
 
     // 检查今天是否已签到
-    const lastDate = userPoints.last_checkin_date;
-    const today = new Date().toISOString().slice(0, 10);
+    var lastDate = userPoints.last_checkin_date;
+    var today = new Date().toISOString().slice(0, 10);
     if (lastDate === today) {
-        const btn = document.getElementById('checkinBtn');
+        var btn = document.getElementById('checkinBtn');
         btn.textContent = '✅ 已签到';
         btn.classList.add('done');
         btn.disabled = true;
@@ -643,103 +668,161 @@ function renderPointsHero() {
 
 // ============ 渲染签到日历（本周7天）============
 function renderCheckinWeek() {
-    const days = ['日', '一', '二', '三', '四', '五', '六'];
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const container = document.getElementById('checkinWeek');
+    var days = ['日', '一', '二', '三', '四', '五', '六'];
+    var today = new Date();
+    var dayOfWeek = today.getDay();
+    var container = document.getElementById('checkinWeek');
     container.innerHTML = '';
 
-    const lastDate = userPoints ? userPoints.last_checkin_date : null;
-    const streak = userPoints ? (userPoints.checkin_streak || 0) : 0;
-    const todayStr = today.toISOString().slice(0, 10);
+    var lastDate = userPoints ? userPoints.last_checkin_date : null;
+    var streak = userPoints ? safeIntRaw(userPoints.checkin_streak, 0) : 0;
+    var todayStr = today.toISOString().slice(0, 10);
 
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(today);
+    for (var i = 0; i < 7; i++) {
+        var d = new Date(today);
         d.setDate(today.getDate() - dayOfWeek + i);
-        const dStr = d.toISOString().slice(0, 10);
-        const isPast = dStr < todayStr;
-        const isToday = dStr === todayStr;
+        var dStr = d.toISOString().slice(0, 10);
+        var isPast = dStr < todayStr;
+        var isToday = dStr === todayStr;
 
-        // 判断是否已签到：今天已签（last=today），或者是past且在streak范围内（粗略判断）
-        let isDone = false;
+        var isDone = false;
         if (isToday && lastDate === todayStr) isDone = true;
-        // 过去的天数：根据streak反推
         if (isPast && lastDate) {
-            const diffDays = Math.round((new Date(todayStr) - new Date(dStr)) / 86400000);
+            var diffDays = Math.round((new Date(todayStr) - new Date(dStr)) / 86400000);
             if (diffDays <= streak && (lastDate === todayStr || lastDate > dStr)) {
                 isDone = true;
             }
         }
 
-        // 当天积分说明
-        const dayIdx = i; // 第几天（0-6）
-        const pts = dayIdx < 3 ? '+5' : dayIdx < 7 ? '+8' : '+15';
+        var dayIdx = i;
+        var pts = dayIdx < 3 ? '+5' : '+8';
 
-        const el = document.createElement('div');
+        var el = document.createElement('div');
         el.className = 'checkin-day';
-        el.innerHTML = `
-            <div class="day-label">${days[d.getDay()]}</div>
-            <div class="day-circle ${isDone ? 'done' : ''} ${isToday ? 'today' : ''}">
-                ${isDone ? '✅' : (isToday ? '🎯' : (isPast ? '○' : '○'))}
-            </div>
-            <div class="day-pts ${isDone ? 'done' : ''}">${isPast || isToday ? pts : ''}</div>
-        `;
+
+        var labelDiv = document.createElement('div');
+        labelDiv.className = 'day-label';
+        labelDiv.textContent = days[d.getDay()];
+        el.appendChild(labelDiv);
+
+        var circleDiv = document.createElement('div');
+        circleDiv.className = 'day-circle' + (isDone ? ' done' : '') + (isToday ? ' today' : '');
+        circleDiv.textContent = isDone ? '✅' : (isToday ? '🎯' : '○');
+        el.appendChild(circleDiv);
+
+        var ptsDiv = document.createElement('div');
+        ptsDiv.className = 'day-pts' + (isDone ? ' done' : '');
+        ptsDiv.textContent = (isPast || isToday) ? pts : '';
+        el.appendChild(ptsDiv);
+
         container.appendChild(el);
     }
 }
 
 // ============ 渲染等级列表 ============
 function renderLevels() {
-    const container = document.getElementById('levelsGrid');
+    var container = document.getElementById('levelsGrid');
+    container.innerHTML = '';
     if (!levelConfigs.length) return;
-    const currentLevel = userPoints ? (userPoints.level || 1) : 1;
+    var currentLevel = userPoints ? safeIntRaw(userPoints.level, 1) : 1;
 
-    container.innerHTML = levelConfigs.map(cfg => {
-        const isCurrent = cfg.level === currentLevel;
-        const isLocked = cfg.level > currentLevel;
-        const perks = [];
-        if (cfg.scan_discount_pct > 0) perks.push({ text: `识卡-${cfg.scan_discount_pct}%`, cls: 'purple' });
-        if (cfg.daily_checkin_bonus > 0) perks.push({ text: `签到+${cfg.daily_checkin_bonus}分`, cls: '' });
-        if (cfg.listing_fee_discount > 0) perks.push({ text: `手续费-${cfg.listing_fee_discount}%`, cls: 'orange' });
+    // Valid perk CSS classes whitelist
+    var VALID_PERK_CLS = ['', 'purple', 'orange'];
+
+    levelConfigs.forEach(function(cfg) {
+        var isCurrent = cfg.level === currentLevel;
+        var isLocked = cfg.level > currentLevel;
+
+        var row = document.createElement('div');
+        row.className = 'level-row' + (isCurrent ? ' current' : '') + (isLocked ? ' locked' : '');
+
+        var emojiDiv = document.createElement('div');
+        emojiDiv.className = 'level-emoji-sm';
+        emojiDiv.textContent = cfg.special_badge || '⭐';
+        row.appendChild(emojiDiv);
+
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'level-row-info';
+
+        var nameDiv = document.createElement('div');
+        nameDiv.className = 'level-row-name';
+        nameDiv.textContent = cfg.title || '未命名等级';
+        infoDiv.appendChild(nameDiv);
+
+        var expDiv = document.createElement('div');
+        expDiv.className = 'level-row-exp';
+        expDiv.textContent = '需 ' + safeIntRaw(cfg.exp_required, 0) + ' 经验';
+        infoDiv.appendChild(expDiv);
+
+        var perksDiv = document.createElement('div');
+        perksDiv.className = 'level-perks';
+
+        var perks = [];
+        var scanDisc = Number(cfg.scan_discount_pct);
+        if (Number.isFinite(scanDisc) && scanDisc > 0) perks.push({ text: '识卡-' + scanDisc + '%', cls: 'purple' });
+        var checkinBonus = Number(cfg.daily_checkin_bonus);
+        if (Number.isFinite(checkinBonus) && checkinBonus > 0) perks.push({ text: '签到+' + checkinBonus + '分', cls: '' });
+        var feeDisc = Number(cfg.listing_fee_discount);
+        if (Number.isFinite(feeDisc) && feeDisc > 0) perks.push({ text: '手续费-' + feeDisc + '%', cls: 'orange' });
         if (cfg.priority_support) perks.push({ text: '优先客服', cls: 'orange' });
 
-        return `
-        <div class="level-row ${isCurrent ? 'current' : ''} ${isLocked ? 'locked' : ''}">
-            <div class="level-emoji-sm">${cfg.special_badge || '⭐'}</div>
-            <div class="level-row-info">
-                <div class="level-row-name">${cfg.title}</div>
-                <div class="level-row-exp">需 ${cfg.exp_required} 经验</div>
-                <div class="level-perks">
-                    ${perks.map(p => `<span class="perk-tag ${p.cls}">${p.text}</span>`).join('')}
-                    ${!perks.length ? '<span class="perk-tag">基础权益</span>' : ''}
-                </div>
-            </div>
-            ${isCurrent ? '<span class="current-badge">当前</span>' : ''}
-        </div>`;
-    }).join('');
+        if (perks.length === 0) {
+            var baseSpan = document.createElement('span');
+            baseSpan.className = 'perk-tag';
+            baseSpan.textContent = '基础权益';
+            perksDiv.appendChild(baseSpan);
+        } else {
+            perks.forEach(function(p) {
+                var span = document.createElement('span');
+                span.className = 'perk-tag' + (VALID_PERK_CLS.indexOf(p.cls) >= 0 && p.cls ? ' ' + p.cls : '');
+                span.textContent = p.text;
+                perksDiv.appendChild(span);
+            });
+        }
+        infoDiv.appendChild(perksDiv);
+        row.appendChild(infoDiv);
+
+        if (isCurrent) {
+            var badge = document.createElement('span');
+            badge.className = 'current-badge';
+            badge.textContent = '当前';
+            row.appendChild(badge);
+        }
+
+        container.appendChild(row);
+    });
 }
 
 // ============ 加载积分流水 ============
-async function loadTxList(reset = false) {
+async function loadTxList(reset) {
     if (reset) txOffset = 0;
-    const { data, error } = await supabaseClient
+    var { data, error } = await supabaseClient
         .from('point_transactions')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
         .range(txOffset, txOffset + TX_LIMIT - 1);
 
-    const container = document.getElementById('txList');
+    var container = document.getElementById('txList');
     if (error || !data || !data.length) {
         if (reset) {
-            container.innerHTML = '<div style="text-align:center;padding:30px;color:#bbb;font-size:14px;">暂无积分记录<br><span style="font-size:12px;">签到或使用AI识卡获取第一笔积分</span></div>';
+            container.innerHTML = '';
+            var emptyDiv = document.createElement('div');
+            emptyDiv.style.cssText = 'text-align:center;padding:30px;color:#bbb;font-size:14px;';
+            emptyDiv.textContent = '暂无积分记录';
+            var subSpan = document.createElement('div');
+            subSpan.style.fontSize = '12px';
+            subSpan.textContent = '签到或使用AI识卡获取第一笔积分';
+            emptyDiv.appendChild(document.createElement('br'));
+            emptyDiv.appendChild(subSpan);
+            container.appendChild(emptyDiv);
         } else {
             document.getElementById('txMore').textContent = '没有更多了';
         }
         return;
     }
 
-    const iconMap = {
+    var iconMap = {
         checkin: { icon: '📅', cls: 'earn' },
         checkin_streak: { icon: '🔥', cls: 'earn' },
         scan: { icon: '🤖', cls: 'earn' },
@@ -749,29 +832,51 @@ async function loadTxList(reset = false) {
         purchase: { icon: '🛍️', cls: 'earn' },
         levelup: { icon: '⭐', cls: 'earn' },
         admin_gift: { icon: '🎁', cls: 'earn' },
-        expire: { icon: '⏰', cls: 'spend' },
+        expire: { icon: '⏰', cls: 'spend' }
     };
+    var VALID_TX_CLS = ['earn', 'spend'];
 
-    const items = data.map(tx => {
-        const isEarn = tx.points > 0;
-        const meta = iconMap[tx.type] || { icon: '💎', cls: isEarn ? 'earn' : 'spend' };
-        const timeStr = new Date(tx.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        return `
-        <div class="tx-item">
-            <div class="tx-icon ${meta.cls}">${meta.icon}</div>
-            <div class="tx-info">
-                <div class="tx-desc">${tx.description || tx.type}</div>
-                <div class="tx-time">${timeStr} · 余额 ${tx.balance_after}</div>
-            </div>
-            <div class="tx-pts ${meta.cls}">${isEarn ? '+' : ''}${tx.points}</div>
-        </div>`;
-    }).join('');
+    data.forEach(function(tx) {
+        var pointsVal = Number(tx.points);
+        var isEarn = Number.isFinite(pointsVal) && pointsVal > 0;
+        var meta = iconMap[tx.type] || { icon: '💎', cls: isEarn ? 'earn' : 'spend' };
+        var cls = VALID_TX_CLS.indexOf(meta.cls) >= 0 ? meta.cls : 'earn';
 
-    if (reset) {
-        container.innerHTML = items;
-    } else {
-        container.insertAdjacentHTML('beforeend', items);
-    }
+        var timeStr = tx.created_at ? new Date(tx.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--';
+        var balanceAfter = safeIntDisplay(tx.balance_after);
+        var pointsDisplay = Number.isInteger(pointsVal) ? (isEarn ? '+' : '') + pointsVal : '--';
+
+        var item = document.createElement('div');
+        item.className = 'tx-item';
+
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'tx-icon ' + cls;
+        iconDiv.textContent = meta.icon;
+        item.appendChild(iconDiv);
+
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'tx-info';
+
+        var descDiv = document.createElement('div');
+        descDiv.className = 'tx-desc';
+        descDiv.textContent = tx.description || tx.type || '未知类型';
+        infoDiv.appendChild(descDiv);
+
+        var timeDiv = document.createElement('div');
+        timeDiv.className = 'tx-time';
+        timeDiv.textContent = timeStr + ' · 余额 ' + balanceAfter;
+        infoDiv.appendChild(timeDiv);
+
+        item.appendChild(infoDiv);
+
+        var ptsDiv = document.createElement('div');
+        ptsDiv.className = 'tx-pts ' + cls;
+        ptsDiv.textContent = pointsDisplay;
+        item.appendChild(ptsDiv);
+
+        container.appendChild(item);
+    });
+
     txOffset += data.length;
     if (data.length < TX_LIMIT) {
         document.getElementById('txMore').textContent = '没有更多了';
@@ -806,7 +911,7 @@ async function doCheckin() {
             btn.textContent = '✅ 已签到';
             btn.classList.add('done');
         } else {
-            showToast(data.error || '签到失败');
+            showToast(typeof data.error === 'string' && data.error.length > 0 ? data.error : '签到失败');
             btn.disabled = false;
             btn.textContent = '✅ 签到';
         }
@@ -820,7 +925,9 @@ async function doCheckin() {
     btn.textContent = '✅ 已签到';
     btn.classList.add('done');
 
-    showToast(`🎉 签到成功！+${data.points_awarded} 积分\n连续第 ${data.streak} 天`);
+    var awarded = safeIntRaw(data.points_awarded, 0);
+    var streakNum = safeIntRaw(data.streak, 0);
+    showToast('🎉 签到成功！+' + awarded + ' 积分\n连续第 ' + streakNum + ' 天');
 }
 
 // ============ 工具 ============
@@ -836,9 +943,14 @@ function scrollToRules() {
 }
 
 // ============ 启动 ============
-init().catch(e => {
+init().catch(function(e) {
     console.error(e);
-    document.getElementById('loadingOverlay').innerHTML = '<div style="color:#f44336;font-size:14px;padding:20px;">加载失败，请刷新重试</div>';
+    var overlay = document.getElementById('loadingOverlay');
+    overlay.innerHTML = '';
+    var errDiv = document.createElement('div');
+    errDiv.style.cssText = 'color:#f44336;font-size:14px;padding:20px;';
+    errDiv.textContent = '加载失败，请刷新重试';
+    overlay.appendChild(errDiv);
 });
 </script>
 </body>

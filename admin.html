@@ -108,8 +108,16 @@
         </div>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
+        // Fail-closed: RiskControl 必须存在
+        if (!window.RiskControl || !RiskControl.escapeHtml) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#f44336;font-size:16px;">安全模块加载失败，页面已停止渲染。<br>请检查网络或刷新重试。</div>';
+            throw new Error('RiskControl module not loaded - refusing to render');
+        }
+        const escapeHtml = RiskControl.escapeHtml;
+
         const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
         
         // 管理员UID（只有这个用户能访问管理后台）
@@ -200,12 +208,12 @@
                     <tbody>
                         ${data.map(item => `
                             <tr>
-                                <td>${item.name}</td>
+                                <td>${escapeHtml(item.name)}</td>
                                 <td><span class="badge ${item.type === 'sell' ? 'badge-sell' : 'badge-buy'}">${item.type === 'sell' ? '出售' : '求购'}</span></td>
-                                <td>¥${item.price}</td>
-                                <td><span class="badge ${item.status === 'active' ? 'badge-active' : 'badge-cancelled'}">${item.status === 'active' ? '在售' : item.status}</span></td>
+                                <td>¥${escapeHtml(String(item.price))}</td>
+                                <td><span class="badge ${item.status === 'active' ? 'badge-active' : 'badge-cancelled'}">${item.status === 'active' ? '在售' : escapeHtml(item.status)}</span></td>
                                 <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
-                                <td>${(item.seller_id || '').substring(0, 8)}</td>
+                                <td>${escapeHtml((item.seller_id || '').substring(0, 8))}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -240,8 +248,8 @@
                     <tbody>
                         ${data.map(item => `
                             <tr>
-                                <td>${(item.id || '').substring(0, 12)}...</td>
-                                <td>${item.username || '未设置'}</td>
+                                <td>${escapeHtml((item.id || '').substring(0, 12))}...</td>
+                                <td>${escapeHtml(item.username || '未设置')}</td>
                                 <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
                             </tr>
                         `).join('')}

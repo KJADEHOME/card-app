@@ -1,0 +1,241 @@
+{
+  "total": 39,
+  "passed": 36,
+  "failed": 3,
+  "results": [
+    {
+      "test": "A",
+      "name": "require_admin rejects unauthenticated (anon)",
+      "status": "PASS",
+      "detail": "Exception with ERRCODE 42501"
+    },
+    {
+      "test": "B",
+      "name": "require_admin rejects user role",
+      "status": "PASS",
+      "detail": "FORBIDDEN exception"
+    },
+    {
+      "test": "C",
+      "name": "require_admin rejects merchant role",
+      "status": "PASS",
+      "detail": "FORBIDDEN exception"
+    },
+    {
+      "test": "D",
+      "name": "require_admin accepts admin role",
+      "status": "PASS",
+      "detail": "Returned UUID: 85b3b4dc-4201-40cd-9fed-9d865f6ae039"
+    },
+    {
+      "test": "E",
+      "name": "require_admin accepts super_admin role",
+      "status": "PASS",
+      "detail": "Returned UUID: c48eed3c-ef3f-479a-bc71-e77baa86cad4"
+    },
+    {
+      "test": "F",
+      "name": "user cannot change own role (trigger blocks)",
+      "status": "PASS",
+      "detail": "Trigger raised FORBIDDEN"
+    },
+    {
+      "test": "F-is_disabled",
+      "name": "user cannot modify is_disabled",
+      "status": "PASS",
+      "detail": "Trigger blocked"
+    },
+    {
+      "test": "F-disabled_reason",
+      "name": "user cannot modify disabled_reason",
+      "status": "PASS",
+      "detail": "Trigger blocked"
+    },
+    {
+      "test": "F-disabled_at",
+      "name": "user cannot modify disabled_at",
+      "status": "PASS",
+      "detail": "Trigger blocked"
+    },
+    {
+      "test": "F-disabled_by",
+      "name": "user cannot modify disabled_by",
+      "status": "PASS",
+      "detail": "Trigger blocked"
+    },
+    {
+      "test": "F-merchant_verified",
+      "name": "user cannot modify merchant_verified",
+      "status": "PASS",
+      "detail": "Trigger blocked"
+    },
+    {
+      "test": "F-merchant_verified_by",
+      "name": "user cannot modify merchant_verified_by",
+      "status": "PASS",
+      "detail": "Trigger blocked"
+    },
+    {
+      "test": "G",
+      "name": "admin cannot grant super_admin",
+      "status": "PASS",
+      "detail": "Result: {'error': 'FORBIDDEN: Only super_admin can change user roles', 'success': False}"
+    },
+    {
+      "test": "G-audit",
+      "name": "denied role change attempt logged to audit",
+      "status": "PASS",
+      "detail": "Audit entry found"
+    },
+    {
+      "test": "H",
+      "name": "super_admin can change roles",
+      "status": "PASS",
+      "detail": "Result: {'log_id': '61c388a1-c065-48ba-8069-139abbff080a', 'success': True, 'new_role': 'admin', 'old_role': 'user'}"
+    },
+    {
+      "test": "H-audit",
+      "name": "successful role change logged to audit",
+      "status": "PASS",
+      "detail": "Audit entry with old_role/new_role"
+    },
+    {
+      "test": "I",
+      "name": "user cannot INSERT to admin_audit_logs (RLS denies)",
+      "status": "PASS",
+      "detail": "RLS denied INSERT"
+    },
+    {
+      "test": "I-update",
+      "name": "user cannot UPDATE admin_audit_logs",
+      "status": "FAIL",
+      "detail": "Result: []"
+    },
+    {
+      "test": "I-delete",
+      "name": "user cannot DELETE admin_audit_logs",
+      "status": "FAIL",
+      "detail": "Result: []"
+    },
+    {
+      "test": "J.1",
+      "name": "admins table exists",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "J.2",
+      "name": "admins table has SELECT policy for authenticated",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "J.3",
+      "name": "admins table denies frontend writes (3 deny policies)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "J.4",
+      "name": "authenticated user can SELECT from admins",
+      "status": "PASS",
+      "detail": "Count: 1"
+    },
+    {
+      "test": "K.1",
+      "name": "trigger function has no UPDATE on profiles (no recursion)",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "K.2",
+      "name": "require_admin does not call itself",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "K.3",
+      "name": "trigger is BEFORE UPDATE",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "K.4",
+      "name": "all 6 functions have fixed search_path",
+      "status": "PASS",
+      "detail": "6 functions checked"
+    },
+    {
+      "test": "L-require_admin",
+      "name": "rollback target exists: require_admin",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-is_platform_admin",
+      "name": "rollback target exists: is_platform_admin",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-log_admin_action",
+      "name": "rollback target exists: log_admin_action",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-set_user_role",
+      "name": "rollback target exists: set_user_role",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-update_my_profile",
+      "name": "rollback target exists: update_my_profile",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-protect_sensitive_profile_fields",
+      "name": "rollback target exists: protect_sensitive_profile_fields",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-trigger",
+      "name": "rollback target exists: trigger",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-admin_audit_logs table",
+      "name": "rollback target exists: admin_audit_logs table",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-check",
+      "name": "profiles.role CHECK includes super_admin",
+      "status": "FAIL",
+      "detail": ""
+    },
+    {
+      "test": "L-super_admin",
+      "name": "first super_admin exists in profiles",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-security_definer",
+      "name": "require_admin is SECURITY DEFINER",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "L-execute_perm",
+      "name": "require_admin EXECUTE: authenticated only, not anon",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

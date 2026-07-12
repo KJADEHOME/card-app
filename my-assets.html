@@ -405,7 +405,7 @@
     <div class="content">
         <!-- Refresh Bar -->
         <div class="refresh-bar">
-            <button class="refresh-btn" onclick="refreshPrices()" id="refreshBtn">
+            <button class="refresh-btn" id="refreshBtn">
                 🔄 刷新市价
             </button>
             <span class="refresh-time" id="refreshTime"></span>
@@ -464,7 +464,46 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/risk-control.js"></script>
     <script>
+    /* ===== Fail-closed: DOM API (replaceChildren/createElement/textContent) ===== */
+    if (!window.RiskControl) {
+        var _wrap = document.createElement('div');
+        _wrap.style.cssText = 'text-align:center;padding:80px 20px;color:#999;';
+        var _ic = document.createElement('div');
+        _ic.style.fontSize = '48px';
+        _ic.textContent = '\u26A0\uFE0F';
+        var _tx = document.createElement('div');
+        _tx.style.marginTop = '12px';
+        _tx.textContent = '\u5b89\u5168\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u5237\u65b0\u9875\u9762\u91cd\u8bd5';
+        _wrap.appendChild(_ic);
+        _wrap.appendChild(_tx);
+        document.body.replaceChildren(_wrap);
+        throw new Error('RiskControl module not loaded');
+    }
+
+    var escapeHtml = RiskControl.escapeHtml;
+    var safeUrl = RiskControl.safeUrl;
+    var isValidUUID = RiskControl.isValidUUID;
+
+    /* 数值校验辅助 */
+    function safePriceDisplay(v) {
+        var n = Number(v);
+        return (Number.isFinite(n) && n >= 0) ? n.toLocaleString() : '--';
+    }
+    function safeIntDisplay(v) {
+        var n = Number(v);
+        return (Number.isInteger(n) && n >= 0) ? String(n) : '--';
+    }
+    function safePctSigned(v) {
+        var n = Number(v);
+        if (!Number.isFinite(n)) return '--';
+        if (n < -100) n = -100;
+        if (n > 1000) n = 1000;
+        var sign = n > 0 ? '+' : '';
+        return sign + n.toFixed(1) + '%';
+    }
+
         const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
         const db = window.supabase.createClient(SUPABASE_URL, 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
 
@@ -489,7 +528,13 @@
             const title = document.querySelector('#emptyState .empty-title');
             const desc = document.querySelector('#emptyState .empty-desc');
             if (title) title.textContent = msg || '还没有收藏卡牌';
-            if (desc) desc.innerHTML = '使用 AI 扫描识别你的卡牌<br>添加到收藏夹后即可追踪资产变化';
+            if (desc) {
+                /* DOM API, 不依赖 innerHTML */
+                while (desc.firstChild) desc.removeChild(desc.firstChild);
+                desc.appendChild(document.createTextNode('使用 AI 扫描识别你的卡牌'));
+                desc.appendChild(document.createElement('br'));
+                desc.appendChild(document.createTextNode('添加到收藏夹后即可追踪资产变化'));
+            }
         }
 
         async function loadRealData() {
@@ -634,19 +679,19 @@
         }
 
         function renderPortfolio(collections) {
-            const totalCost = collections.reduce((sum, c) => sum + (c.purchase_price || 0) * (c.quantity || 1), 0);
+            const totalCost = collections.reduce((sum, c) => sum + (Number(c.purchase_price) || 0) * (Number(c.quantity) || 1), 0);
             const totalValue = collections.reduce((sum, c) => {
-                const price = c.market_price || c.current_price || c.purchase_price || 0;
-                return sum + price * (c.quantity || 1);
+                const price = Number(c.market_price) || Number(c.current_price) || Number(c.purchase_price) || 0;
+                return sum + price * (Number(c.quantity) || 1);
             }, 0);
             const profit = totalValue - totalCost;
-            const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
-            const rising = collections.filter(c => ((c.market_price || c.current_price || c.purchase_price) || 0) > (c.purchase_price || 0)).length;
+            const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0';
+            const rising = collections.filter(c => ((Number(c.market_price) || Number(c.current_price) || Number(c.purchase_price)) || 0) > (Number(c.purchase_price) || 0)).length;
 
-            document.getElementById('totalValue').textContent = '¥' + totalValue.toLocaleString();
-            document.getElementById('totalCost').textContent = '¥' + totalCost.toLocaleString();
-            document.getElementById('cardCount').textContent = collections.reduce((sum, c) => sum + (c.quantity || 1), 0);
-            document.getElementById('risingCount').textContent = rising;
+            document.getElementById('totalValue').textContent = '¥' + (Number.isFinite(totalValue) ? totalValue.toLocaleString() : '--');
+            document.getElementById('totalCost').textContent = '¥' + (Number.isFinite(totalCost) ? totalCost.toLocaleString() : '--');
+            document.getElementById('cardCount').textContent = safeIntDisplay(collections.reduce((sum, c) => sum + (Number(c.quantity) || 1), 0));
+            document.getElementById('risingCount').textContent = safeIntDisplay(rising);
             document.getElementById('collectionCount').textContent = '共 ' + collections.length + ' 种';
 
             const profitEl = document.getElementById('profitAmount');
@@ -654,12 +699,12 @@
             const iconEl = document.getElementById('profitIcon');
 
             if (profit >= 0) {
-                profitEl.textContent = '+¥' + profit.toLocaleString();
+                profitEl.textContent = '+¥' + (Number.isFinite(profit) ? profit.toLocaleString() : '--');
                 pctEl.textContent = '+' + profitPct + '%';
                 iconEl.textContent = '📈';
                 document.querySelector('.portfolio-change').style.background = 'rgba(39,174,96,0.3)';
             } else {
-                profitEl.textContent = '-¥' + Math.abs(profit).toLocaleString();
+                profitEl.textContent = '-¥' + (Number.isFinite(profit) ? Math.abs(profit).toLocaleString() : '--');
                 pctEl.textContent = profitPct + '%';
                 iconEl.textContent = '📉';
                 document.querySelector('.portfolio-change').style.background = 'rgba(231,76,60,0.3)';
@@ -668,12 +713,12 @@
             // Show today's change based on card_prices data
             const todayRow = document.getElementById('todayChangeRow');
             const todayVal = document.getElementById('todayChangeVal');
-            const todayChanges = collections.filter(c => c.change_percent != null && c.change_percent !== 0);
+            const todayChanges = collections.filter(c => c.change_percent != null && Number(c.change_percent) !== 0);
             if (todayChanges.length > 0) {
                 todayRow.style.display = 'flex';
-                const avgChange = todayChanges.reduce((s, c) => s + (c.change_percent || 0), 0) / todayChanges.length;
+                const avgChange = todayChanges.reduce((s, c) => s + (Number(c.change_percent) || 0), 0) / todayChanges.length;
                 const isRise = avgChange > 0;
-                todayVal.textContent = (isRise ? '+' : '') + avgChange.toFixed(2) + '%';
+                todayVal.textContent = safePctSigned(avgChange).replace('%', '%').replace('--', '--');
                 todayVal.className = 'today-change-val ' + (isRise ? 'rise' : 'fall');
             } else {
                 todayRow.style.display = 'none';
@@ -682,51 +727,81 @@
 
         function renderCollectionList(collections) {
             const container = document.getElementById('collectionList');
-            container.innerHTML = collections.map(c => {
-                const marketPrice = c.market_price || c.current_price || c.purchase_price || 0;
-                const profit = (marketPrice - (c.purchase_price || 0)) * (c.quantity || 1);
-                const profitPct = c.purchase_price > 0 ? ((profit / ((c.purchase_price || 1) * (c.quantity || 1))) * 100).toFixed(1) : 0;
-                const isRise = profit >= 0;
-                const todayChange = c.change_percent || 0;
-                const isTodayUp = todayChange > 0;
-                const isTodayDown = todayChange < 0;
-                const condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
-                const watchKey = c.card_name + '|' + (c.series || '') + '|' + (c.rarity || 'N');
-                const isWatching = watchlistItems.has(watchKey);
+            container.innerHTML = collections.map(function(c) {
+                var marketPrice = Number(c.market_price) || Number(c.current_price) || Number(c.purchase_price) || 0;
+                var purchasePrice = Number(c.purchase_price) || 0;
+                var qty = Number(c.quantity);
+                var qtyVal = (Number.isInteger(qty) && qty > 0) ? qty : 1;
+                var profit = (marketPrice - purchasePrice) * qtyVal;
+                var profitPct = (Number.isFinite(purchasePrice) && purchasePrice > 0)
+                    ? ((profit / (purchasePrice * qtyVal)) * 100).toFixed(1)
+                    : '0';
+                var isRise = profit >= 0;
+                var todayChange = Number(c.change_percent) || 0;
+                var isTodayUp = todayChange > 0;
+                var isTodayDown = todayChange < 0;
+                var todayChangeStr = Number.isFinite(todayChange) ? todayChange.toFixed(1) + '%' : '--';
+                var condLabels = { 'M': '完美', 'NM': '近新', 'LP': '轻损', 'MP': '中损', 'HP': '重损', 'D': '损坏' };
+                var condLabel = condLabels[c.condition] || c.condition || '';
+                var watchKey = c.card_name + '|' + (c.series || '') + '|' + (c.rarity || 'N');
+                var isWatching = watchlistItems.has(watchKey);
+                var cidValid = isValidUUID(c.id);
 
-                return `
-                    <div class="collection-card">
-                        <div class="collection-img">
-                            ${c.card_image ? `<img src="${c.card_image}" alt="">` : '🃏'}
-                        </div>
-                        <div class="collection-info">
-                            <div class="collection-name">${c.card_name}</div>
-                            <div class="collection-meta">${c.series || ''} · ${c.rarity || ''} · ${condLabels[c.condition] || c.condition || ''} · x${c.quantity || 1}${c.source ? ' · ' + c.source : ''}</div>
-                            <div class="collection-prices">
-                                <div class="price-block">
-                                    <div class="price-label">入手</div>
-                                    <div class="price-value">¥${(c.purchase_price || 0).toLocaleString()}</div>
-                                </div>
-                                <div class="price-block">
-                                    <div class="price-label">市价</div>
-                                    <div class="price-value current">¥${marketPrice.toLocaleString()}</div>
-                                </div>
-                                <div class="price-change ${isRise ? 'rise' : 'fall'}">
-                                    ${isRise ? '+' : ''}${profitPct}%
-                                </div>
-                                ${todayChange !== 0 ? `<div class="price-change ${isTodayUp ? 'rise' : 'fall'}" style="min-width:56px;text-align:center;">
-                                    ${isTodayUp ? '📈 ' : '📉 '}${isTodayUp ? '+' : ''}${todayChange.toFixed(1)}%
-                                </div>` : ''}
-                            </div>
-                            <div style="margin-top:6px;">
-                                <button class="watchlist-btn ${isWatching ? 'watching' : ''}" onclick="event.stopPropagation();toggleWatchlist('${c.card_name.replace(/'/g, "\\'")}','${(c.series || '').replace(/'/g, "\\'")}','${(c.rarity || 'N').replace(/'/g, "\\'")}')">
-                                    ${isWatching ? '🔔 已关注' : '🔔 关注价格'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                var metaParts = [
+                    escapeHtml(c.series || ''),
+                    escapeHtml(c.rarity || ''),
+                    escapeHtml(condLabel),
+                    'x' + qtyVal
+                ];
+                if (c.source) metaParts.push(escapeHtml(c.source));
+
+                var html = '<div class="collection-card">';
+                html += '<div class="collection-img">';
+                if (c.card_image) {
+                    html += '<img data-img-url="' + escapeHtml(c.card_image) + '" alt="">';
+                } else {
+                    html += '🃏';
+                }
+                html += '</div>';
+                html += '<div class="collection-info">';
+                html += '<div class="collection-name">' + escapeHtml(c.card_name) + '</div>';
+                html += '<div class="collection-meta">' + metaParts.join(' · ') + '</div>';
+                html += '<div class="collection-prices">';
+                html += '<div class="price-block"><div class="price-label">入手</div>';
+                html += '<div class="price-value">¥' + safePriceDisplay(purchasePrice) + '</div></div>';
+                html += '<div class="price-block"><div class="price-label">市价</div>';
+                html += '<div class="price-value current">¥' + safePriceDisplay(marketPrice) + '</div></div>';
+                html += '<div class="price-change ' + (isRise ? 'rise' : 'fall') + '">' + (isRise ? '+' : '') + escapeHtml(profitPct) + '%</div>';
+                if (todayChange !== 0) {
+                    html += '<div class="price-change ' + (isTodayUp ? 'rise' : 'fall') + '" style="min-width:56px;text-align:center;">';
+                    html += (isTodayUp ? '📈 ' : '📉 ') + todayChangeStr;
+                    html += '</div>';
+                }
+                html += '</div>';
+                html += '<div style="margin-top:6px;">';
+                if (cidValid) {
+                    html += '<button class="watchlist-btn ' + (isWatching ? 'watching' : '') + '" data-collection-id="' + escapeHtml(c.id) + '">';
+                } else {
+                    html += '<button class="watchlist-btn ' + (isWatching ? 'watching' : '') + '" disabled>';
+                }
+                html += isWatching ? '🔔 已关注' : '🔔 关注价格';
+                html += '</button>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+                return html;
             }).join('');
+
+            /* ===== 图片URL: safeUrl验证 + DOM API设置 ===== */
+            container.querySelectorAll('img[data-img-url]').forEach(function(img) {
+                var rawUrl = img.dataset.imgUrl;
+                var safe = safeUrl(rawUrl);
+                if (safe) {
+                    img.src = safe;
+                } else {
+                    img.style.display = 'none';
+                }
+            });
         }
 
         function renderChart(data) {
@@ -736,64 +811,97 @@
                 return;
             }
 
-            const values = data.map(d => d.value);
-            const min = Math.min(...values);
-            const max = Math.max(...values);
+            /* 数值校验: 过滤无效值 */
+            var validData = data.filter(function(d) {
+                return d && Number.isFinite(Number(d.value));
+            }).map(function(d) {
+                return { date: String(d.date || ''), value: Number(d.value) };
+            });
+            if (validData.length < 2) {
+                svg.innerHTML = '<text x="170" y="90" text-anchor="middle" fill="#999" font-size="14">暂无数据</text>';
+                return;
+            }
+
+            const values = validData.map(function(d) { return d.value; });
+            const min = Math.min.apply(null, values);
+            const max = Math.max.apply(null, values);
             const range = max - min || 1;
             const padding = { top: 20, right: 10, bottom: 30, left: 10 };
             const w = 340 - padding.left - padding.right;
             const h = 180 - padding.top - padding.bottom;
 
-            const points = data.map((d, i) => {
-                const x = padding.left + (i / (data.length - 1)) * w;
+            const points = validData.map(function(d, i) {
+                const x = padding.left + (i / (validData.length - 1)) * w;
                 const y = padding.top + h - ((d.value - min) / range) * h;
-                return `${x},${y}`;
+                return x + ',' + y;
             }).join(' ');
 
-            // Area path (closed)
-            const areaPath = `${points} ${padding.left + w},${padding.top + h} ${padding.left},${padding.top + h}`;
+            const areaPath = points + ' ' + (padding.left + w) + ',' + (padding.top + h) + ' ' + padding.left + ',' + (padding.top + h);
 
-            // Grid lines
-            const gridLines = [0.25, 0.5, 0.75].map(p => {
+            const gridLines = [0.25, 0.5, 0.75].map(function(p) {
                 const y = padding.top + h * p;
-                return `<line x1="${padding.left}" y1="${y}" x2="${padding.left + w}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+                return '<line x1="' + padding.left + '" y1="' + y + '" x2="' + (padding.left + w) + '" y2="' + y + '" stroke="#eee" stroke-width="1"/>';
             }).join('');
 
-            // X axis labels (show first, middle, last)
-            const labelIndices = [0, Math.floor(data.length / 2), data.length - 1];
-            const labels = labelIndices.map(i => {
-                const x = padding.left + (i / (data.length - 1)) * w;
-                return `<text x="${x}" y="${padding.top + h + 16}" text-anchor="middle" fill="#999" font-size="10">${data[i].date}</text>`;
-            }).join('');
+            /* 构建静态SVG部分 */
+            svg.innerHTML = '<defs>' +
+                '<linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="#5B4AE0" stop-opacity="0.3"/>' +
+                '<stop offset="100%" stop-color="#5B4AE0" stop-opacity="0"/>' +
+                '</linearGradient>' +
+                '</defs>' +
+                gridLines +
+                '<polygon points="' + areaPath + '" fill="url(#areaGrad)"/>' +
+                '<polyline points="' + points + '" fill="none" stroke="#5B4AE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
 
-            svg.innerHTML = `
-                <defs>
-                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#5B4AE0" stop-opacity="0.3"/>
-                        <stop offset="100%" stop-color="#5B4AE0" stop-opacity="0"/>
-                    </linearGradient>
-                </defs>
-                ${gridLines}
-                <polygon points="${areaPath}" fill="url(#areaGrad)"/>
-                <polyline points="${points}" fill="none" stroke="#5B4AE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                ${data.map((d, i) => {
-                    const x = padding.left + (i / (data.length - 1)) * w;
-                    const y = padding.top + h - ((d.value - min) / range) * h;
-                    return `<circle cx="${x}" cy="${y}" r="3" fill="#5B4AE0" stroke="white" stroke-width="1.5" class="chart-point" data-value="${d.value}" data-date="${d.date}"/>`;
-                }).join('')}
-                ${labels}
-            `;
+            /* ===== 动态部分: 使用 DOM API (createElementNS + setAttribute + textContent) ===== */
+            var svgNS = 'http://www.w3.org/2000/svg';
 
-            // Tooltip
+            /* 圆点 — setAttribute 设置 data-value/data-date */
+            validData.forEach(function(d, i) {
+                var x = padding.left + (i / (validData.length - 1)) * w;
+                var y = padding.top + h - ((d.value - min) / range) * h;
+                var circle = document.createElementNS(svgNS, 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', 3);
+                circle.setAttribute('fill', '#5B4AE0');
+                circle.setAttribute('stroke', 'white');
+                circle.setAttribute('stroke-width', 1.5);
+                circle.setAttribute('class', 'chart-point');
+                circle.setAttribute('data-value', String(d.value));
+                circle.setAttribute('data-date', d.date);
+                svg.appendChild(circle);
+            });
+
+            /* 标签 — textContent 设置日期文本 */
+            var labelIndices = [0, Math.floor(validData.length / 2), validData.length - 1];
+            labelIndices.forEach(function(i) {
+                var x = padding.left + (i / (validData.length - 1)) * w;
+                var text = document.createElementNS(svgNS, 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', padding.top + h + 16);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('fill', '#999');
+                text.setAttribute('font-size', 10);
+                text.textContent = validData[i].date;
+                svg.appendChild(text);
+            });
+
+            // Tooltip — textContent, 数值校验
             const tooltip = document.getElementById('chartTooltip');
-            svg.querySelectorAll('.chart-point').forEach(pt => {
-                pt.addEventListener('mouseenter', (e) => {
-                    tooltip.textContent = `${e.target.dataset.date}: ¥${parseInt(e.target.dataset.value).toLocaleString()}`;
+            svg.querySelectorAll('.chart-point').forEach(function(pt) {
+                pt.addEventListener('mouseenter', function(e) {
+                    var dateStr = e.target.dataset.date || '--';
+                    var val = parseInt(e.target.dataset.value, 10);
+                    var valStr = (Number.isFinite(val) && val >= 0) ? val.toLocaleString() : '--';
+                    /* textContent: 不返回未经处理的HTML */
+                    tooltip.textContent = dateStr + ': ¥' + valStr;
                     tooltip.style.opacity = '1';
                     tooltip.style.left = (e.target.cx.baseVal.value - 30) + 'px';
                     tooltip.style.top = (e.target.cy.baseVal.value - 30) + 'px';
                 });
-                pt.addEventListener('mouseleave', () => {
+                pt.addEventListener('mouseleave', function() {
                     tooltip.style.opacity = '0';
                 });
             });
@@ -839,10 +947,11 @@
                 // Update today change row
                 const todayRow = document.getElementById('todayChangeRow');
                 const todayVal = document.getElementById('todayChangeVal');
-                if (change.percent !== 0) {
+                var changePct = Number(change.percent);
+                if (Number.isFinite(changePct) && changePct !== 0) {
                     todayRow.style.display = 'flex';
-                    const isRise = change.percent > 0;
-                    todayVal.textContent = (isRise ? '+' : '') + change.percent.toFixed(2) + '%';
+                    const isRise = changePct > 0;
+                    todayVal.textContent = (isRise ? '+' : '') + (Number.isFinite(changePct) ? changePct.toFixed(2) : '--') + '%';
                     todayVal.className = 'today-change-val ' + (isRise ? 'rise' : 'fall');
                 }
 
@@ -853,29 +962,30 @@
 
                 if (changedCards.length > 0) {
                     alertEl.classList.add('show');
-                    const isUp = change.percent >= 0;
-                    alertTitle.textContent = (isUp ? '📈' : '📉') + ' 你有 ' + changedCards.length + ' 张卡今天' + (isUp ? '上涨' : '下跌') + '了 ' + (isUp ? '+' : '') + change.percent.toFixed(2) + '%';
+                    var isUp = Number.isFinite(changePct) && changePct >= 0;
+                    var pctStr = Number.isFinite(changePct) ? (isUp ? '+' : '') + changePct.toFixed(2) + '%' : '--';
+                    alertTitle.textContent = (isUp ? '📈' : '📉') + ' 你有 ' + changedCards.length + ' 张卡今天' + (isUp ? '上涨' : '下跌') + '了 ' + pctStr;
 
-                    alertCards.innerHTML = changedCards.map(c => {
-                        const up = c.change_percent > 0;
-                        return `
-                            <div class="today-alert-card">
-                                <div class="today-alert-name">${c.card_name}</div>
-                                <div class="today-alert-pct ${up ? 'up' : 'down'}">
-                                    ${up ? '📈 ' : '📉 '}${up ? '+' : ''}${c.change_percent.toFixed(1)}%  → ¥${(c.current_price || 0).toLocaleString()}
-                                </div>
-                            </div>
-                        `;
+                    alertCards.innerHTML = changedCards.map(function(c) {
+                        var cPct = Number(c.change_percent);
+                        var up = cPct > 0;
+                        var pctStr = Number.isFinite(cPct) ? (up ? '+' : '') + cPct.toFixed(1) + '%' : '--';
+                        var priceStr = safePriceDisplay(c.current_price);
+                        return '<div class="today-alert-card">' +
+                            '<div class="today-alert-name">' + escapeHtml(c.card_name) + '</div>' +
+                            '<div class="today-alert-pct ' + (up ? 'up' : 'down') + '">' +
+                            (up ? '📈 ' : '📉 ') + pctStr + '  → ¥' + priceStr +
+                            '</div></div>';
                     }).join('');
                 } else {
                     alertEl.classList.remove('show');
                 }
 
                 // Update portfolio change display
-                if (change.percent !== 0) {
+                if (Number.isFinite(changePct) && changePct !== 0) {
                     const pctEl = document.getElementById('profitPct');
-                    if (pctEl && change.percent !== 0) {
-                        pctEl.textContent = (change.percent > 0 ? '+' : '') + change.percent.toFixed(2) + '% (今日)';
+                    if (pctEl) {
+                        pctEl.textContent = (changePct > 0 ? '+' : '') + changePct.toFixed(2) + '% (今日)';
                     }
                 }
             } catch (e) {
@@ -900,10 +1010,19 @@
             }
         }
 
-        // Toggle watchlist for a card
-        async function toggleWatchlist(cardName, series, rarity) {
+        // Toggle watchlist for a card — 接受 collection ID, 不再接受字符串参数
+        async function toggleWatchlist(collectionId) {
+            if (!isValidUUID(collectionId)) { showToast('无效的收藏ID'); return; }
             if (!currentUser) { showToast('请先登录'); return; }
-            const key = cardName + '|' + (series || '') + '|' + (rarity || 'N');
+
+            /* 从内存集合按真实ID查找 */
+            var collection = currentCollections ? currentCollections.find(function(c) { return c.id === collectionId; }) : null;
+            if (!collection) { showToast('未找到该收藏'); return; }
+
+            var cardName = collection.card_name;
+            var series = collection.series || '';
+            var rarity = collection.rarity || 'N';
+            const key = cardName + '|' + series + '|' + rarity;
             const existing = watchlistItems.get(key);
 
             try {
@@ -915,8 +1034,8 @@
                     const { data, error } = await db.rpc('add_to_watchlist', {
                         p_user_id: currentUser.id,
                         p_card_name: cardName,
-                        p_series: series || '',
-                        p_rarity: rarity || 'N',
+                        p_series: series,
+                        p_rarity: rarity,
                         p_notify_pct: 5.0
                     });
                     if (error) throw error;
@@ -930,6 +1049,19 @@
                 showToast('操作失败');
             }
         }
+
+        /* ===== 事件委托: 关注/取消关注按钮 ===== */
+        document.getElementById('collectionList').addEventListener('click', function(e) {
+            var btn = e.target.closest('.watchlist-btn[data-collection-id]');
+            if (!btn) return;
+            var collectionId = btn.dataset.collectionId;
+            if (!isValidUUID(collectionId)) { showToast('无效的收藏ID'); return; }
+            toggleWatchlist(collectionId);
+        });
+
+        /* ===== 事件委托: 刷新市价按钮 ===== */
+        document.getElementById('refreshBtn').addEventListener('click', refreshPrices);
+
         init();
 
         // Toast helper
