@@ -110,6 +110,7 @@
 
     <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
         // Fail-closed: RiskControl 必须存在
         if (!window.RiskControl || !RiskControl.escapeHtml) {
@@ -118,37 +119,12 @@
         }
         const escapeHtml = RiskControl.escapeHtml;
 
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
-        
-        // 管理员UID（只有这个用户能访问管理后台）
-        // 从本地存储获取，或使用预设值
-        const getAdminUid = () => localStorage.getItem('adminUid') || '';
-        
-        // 检查是否是管理员
-        async function checkAdmin() {
-            const { data: { user } } = await db.auth.getUser();
-            
-            if (!user) {
-                localStorage.setItem('redirectAfterLogin', window.location.href);
-                alert('请先登录');
-                window.location.href = 'login.html';
-                return false;
-            }
-            
-            const adminUid = getAdminUid();
-            if (adminUid && user.id !== adminUid) {
-                alert('您没有权限访问管理后台');
-                window.location.href = 'index.html';
-                return false;
-            }
-            
-            return true;
-        }
-        
-        // 加载数据
+        const db = AdminAuth.getSupabaseClient();
+
+        // 加载数据 — 必须先通过管理员认证
         async function loadData() {
-            const isAdmin = await checkAdmin();
-            if (!isAdmin) return;
+            const adminCtx = await AdminAuth.requireAdmin();
+            if (!adminCtx) return; // 已跳转
             
             await Promise.all([
                 loadStats(),
@@ -258,28 +234,8 @@
             `;
         }
         
-        // 页面加载
+        // 页面加载 — 统一管理员认证
         window.addEventListener('load', async () => {
-            // 检查是否设置了管理员
-            if (!getAdminUid()) {
-                const { data: { user } } = await db.auth.getUser();
-                if (user) {
-                    // 保存当前页面URL，登录后返回
-                    localStorage.setItem('redirectAfterLogin', window.location.href);
-                    const setAsAdmin = confirm('首次访问管理后台，是否将当前账号设为管理员？\n\n您的用户ID:\n' + user.id + '\n\n点击确定设为管理员，取消则返回首页。');
-                    if (setAsAdmin) {
-                        localStorage.setItem('adminUid', user.id);
-                        alert('已设为管理员！请刷新页面。');
-                        location.reload();
-                    } else {
-                        window.location.href = 'index.html';
-                    }
-                } else {
-                    alert('请先登录');
-                    window.location.href = 'login.html';
-                }
-            }
-            
             loadData();
         });
     </script>

@@ -130,6 +130,7 @@
 
     <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
         // Fail-closed: RiskControl 必须存在
         if (!window.RiskControl || !RiskControl.escapeHtml) {
@@ -139,7 +140,7 @@
         const escapeHtml = RiskControl.escapeHtml;
         const isValidUUID = RiskControl.isValidUUID;
 
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const db = AdminAuth.getSupabaseClient();
         let currentUser = null;
         let currentTab = 'pending';
 
@@ -151,17 +152,6 @@
             setTimeout(function() { t.classList.remove('show'); }, duration);
         }
 
-        async function checkAdmin() {
-            const { data: { user } } = await db.auth.getUser();
-            if (!user) {
-                alert('请先登录');
-                window.location.href = 'login.html';
-                return false;
-            }
-            currentUser = user;
-            return true;
-        }
-
         function switchTab(tab, el) {
             currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -171,8 +161,9 @@
         }
 
         async function loadData() {
-            const isAdmin = await checkAdmin();
-            if (!isAdmin) return;
+            const adminCtx = await AdminAuth.requireAdmin();
+            if (!adminCtx) return; // 已跳转
+            currentUser = adminCtx.user;
 
             // 加载所有充值记录
             const { data, error } = await db

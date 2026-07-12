@@ -115,6 +115,7 @@
 
     <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
         // Fail-closed: RiskControl 必须存在
         if (!window.RiskControl || !RiskControl.escapeHtml) {
@@ -125,7 +126,7 @@
         const isValidUUID = RiskControl.isValidUUID;
         const validateAction = RiskControl.validateAction;
 
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const db = AdminAuth.getSupabaseClient();
 
         let currentPage = 1;
         const PAGE_SIZE = 20;
@@ -133,8 +134,9 @@
         let userDataCache = {}; // { uuid: userObject } — 内存数据存储
 
         async function init() {
-            const { data: { user } } = await db.auth.getUser();
-            if (!user) { window.location.href = 'login.html'; return; }
+            const adminCtx = await AdminAuth.requireAdmin();
+            if (!adminCtx) return; // 已跳转
+            currentUserId = adminCtx.user.id;
             loadUsers();
         }
 

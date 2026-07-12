@@ -33,15 +33,13 @@
             <div class="badge">独立管理员系统</div>
         </div>
 
-        <input type="text" class="input" id="username" placeholder="管理员账号" value="platform_admin">
-        <input type="password" class="input" id="password" placeholder="密码" value="PlatformAdmin2026!" onkeypress="if(event.key==='Enter')adminLogin()">
+        <input type="text" class="input" id="username" placeholder="管理员账号">
+        <input type="password" class="input" id="password" placeholder="密码" onkeypress="if(event.key==='Enter')adminLogin()">
 
         <button class="btn" onclick="adminLogin()" id="loginBtn">登录</button>
         <div class="msg" id="msg"></div>
 
         <div class="hint">
-            默认账号：platform_admin<br>
-            默认密码：PlatformAdmin2026!<br>
             登录后进入平台卡牌发布后台
         </div>
     </div>

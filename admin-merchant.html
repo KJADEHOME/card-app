@@ -185,6 +185,7 @@
     
     <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
         // Fail-closed: RiskControl 必须存在
         if (!window.RiskControl || !RiskControl.escapeHtml) {
@@ -195,18 +196,14 @@
         const safeUrl = RiskControl.safeUrl;
         const isValidUUID = RiskControl.isValidUUID;
 
-        const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7';
-        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const db = AdminAuth.getSupabaseClient();
         
         let currentUser = null;
+        let currentProfile = null;
         
-        // 退出登录并清理缓存
+        // 退出登录 — 使用统一 AdminAuth
         async function logout() {
-            if (!confirm('确定要退出当前账号吗？')) return;
-            await db.auth.signOut();
-            localStorage.clear();
-            window.location.href = 'login.html';
+            await AdminAuth.logout();
         }
         
         function showToast(msg) {
@@ -217,30 +214,15 @@
         }
         
         async function init() {
-            const { data: { session } } = await db.auth.getSession();
-            currentUser = session?.user || null;
-            
-            if (!currentUser) {
-                showToast('请先登录');
-                setTimeout(() => location.href = 'login.html', 1500);
-                return;
-            }
-            
-            // 检查是否是管理员/商家
-            const { data: profile } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
-            
-            if (!profile || profile.role !== 'admin') {
-                // 备用检查: 邮箱包含 admin
-                if (!currentUser.email?.includes('admin')) {
-                    showToast('需要管理员权限');
-                    setTimeout(() => location.href = 'index.html', 1500);
-                    return;
-                }
-            }
+            const adminCtx = await AdminAuth.requireAdmin();
+            if (!adminCtx) return; // 已跳转
+
+            currentUser = adminCtx.user;
+            currentProfile = adminCtx.profile;
             
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('adminInfo').style.display = 'block';
-            document.getElementById('adminName').textContent = profile?.merchant_name || profile?.username || currentUser.email;
+            document.getElementById('adminName').textContent = currentProfile?.merchant_name || currentProfile?.username || currentUser.email;
             
             await loadStats();
             await loadPlatformListings();

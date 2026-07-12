@@ -132,6 +132,7 @@
 
     <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
         // Fail-closed: RiskControl 必须存在
         if (!window.RiskControl || !RiskControl.escapeHtml) {
@@ -147,7 +148,7 @@
         const REFUND_WHITELIST = ['approve', 'reject'];
         const ORDER_ACTION_WHITELIST = ['view', 'intervene', 'cancel', 'resolve', 'refund', 'close'];
 
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const db = AdminAuth.getSupabaseClient();
 
         let currentPage = 1;
         const PAGE_SIZE = 20;
@@ -156,8 +157,8 @@
         let orderDataCache = {}; // { uuid: orderObject } — 内存数据存储
 
         async function init() {
-            const { data: { user } } = await db.auth.getUser();
-            if (!user) { window.location.href = 'login.html'; return; }
+            const adminCtx = await AdminAuth.requireAdmin();
+            if (!adminCtx) return; // 已跳转
             loadOrders();
         }
 
@@ -479,20 +480,19 @@
 
             if (!confirm(`确认${resolution === 'buyer' ? '支持买家' : resolution === 'seller' ? '支持卖家' : '折中方案'}？`)) return;
 
-            // TODO: Create RPC for dispute resolution
-            // For now, just update the order status
-            const { error } = await db
-                .from('orders')
-                .update({ 
-                    status: resolution === 'buyer' ? 'refunded' : 'completed',
-                    dispute_resolution: resolution,
-                    dispute_resolved_at: new Date().toISOString(),
-                    dispute_resolved_by: (await db.auth.getUser()).data.user.id
-                })
-                .eq('id', orderId);
+            // RPC call — server-side validation + audit log
+            const { data, error } = await db.rpc('admin_resolve_dispute', {
+                p_order_id: orderId,
+                p_resolution: resolution
+            });
 
             if (error) {
                 alert('处理失败：' + error.message);
+                return;
+            }
+
+            if (data && !data.success) {
+                alert('处理失败：' + (data.error || '未知错误'));
                 return;
             }
 
@@ -511,17 +511,19 @@
 
             if (!confirm('确认取消该订单？')) return;
 
-            const { error } = await db
-                .from('orders')
-                .update({ 
-                    status: 'cancelled',
-                    cancel_reason: reason,
-                    cancelled_at: new Date().toISOString()
-                })
-                .eq('id', orderId);
+            // RPC call — server-side validation + audit log
+            const { data, error } = await db.rpc('admin_cancel_order', {
+                p_order_id: orderId,
+                p_reason: reason
+            });
 
             if (error) {
                 alert('取消失败：' + error.message);
+                return;
+            }
+
+            if (data && !data.success) {
+                alert('取消失败：' + (data.error || '未知错误'));
                 return;
             }
 
@@ -533,16 +535,19 @@
         async function processRefund(orderId, action) {
             if (!confirm(`${action === 'approve' ? '同意' : '拒绝'}退款申请？`)) return;
 
-            const { error } = await db
-                .from('orders')
-                .update({ 
-                    status: action === 'approve' ? 'refunded' : 'paid',
-                    refund_processed_at: new Date().toISOString()
-                })
-                .eq('id', orderId);
+            // RPC call — server-side validation + audit log
+            const { data, error } = await db.rpc('admin_process_refund', {
+                p_order_id: orderId,
+                p_action: action
+            });
 
             if (error) {
                 alert('处理失败：' + error.message);
+                return;
+            }
+
+            if (data && !data.success) {
+                alert('处理失败：' + (data.error || '未知错误'));
                 return;
             }
 
