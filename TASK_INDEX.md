@@ -1,6 +1,6 @@
 # TASK_INDEX.md — 卡域 CardRealm 任务总索引
 
-> **版本**: 1.0 | **更新**: 2026-07-08 | **项目根**: `D:/codex/cardrealm/card-app/`
+> **版本**: 1.1 | **更新**: 2026-07-13 | **项目根**: `D:/codex/cardrealm/card-app/`
 > **当前阶段**: Production Beta Preparation
 
 ---
@@ -58,6 +58,11 @@
 |---|---|---|---|
 | SEC-004 | Image Upload Security | **✅ Completed** | `TASKS/SECURITY/SEC-004_image_upload_security.md` |
 
+| SH-005 | Price Updater Authentication Hardening | **✅ Completed** | `v0.9.3-security-sh005` |
+| SH-003C-P1 | Unified Admin Auth Foundation | **✅ Completed** | migration 0038 |
+| SH-003C-P2 | Admin P0 Fixes + Order RPC | **✅ Completed** | migration 0039 |
+| SH-003C-P3 | Legacy Admin Auth/RPC Migration | **🟡 Code Complete / Pending Deploy** | migrations 0040-0043 |
+
 ---
 
 ## 📋 Planned
@@ -112,7 +117,14 @@
 | 0036 | 生产RLS安全修复 | ✅ |
 | 0037 | 图片上传安全(SEC-004) | ✅ Executed |
 
-**下一个可用迁移编号**: 0037
+| 0038 | 管理员统一认证基础 | ✅ Executed |
+| 0039 | 管理员订单安全RPC | ✅ Executed |
+| 0040 | 平台登录/发布统一认证 | 🟡 Local, pending deploy |
+| 0041 | 充值审核统一认证 | 🟡 Local, pending deploy |
+| 0042 | 用户/商户管理统一认证 | 🟡 Local, pending deploy |
+| 0043 | 僵尸管理员RPC停用 | 🟡 Local, pending deploy |
+
+**下一个可用迁移编号**: 0044
 
 ---
 

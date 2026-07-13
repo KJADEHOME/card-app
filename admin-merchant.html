@@ -444,7 +444,6 @@
             if (!userId || !name) { showToast('请填写用户ID和店铺名称'); return; }
             
             const { data, error } = await db.rpc('admin_verify_merchant', {
-                p_admin_id: currentUser.id,
                 p_user_id: userId,
                 p_merchant_name: name,
                 p_merchant_desc: desc,

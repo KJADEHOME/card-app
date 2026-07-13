@@ -30,70 +30,74 @@
             <div class="logo-icon">🛡️</div>
             <div class="logo-title">平台发行后台</div>
             <div class="logo-subtitle">CardRealm Platform Issuer</div>
-            <div class="badge">独立管理员系统</div>
+            <div class="badge">统一管理员认证</div>
         </div>
 
-        <input type="text" class="input" id="username" placeholder="管理员账号">
-        <input type="password" class="input" id="password" placeholder="密码" onkeypress="if(event.key==='Enter')adminLogin()">
+        <input type="email" class="input" id="email" autocomplete="username" placeholder="管理员邮箱">
+        <input type="password" class="input" id="password" autocomplete="current-password" placeholder="密码">
 
-        <button class="btn" onclick="adminLogin()" id="loginBtn">登录</button>
-        <div class="msg" id="msg"></div>
+        <button class="btn" id="loginBtn" type="button">登录</button>
+        <div class="msg" id="msg" role="status" aria-live="polite"></div>
 
-        <div class="hint">
-            登录后进入平台卡牌发布后台
-        </div>
+        <div class="hint">使用 Supabase Auth 管理员账号登录</div>
     </div>
 
+    <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
+        const db = AdminAuth.getSupabaseClient();
+
+        function setMessage(text, success = false) {
+            const msg = document.getElementById('msg');
+            msg.textContent = text;
+            msg.classList.toggle('success', success);
+        }
 
         async function adminLogin() {
-            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             const btn = document.getElementById('loginBtn');
-            const msg = document.getElementById('msg');
 
-            if (!username || !password) {
-                msg.textContent = '请输入账号和密码';
+            if (!email || !password) {
+                setMessage('请输入邮箱和密码');
                 return;
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>登录中...';
-            msg.textContent = '';
+            btn.textContent = '登录中...';
+            setMessage('');
 
             try {
-                const { data, error } = await db.rpc('admin_login', {
-                    p_username: username,
-                    p_password: password,
-                    p_session_duration_hours: 24
-                });
-
+                const { error } = await db.auth.signInWithPassword({ email, password });
                 if (error) throw error;
 
-                if (!data || !data.success) {
-                    throw new Error((data && data.error) || '登录失败');
+                const ctx = await AdminAuth.requireAdmin({ redirect: false });
+                if (!ctx) {
+                    await db.auth.signOut();
+                    throw new Error('该账号没有管理员权限');
                 }
 
-                // 存储管理员 token（与用户系统隔离）
-                localStorage.setItem('platformAdminToken', data.session_token);
-                localStorage.setItem('platformAdminName', data.display_name || data.username);
-                localStorage.setItem('platformAdminRole', data.role);
-
-                msg.textContent = '✅ 登录成功！';
-                msg.classList.add('success');
-
-                setTimeout(() => {
+                setMessage('登录成功，正在进入后台…', true);
+                window.setTimeout(() => {
                     window.location.href = 'admin-platform-publish.html';
-                }, 500);
+                }, 300);
             } catch (error) {
-                msg.textContent = '登录失败: ' + (error.message || error);
-                msg.classList.remove('success');
+                setMessage('登录失败：' + (error?.message || String(error)));
                 btn.disabled = false;
                 btn.textContent = '登录';
             }
         }
+
+        document.getElementById('loginBtn').addEventListener('click', adminLogin);
+        document.getElementById('password').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') adminLogin();
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ctx = await AdminAuth.requireAdmin({ redirect: false });
+            if (ctx) window.location.replace('admin-platform-publish.html');
+        });
     </script>
 </body>
 </html>

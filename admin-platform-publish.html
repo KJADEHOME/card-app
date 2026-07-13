@@ -195,6 +195,7 @@
 
     <script src="js/risk-control.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/admin-auth.js"></script>
     <script>
         // Fail-closed: RiskControl 必须存在
         if (!window.RiskControl || !RiskControl.escapeHtml) {
@@ -204,23 +205,21 @@
         const escapeHtml = RiskControl.escapeHtml;
         const safeUrl = RiskControl.safeUrl;
 
-        const db = window.supabase.createClient('https://xybpcsmjjcnkjwfsuder.supabase.co', 'sb_publishable_DqgJ_yvf_q8IpAJ8xlMbYQ_a0sotaD7');
-        let adminToken = localStorage.getItem('platformAdminToken');
+        const db = AdminAuth.getSupabaseClient();
         let uploadedFile = null;
+        let adminContext = null;
 
-        // 检查登录状态
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!adminToken) {
+        document.addEventListener('DOMContentLoaded', async () => {
+            adminContext = await AdminAuth.requireAdmin({ redirect: false });
+            if (!adminContext) {
                 window.location.href = 'admin-platform-login.html';
                 return;
             }
 
-            const adminName = localStorage.getItem('platformAdminName') || '管理员';
-            const adminRole = localStorage.getItem('platformAdminRole') || 'platform_admin';
-            document.getElementById('adminName').textContent = adminName;
-            document.getElementById('adminRole').textContent = adminRole === 'super_admin' ? '超级管理员' : '平台管理员';
-
-            loadProducts();
+            const profile = adminContext.profile || {};
+            document.getElementById('adminName').textContent = profile.username || adminContext.user.email || '管理员';
+            document.getElementById('adminRole').textContent = adminContext.isSuperAdmin ? '超级管理员' : '管理员';
+            await loadProducts();
         });
 
         function showMsg(text, type) {
@@ -298,7 +297,6 @@
                 }
 
                 const { data, error } = await db.rpc('admin_publish_card', {
-                    p_admin_token: adminToken,
                     p_name: name,
                     p_set_name: setName,
                     p_card_image_url: imageUrl,
@@ -403,13 +401,7 @@
         }
 
         async function adminLogout() {
-            try {
-                await db.rpc('admin_logout', { p_token: adminToken });
-            } catch (e) {}
-            localStorage.removeItem('platformAdminToken');
-            localStorage.removeItem('platformAdminName');
-            localStorage.removeItem('platformAdminRole');
-            window.location.href = 'admin-platform-login.html';
+            await AdminAuth.logout();
         }
 
     </script>

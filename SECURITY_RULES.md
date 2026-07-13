@@ -73,34 +73,29 @@ CREATE POLICY "Anyone can read" ON table_name
 - Session 管理: Supabase GoTrue 自动处理
 - Token 存储: 前端 localStorage
 
-### 3.2 管理员认证（独立系统 0033）
+### 3.2 管理员认证（统一体系 SH-003C）
 
 ```
-admins 表 (与 auth.users 隔离)
-  ├─ username + password_hash (pgcrypto)
-  ├─ session_token + token_expires_at
-  └─ status (active/inactive)
-
-认证流程:
-  admin_login(username, password)
-    → extensions.crypt(password, password_hash) 验证
-    → 生成 session_token
-    → 返回 token (前端存储)
-
-权限验证:
-  每次管理操作 → 检查 session_token + token_expires_at
-  过期 → 拒绝操作
+Supabase Auth session
+  → profiles.role IN ('admin','super_admin')
+  → require_admin() RPC（服务端权威校验）
+  → 管理员业务RPC
+  → admin_audit_logs
 ```
 
-**管理员账号**:
-- 平台管理员: `platform_admin` / `PlatformAdmin2026!`
-- Supabase Auth 管理员: `admin@cardrealm.top` (UID: c48eed3c-...)
+安全规则：
+- 管理页面统一使用 `js/admin-auth.js`
+- 管理员身份只来自 `auth.uid()`，不接受前端传入 admin id/token
+- 所有管理员RPC内部调用 `require_admin()`
+- 旧 `admins.session_token` 体系仅保留历史数据，浏览器执行权限在 Phase 3 撤销
+- 禁止默认密码、邮箱字符串匹配、前端自助绑定管理员
+- `super_admin` 只能通过受控流程授予并写审计日志
 
 ### 3.3 商家认证
 
 - `profiles.role = 'merchant'`
-- 认证: `admin_verify_merchant()` RPC
-- 取消: `admin_revoke_merchant()` RPC
+- 认证: `admin_verify_merchant()` RPC（内部 `require_admin()`）
+- 取消: `admin_revoke_merchant()` RPC（内部 `require_admin()`）
 - 自营标识: `merchant_badge = '🛡️自营'`
 
 ---

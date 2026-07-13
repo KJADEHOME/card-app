@@ -260,8 +260,7 @@
 
             try {
                 const { data, error } = await db.rpc('approve_recharge', {
-                    p_tx_id: txId,
-                    p_admin_uid: currentUser.id
+                    p_tx_id: txId
                 });
 
                 if (error) {
@@ -299,7 +298,6 @@
             try {
                 const { data, error } = await db.rpc('reject_recharge', {
                     p_tx_id: txId,
-                    p_admin_uid: currentUser.id,
                     p_reason: reason || '充值审核未通过'
                 });
 
