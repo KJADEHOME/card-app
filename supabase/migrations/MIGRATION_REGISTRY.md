@@ -1,14 +1,14 @@
 # CardRealm 迁移登记 (MIGRATION_REGISTRY)
 
-> 最后更新: 2026-07-13
-> 维护者: 冰沙 (AI Agent)
+> 最后更新: 2026-07-14
+> 维护者: CardRealm AI Engineering
 
 ## 迁移编号规范
 
 - 编号格式: `NNNN_descriptive_name.sql`
 - 递增编号，不跳号，不复用
-- 最大已占用编号: **0039**
-- 下一个可用编号: **0040**
+- 最大已占用编号: **0044**
+- 下一个可用编号: **0045**
 - SH-003C Phase 3 占用: 0040-0043 (Group A-C + D停用)
 - SH-006B 重新编号后占用: 0044-0046 (原0039-0041需调整，因为0039已被Phase2占用)
 
@@ -63,11 +63,11 @@
 
 | 编号 | 文件名 | 所属任务 | 状态 | 说明 |
 |------|--------|----------|------|------|
-| 0040 | 0040_admin_rpc_group_a.sql | SH-003C P3-A | **local** | Group A: Supabase Auth登录/发布RPC + 旧token认证停用 |
-| 0041 | 0041_admin_rpc_group_b.sql | SH-003C P3-B | **local** | Group B: 充值审批RPC去除前端admin UID |
-| 0042 | 0042_admin_rpc_group_c.sql | SH-003C P3-C | **local** | Group C: 用户/商户管理统一require_admin认证 |
-| 0043 | 0043_admin_rpc_group_d_disable.sql | SH-003C P3-D | **local** | Group D: 8个无调用旧RPC撤销浏览器执行权限 |
-| 0044 | 0044_financial_fk_safety.sql | SH-006B P0 | **planned** | 金融FK安全 (原0039号,因冲突调整为0044) |
+| 0040 | 0040_admin_rpc_group_a.sql | SH-003C P3-A | **deployed** | Group A: Supabase Auth登录/发布RPC + 旧token认证停用 |
+| 0041 | 0041_admin_rpc_group_b.sql | SH-003C P3-B | **deployed** | Group B: 充值审批RPC去除前端admin UID |
+| 0042 | 0042_admin_rpc_group_c.sql | SH-003C P3-C | **deployed** | Group C: 用户/商户管理统一require_admin认证 |
+| 0043 | 0043_admin_rpc_group_d_disable.sql | SH-003C P3-D | **deployed** | Group D: 8个无调用旧RPC撤销浏览器执行权限 |
+| 0044 | 0044_financial_fk_safety.sql | SH-006 Phase 1 | **local / pending deploy** | 金融记录外键改为SET NULL + 历史快照 + 验证/回滚 |
 | 0045 | 0045_profiles_auth_fk.sql | SH-006B P1 | **planned** | profiles auth FK (原0040号调整为0045) |
 | 0046 | 0046_cards_master_phase1.sql | SH-006B P2 | **planned** | cards主表Phase1 (原0041号调整为0046) |
 

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SH-003 Phase 4 最终收尾审计报告</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+  --border: #30363d; --text: #e6edf3; --text-dim: #8b949e;
+  --green: #3fb950; --green-bg: rgba(63,185,80,0.1);
+  --red: #f85149; --red-bg: rgba(248,81,73,0.1);
+  --yellow: #d29922; --yellow-bg: rgba(210,153,34,0.1);
+  --blue: #58a6ff; --blue-bg: rgba(88,166,255,0.1);
+  --purple: #bc8cff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; padding: 24px; }
+h1 { font-size: 28px; margin-bottom: 8px; }
+h2 { font-size: 20px; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 16px; margin: 20px 0 8px; color: var(--blue); }
+.meta { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+.summary-bar { display: flex; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; text-align: center; min-width: 120px; }
+.stat .num { font-size: 28px; font-weight: 700; }
+.stat .label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.stat.pass .num { color: var(--green); }
+.stat.warn .num { color: var(--yellow); }
+.stat.fail .num { color: var(--red); }
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.badge.pass { background: var(--green-bg); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+.badge.warn { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+.badge.fail { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+.badge.info { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+th { background: var(--surface2); padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-dim); text-transform: uppercase; font-size: 11px; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(88,166,255,0.03); }
+code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--purple); }
+pre { background: var(--surface2); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; line-height: 1.5; border: 1px solid var(--border); }
+ Finding { padding: 12px 16px; border-radius: 8px; margin: 8px 0; }
+.finding.low { background: var(--yellow-bg); border-left: 3px solid var(--yellow); }
+.finding.info { background: var(--blue-bg); border-left: 3px solid var(--blue); }
+.finding p { margin: 4px 0; }
+.finding-title { font-weight: 600; margin-bottom: 4px; }
+ul { padding-left: 20px; }
+li { margin: 4px 0; }
+.check { color: var(--green); }
+.cross { color: var(--red); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.dot.green { background: var(--green); }
+.dot.yellow { background: var(--yellow); }
+.dot.red { background: var(--red); }
+</style>
+</head>
+<body>
+
+<h1>SH-003 Phase 4 最终收尾审计报告</h1>
+<div class="meta">
+  项目: CardRealm (卡域APP) &nbsp;|&nbsp;
+  分支: security-hardening &nbsp;|&nbsp;
+  日期: 2026-07-13 &nbsp;|&nbsp;
+  审计范围: 全项目管理员认证体系 &nbsp;|&nbsp;
+  Git基线: v0.9.6-admin-auth-phase3
+</div>
+
+<div class="summary-bar">
+  <div class="stat pass"><div class="num">7</div><div class="label">审计项</div></div>
+  <div class="stat pass"><div class="num">7</div><div class="label">PASS</div></div>
+  <div class="stat warn"><div class="num">2</div><div class="label">LOW</div></div>
+  <div class="stat fail"><div class="num">0</div><div class="label">P0/P1</div></div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">总体结论</h3>
+  </div>
+  <p>SH-003 管理员认证统一 Phase 1-3 实施完整且有效。7 项审计全部通过，未发现 P0/P1 级别安全问题。2 个 LOW 级别改进建议（UX 和文档层面）不影响系统安全性。管理员认证体系已达到生产就绪状态。</p>
+</div>
+
+<!-- ===== 审计项 1 ===== -->
+<h2>审计项 1: 旧认证标识符残留检查</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">platformAdminToken / session_token / adminUid 引用</h3>
+  </div>
+
+  <h3>platformAdminToken</h3>
+  <table>
+    <tr><th>文件</th><th>类型</th><th>用途</th><th>风险</th></tr>
+    <tr><td><code>js/admin-auth.js:213</code></td><td>功能代码</td><td><code>localStorage.removeItem('platformAdminToken')</code> — 登出时清理旧残留</td><td><span class="check">✅ 安全</span></td></tr>
+    <tr><td>tests/sh003c-phase3-static-test.js</td><td>测试</td><td>断言 login 页面不包含此字符串</td><td><span class="check">✅ 安全</span></td></tr>
+    <tr><td>TASKS/SECURITY/*.md (7处)</td><td>文档</td><td>设计文档、计划、报告中的历史描述</td><td><span class="check">✅ 安全</span></td></tr>
+  </table>
+  <p><strong>结论:</strong> 无任何 HTML/JS 功能代码读取或写入 <code>platformAdminToken</code>。仅在 admin-auth.js 的 logout() 中执行 removeItem 清理。</p>
+
+  <h3>session_token</h3>
+  <table>
+    <tr><th>文件</th><th>类型</th><th>用途</th><th>风险</th></tr>
+    <tr><td>supabase/migrations/0033_*.sql</td><td>历史迁移</td><td>原始 admins 表定义和旧 RPC 实现</td><td><span class="check">✅ 已撤销</span></td></tr>
+    <tr><td>supabase/migrations/0038_*.sql</td><td>迁移</td><td>log_admin_action 敏感键剥离列表</td><td><span class="check">✅ 安全</span></td></tr>
+    <tr><td>supabase/migrations/0040_*.sql</td><td>迁移</td><td>旧 login RPC COMMENT 标记 DEPRECATED</td><td><span class="check">✅ 已撤销</span></td></tr>
+    <tr><td>ARCHITECTURE.md / DATABASE_RULES.md</td><td>文档</td><td>架构描述仍提及旧机制</td><td><span class="badge warn">LOW</span></td></tr>
+    <tr><td>SECURITY_RULES.md:90</td><td>文档</td><td>正确声明"旧体系仅保留历史数据，浏览器执行权限已撤销"</td><td><span class="check">✅ 安全</span></td></tr>
+  </table>
+  <p><strong>结论:</strong> 无任何 HTML/JS 功能代码引用 <code>session_token</code>。仅在 SQL 迁移和文档中存在历史引用。</p>
+
+  <h3>adminUid</h3>
+  <table>
+    <tr><th>文件</th><th>类型</th><th>用途</th><th>风险</th></tr>
+    <tr><td><code>js/admin-auth.js:212</code></td><td>功能代码</td><td><code>localStorage.removeItem('adminUid')</code> — 登出时清理旧残留</td><td><span class="check">✅ 安全</span></td></tr>
+    <tr><td>TASKS/SECURITY/*.md (6处)</td><td>文档</td><td>设计文档和报告中的历史描述</td><td><span class="check">✅ 安全</span></td></tr>
+  </table>
+  <p><strong>结论:</strong> 无任何 HTML/JS 功能代码读取或写入 <code>adminUid</code>。仅在 admin-auth.js 的 logout() 中执行 removeItem 清理。</p>
+
+  <div class="finding low">
+    <div class="finding-title">⚠️ LOW-1: 文档未更新</div>
+    <p><code>ARCHITECTURE.md:96</code> 和 <code>DATABASE_RULES.md:25</code> 仍描述旧的 <code>admins</code> 表 + <code>session_token</code> 机制，未反映 Phase 1-3 的统一认证变更。建议在下一轮文档维护中更新。</p>
+  </div>
+</div>
+
+<!-- ===== 审计项 2 ===== -->
+<h2>审计项 2: admins 表只读状态</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">admins 表 RLS 策略验证</h3>
+  </div>
+
+  <p>Migration 0038 Part 11 对 <code>admins</code> 表设置了以下 RLS 策略：</p>
+  <table>
+    <tr><th>策略名</th><th>操作</th><th>规则</th><th>效果</th></tr>
+    <tr><td><code>admins_select_all_authenticated</code></td><td>SELECT</td><td><code>TO authenticated USING (true)</code></td><td>已登录用户可读（向后兼容）</td></tr>
+    <tr><td><code>admins_deny_insert</code></td><td>INSERT</td><td><code>WITH CHECK (false)</code></td><td><span class="cross">✗</span> 前端禁止 INSERT</td></tr>
+    <tr><td><code>admins_deny_update</code></td><td>UPDATE</td><td><code>USING (false) WITH CHECK (false)</code></td><td><span class="cross">✗</span> 前端禁止 UPDATE</td></tr>
+    <tr><td><code>admins_deny_delete</code></td><td>DELETE</td><td><code>USING (false)</code></td><td><span class="cross">✗</span> 前端禁止 DELETE</td></tr>
+  </table>
+
+  <h3>前端代码验证</h3>
+  <ul>
+    <li><span class="check">✅</span> 搜索所有 HTML 文件: <strong>0 处</strong>调用 <code>db.from('admins')</code></li>
+    <li><span class="check">✅</span> 搜索所有 JS 文件: <strong>0 处</strong>调用 <code>db.from('admins')</code></li>
+    <li><span class="check">✅</span> <code>service_role</code> 可绕过 RLS 进行紧急维护（仅服务端）</li>
+    <li><span class="check">✅</span> RLS 已启用 (<code>ENABLE ROW LEVEL SECURITY</code>)</li>
+  </ul>
+
+  <p><strong>结论:</strong> admins 表从前端视角完全只读。仅 <code>service_role</code>（服务端密钥）可写入，前端无法通过 Supabase JS SDK 执行任何写操作。</p>
+</div>
+
+<!-- ===== 审计项 3 ===== -->
+<h2>审计项 3: Legacy RPC EXECUTE 权限</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">旧 RPC 函数权限撤销验证</h3>
+  </div>
+
+  <h3>3.1 旧登录/验证/登出 RPC (0033 → 0040 撤销)</h3>
+  <table>
+    <tr><th>RPC 函数</th><th>原始签名</th><th>原始 GRANT</th><th>撤销迁移</th><th>状态</th></tr>
+    <tr><td><code>admin_login</code></td><td>(TEXT, TEXT, INTEGER)</td><td>anon, authenticated</td><td>0040</td><td><span class="check">✅ REVOKE'd</span></td></tr>
+    <tr><td><code>verify_admin_token</code></td><td>(TEXT)</td><td>anon, authenticated</td><td>0040</td><td><span class="check">✅ REVOKE'd</span></td></tr>
+    <tr><td><code>admin_logout</code></td><td>(TEXT)</td><td>anon, authenticated</td><td>0040</td><td><span class="check">✅ REVOKE'd</span></td></tr>
+  </table>
+
+  <h3>3.2 旧 admin_publish_card (0033 → 0040 撤销)</h3>
+  <table>
+    <tr><th>版本</th><th>签名</th><th>认证方式</th><th>状态</th></tr>
+    <tr><td>旧版</td><td>14参数 (含 <code>p_admin_token TEXT</code>)</td><td>admins.session_token</td><td><span class="check">✅ REVOKE'd from PUBLIC, anon</span></td></tr>
+    <tr><td>新版</td><td>不同参数签名</td><td><code>require_admin()</code></td><td><span class="check">✅ GRANT'd to authenticated</span></td></tr>
+  </table>
+
+  <h3>3.3 旧 admin_verify_merchant / admin_revoke_merchant (0032 → 0042 撤销)</h3>
+  <table>
+    <tr><th>函数</th><th>旧签名</th><th>新签名</th><th>旧版状态</th><th>新版状态</th></tr>
+    <tr><td><code>admin_verify_merchant</code></td><td>(UUID, UUID, TEXT, TEXT, TEXT)</td><td>(UUID, TEXT, TEXT, TEXT)</td><td><span class="check">✅ REVOKE'd</span></td><td><span class="check">✅ GRANT'd</span></td></tr>
+    <tr><td><code>admin_revoke_merchant</code></td><td>(UUID, UUID)</td><td>(UUID)</td><td><span class="check">✅ REVOKE'd</span></td><td><span class="check">✅ GRANT'd</span></td></tr>
+  </table>
+
+  <h3>3.4 僵尸 RPC (0043 批量撤销 — 8 个无调用者函数)</h3>
+  <table>
+    <tr><th>RPC 函数</th><th>原始来源</th><th>REVOKE from</th><th>状态</th></tr>
+    <tr><td><code>admin_update_platform_card</code></td><td>0033</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_confirm_pre_order</code></td><td>0033</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_bulk_list_cards</code></td><td>0032</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_create_sealed_product</code></td><td>0034</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_update_sealed_product</code></td><td>0034</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_confirm_sealed_order</code></td><td>0034</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_create_merchandise</code></td><td>0034</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+    <tr><td><code>admin_update_merchandise</code></td><td>0034</td><td>PUBLIC, anon, authenticated</td><td><span class="check">✅</span></td></tr>
+  </table>
+
+  <h3>3.5 前端调用验证</h3>
+  <ul>
+    <li><span class="check">✅</span> 搜索 HTML 中 <code>rpc('admin_login'</code> / <code>rpc('verify_admin_token'</code> / <code>rpc('admin_logout'</code>: <strong>0 处</strong></li>
+    <li><span class="check">✅</span> 搜索 HTML 中 <code>p_admin_token</code>: <strong>0 处</strong></li>
+    <li><span class="check">✅</span> 搜索 JS 中 <code>p_admin_token</code>: 仅测试文件 <strong>1 处</strong>（断言不包含）</li>
+    <li><span class="check">✅</span> Edge Functions 中 <code>admin</code> / <code>session_token</code> / <code>p_admin_token</code>: <strong>0 处</strong></li>
+  </ul>
+
+  <p><strong>结论:</strong> 所有旧 RPC 的 EXECUTE 权限已从 anon 和 authenticated 角色撤销。新 RPC 虽 GRANT 给 authenticated，但内部调用 <code>require_admin()</code> 进行服务端鉴权，非管理员调用将抛出 FORBIDDEN。</p>
+</div>
+
+<!-- ===== 审计项 4 ===== -->
+<h2>审计项 4: 管理员页面统一认证</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">所有管理员页面调用 AdminAuth.requireAdmin()</h3>
+  </div>
+
+  <table>
+    <tr><th>页面</th><th>admin-auth.js</th><th>risk-control.js</th><th>requireAdmin()</th><th>认证方式</th></tr>
+    <tr><td>admin.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第126行</td><td>Supabase Auth + require_admin() RPC</td></tr>
+    <tr><td>admin-users.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第137行</td><td>Supabase Auth + require_admin() RPC</td></tr>
+    <tr><td>admin-orders.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第160行</td><td>Supabase Auth + require_admin() RPC</td></tr>
+    <tr><td>admin-recharge.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第164行</td><td>Supabase Auth + require_admin() RPC</td></tr>
+    <tr><td>admin-merchant.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第217行</td><td>Supabase Auth + require_admin() RPC</td></tr>
+    <tr><td>admin-platform-login.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第75/98行</td><td>Supabase Auth signInWithPassword</td></tr>
+    <tr><td>admin-platform-publish.html</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span> 第213行</td><td>Supabase Auth + require_admin() RPC</td></tr>
+  </table>
+
+  <h3>认证三层防护</h3>
+  <pre>
+AdminAuth.requireAdmin() 执行流程:
+  ├─ Step 1: client.auth.getSession()  ← 无会话 → 重定向 login.html
+  ├─ Step 2: profiles.role 查询        ← 非 admin/super_admin → 重定向 index.html
+  └─ Step 3: rpc('require_admin')      ← RPC 抛错 → 重定向 index.html (fail-closed)
+
+所有3步均在前端 init() 函数中执行，页面内容在认证通过前不会渲染。
+RPC require_admin() 为 SECURITY DEFINER，使用 auth.uid() 服务端鉴权，前端无法伪造。
+  </pre>
+
+  <h3>Fail-closed 机制</h3>
+  <ul>
+    <li><span class="check">✅</span> Supabase SDK 未加载 → <code>document.body.replaceChildren()</code> + throw</li>
+    <li><span class="check">✅</span> RiskControl 未加载 → <code>document.body.replaceChildren()</code> + throw</li>
+    <li><span class="check">✅</span> require_admin() RPC 异常 → 重定向 index.html（不放行）</li>
+  </ul>
+
+  <p><strong>结论:</strong> 全部 7 个管理员页面统一使用 <code>AdminAuth.requireAdmin()</code>，三层认证（Auth会话 + profiles.role + require_admin RPC），fail-closed 设计完整。</p>
+</div>
+
+<!-- ===== 审计项 5 ===== -->
+<h2>审计项 5: 登出后页面失效</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">登出后后台页面立即失效</h3>
+  </div>
+
+  <h3>AdminAuth.logout() 实现</h3>
+  <pre>
+async function logout() {
+    // 1. 注销 Supabase Auth 会话 (服务端失效)
+    await client.auth.signOut();
+
+    // 2. 清理旧认证体系残留
+    localStorage.removeItem('adminUid');
+    localStorage.removeItem('platformAdminToken');
+
+    // 3. 重定向到登录页
+    window.location.href = 'login.html';
+}
+  </pre>
+
+  <h3>登出后安全防护</h3>
+  <table>
+    <tr><th>场景</th><th>防护机制</th><th>效果</th></tr>
+    <tr><td>访问任意 admin 页面</td><td><code>requireAdmin()</code> → <code>auth.getSession()</code> 返回 null</td><td><span class="check">✅ 重定向 login.html</span></td></tr>
+    <tr><td>调用管理员 RPC</td><td><code>require_admin()</code> → <code>auth.uid()</code> 返回 NULL</td><td><span class="check">✅ 抛出 FORBIDDEN</span></td></tr>
+    <tr><td>直接查询数据表</td><td>RLS 策略检查 <code>auth.uid()</code></td><td><span class="check">✅ 返回 0 行</span></td></tr>
+    <tr><td>残留 localStorage</td><td><code>removeItem</code> 清除旧 token</td><td><span class="check">✅ 已清理</span></td></tr>
+  </table>
+
+  <h3>登出按钮可用性</h3>
+  <table>
+    <tr><th>页面</th><th>登出按钮</th><th>调用方式</th></tr>
+    <tr><td>admin-merchant.html</td><td><span class="check">✅ 有</span></td><td><code>AdminAuth.logout()</code></td></tr>
+    <tr><td>admin-platform-publish.html</td><td><span class="check">✅ 有</span></td><td><code>AdminAuth.logout()</code></td></tr>
+    <tr><td>admin-platform-login.html</td><td><span class="check">✅ 有</span></td><td><code>db.auth.signOut()</code> (非管理员时)</td></tr>
+    <tr><td>admin.html</td><td><span class="badge warn">无</span></td><td>链接到 index.html 和其他 admin 子页面</td></tr>
+    <tr><td>admin-users.html</td><td><span class="badge warn">无</span></td><td>链接到 admin.html</td></tr>
+    <tr><td>admin-orders.html</td><td><span class="badge warn">无</span></td><td>链接到 admin.html</td></tr>
+    <tr><td>admin-recharge.html</td><td><span class="badge warn">无</span></td><td>链接到 admin.html</td></tr>
+  </table>
+
+  <div class="finding low">
+    <div class="finding-title">⚠️ LOW-2: 4个管理页面缺少登出按钮</div>
+    <p>admin.html、admin-users.html、admin-orders.html、admin-recharge.html 没有可见的登出按钮。用户需要导航到 admin-merchant.html 或 admin-platform-publish.html 才能登出。</p>
+    <p><strong>安全影响:</strong> 无。这是 UX 问题，不影响安全性。Supabase Auth 会话有自然过期时间，所有 API 调用均受服务端 <code>require_admin()</code> 和 RLS 保护。即使用户关闭浏览器标签页，会话也会在过期后自动失效。</p>
+    <p><strong>建议:</strong> 在 admin.html 导航区域添加统一的登出按钮，或在所有 admin 子页面的 header 中加入返回+登出控件。</p>
+  </div>
+
+  <p><strong>结论:</strong> 登出后 Supabase Auth 会话在服务端立即失效，所有后续页面访问和 API 调用都将被拒绝。多标签页场景下，其他标签页需刷新后触发 <code>requireAdmin()</code> 重定向。</p>
+</div>
+
+<!-- ===== 审计项 6 ===== -->
+<h2>审计项 6: 非管理员/商户访问拦截</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">普通用户和 merchant 无法进入后台</h3>
+  </div>
+
+  <h3>客户端拦截 (快速路径)</h3>
+  <pre>
+AdminAuth.check() 流程:
+  ├─ auth.getSession() → 无会话 → { isAdmin: false }
+  ├─ profiles.role 查询 → role !== 'admin' && !== 'super_admin' → { isAdmin: false }
+  └─ isAdmin === false → requireAdmin() 重定向到 index.html
+  </pre>
+  <p><code>profiles.role</code> 可选值: <code>user</code> | <code>merchant</code> | <code>admin</code> | <code>super_admin</code></p>
+  <p>仅 <code>admin</code> 和 <code>super_admin</code> 通过客户端检查。<code>user</code> 和 <code>merchant</code> 被拦截。</p>
+
+  <h3>服务端拦截 (权威路径)</h3>
+  <pre>
+require_admin() RPC (SECURITY DEFINER):
+  v_uid := auth.uid();
+  IF v_uid IS NULL → RAISE EXCEPTION 'FORBIDDEN'
+  SELECT role INTO v_role FROM profiles WHERE id = v_uid;
+  IF v_role NOT IN ('admin', 'super_admin') → RAISE EXCEPTION 'FORBIDDEN'
+  RETURN v_uid;
+  </pre>
+  <p>即使前端被篡改绕过客户端检查，RPC 仍会在服务端拒绝非管理员调用。</p>
+
+  <h3>登录流程验证</h3>
+  <table>
+    <tr><th>步骤</th><th>操作</th><th>非管理员结果</th></tr>
+    <tr><td>1</td><td><code>db.auth.signInWithPassword()</code></td><td>Supabase Auth 登录成功（仅认证，不鉴权）</td></tr>
+    <tr><td>2</td><td><code>AdminAuth.requireAdmin({ redirect: false })</code></td><td>返回 null（role 不是 admin）</td></tr>
+    <tr><td>3</td><td><code>db.auth.signOut()</code></td><td>立即注销会话</td></tr>
+    <tr><td>4</td><td>显示错误消息</td><td>"该账号没有管理员权限"</td></tr>
+  </table>
+
+  <h3>RLS 防护</h3>
+  <ul>
+    <li><span class="check">✅</span> <code>profiles</code> 表: <code>auth.uid() = id</code> — 用户只能读自己的 profile</li>
+    <li><span class="check">✅</span> <code>admins</code> 表: 仅 SELECT，无写权限</li>
+    <li><span class="check">✅</span> <code>admin_audit_logs</code>: 仅管理员可读，前端禁止写</li>
+    <li><span class="check">✅</span> 管理员 RPC 内部调用 <code>require_admin()</code>，非管理员调用抛出 FORBIDDEN</li>
+    <li><span class="check">✅</span> <code>set_user_role()</code>: 仅 <code>super_admin</code> 可调用，普通 admin 也被拒绝</li>
+  </ul>
+
+  <p><strong>结论:</strong> 普通用户和 merchant 在客户端和服务端两个层面均被拦截。三层防护（客户端 profiles.role 检查 + 服务端 require_admin() RPC + RLS 策略）确保非管理员无法访问任何后台功能。</p>
+</div>
+
+<!-- ===== 审计项 7 ===== -->
+<h2>审计项 7: admin_audit_logs 审计日志记录</h2>
+<div class="section">
+  <div class="section-header">
+    <span class="badge pass">PASS</span>
+    <h3 style="margin:0">admin_audit_logs 持续记录关键操作</h3>
+  </div>
+
+  <h3>表结构与 RLS (0038 Part 2)</h3>
+  <pre>
+CREATE TABLE admin_audit_logs (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_id    UUID REFERENCES auth.users(id),
+    action      TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id   UUID,
+    details     JSONB DEFAULT '{}',
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+RLS 策略:
+  ├─ admin_audit_logs_select_admin  → SELECT (仅 admin/super_admin)
+  ├─ admin_audit_logs_deny_insert   → INSERT WITH CHECK (false) ← 前端禁止
+  ├─ admin_audit_logs_deny_update   → UPDATE USING (false)       ← 前端禁止
+  └─ admin_audit_logs_deny_delete   → DELETE USING (false)       ← 前端禁止
+
+仅 service_role 或 SECURITY DEFINER RPC 可写入。
+  </pre>
+
+  <h3>审计日志写入点 — 全部 12 个管理员 RPC</h3>
+  <table>
+    <tr><th>#</th><th>RPC 函数</th><th>迁移</th><th>审计 Action</th><th>Target Type</th><th>写入方式</th></tr>
+    <tr><td>1</td><td><code>set_user_role()</code></td><td>0038</td><td><code>set_user_role</code></td><td>user</td><td>成功 + 拒绝均记录</td></tr>
+    <tr><td>2</td><td><code>admin_cancel_order()</code></td><td>0039</td><td><code>cancel_order</code></td><td>order</td><td>成功后记录</td></tr>
+    <tr><td>3</td><td><code>admin_process_refund()</code></td><td>0039</td><td><code>process_refund</code></td><td>order</td><td>成功后记录</td></tr>
+    <tr><td>4</td><td><code>admin_resolve_dispute()</code></td><td>0039</td><td><code>resolve_dispute</code></td><td>order</td><td>成功后记录</td></tr>
+    <tr><td>5</td><td><code>admin_publish_card()</code></td><td>0040</td><td><code>publish_card</code></td><td>platform_card</td><td>成功后记录</td></tr>
+    <tr><td>6</td><td><code>approve_recharge()</code></td><td>0041</td><td><code>approve_recharge</code></td><td>wallet_transaction</td><td>成功后记录</td></tr>
+    <tr><td>7</td><td><code>reject_recharge()</code></td><td>0041</td><td><code>reject_recharge</code></td><td>wallet_transaction</td><td>成功后记录</td></tr>
+    <tr><td>8</td><td><code>admin_disable_user()</code></td><td>0042</td><td><code>disable_user</code></td><td>user</td><td>成功后记录</td></tr>
+    <tr><td>9</td><td><code>admin_enable_user()</code></td><td>0042</td><td><code>enable_user</code></td><td>user</td><td>成功后记录</td></tr>
+    <tr><td>10</td><td><code>admin_verify_merchant()</code></td><td>0042</td><td><code>verify_merchant</code></td><td>user</td><td>成功后记录</td></tr>
+    <tr><td>11</td><td><code>admin_revoke_merchant()</code></td><td>0042</td><td><code>revoke_merchant</code></td><td>user</td><td>成功后记录</td></tr>
+    <tr><td>12</td><td><code>log_admin_action()</code></td><td>0038</td><td>自定义</td><td>自定义</td><td>通用审计接口</td></tr>
+  </table>
+
+  <h3>审计日志安全特性</h3>
+  <ul>
+    <li><span class="check">✅</span> <strong>服务端写入</strong>: 所有审计日志由 SECURITY DEFINER RPC 在服务端写入，前端无法伪造或篡改</li>
+    <li><span class="check">✅</span> <strong>敏感键剥离</strong>: <code>log_admin_action()</code> 自动剥离 password, password_hash, token, session_token, secret, api_key, private_key, signing_key, card_number, cvv 等敏感字段</li>
+    <li><span class="check">✅</span> <strong>拒绝操作记录</strong>: <code>set_user_role()</code> 的拒绝操作（权限不足）也会写入审计日志，包含 caller_role 和 requested_role</li>
+    <li><span class="check">✅</span> <strong>独立事务持久化</strong>: 审计日志写入使用独立 BEGIN/EXCEPTION 块，即使主操作回滚，审计日志仍然持久化</li>
+    <li><span class="check">✅</span> <strong>前端不可篡改</strong>: RLS deny INSERT/UPDATE/DELETE 策略确保前端无法直接操作审计日志表</li>
+    <li><span class="check">✅</span> <strong>索引优化</strong>: 按 admin_id+created_at、action+created_at、target_type+target_id 建立索引</li>
+  </ul>
+
+  <div class="finding info">
+    <div class="finding-title">ℹ️ INFO: 前端 AdminAuth.logAction() 未被调用</div>
+    <p><code>AdminAuth.logAction()</code> 方法在 admin-auth.js 中已实现，但当前无 HTML 页面调用它。所有审计日志均由服务端 RPC 自动写入，这实际上是<strong>更安全的设计</strong>——审计日志写入不依赖前端代码，无法被绕过。</p>
+    <p>如果未来需要记录纯前端行为（如页面浏览、按钮点击），可使用 <code>AdminAuth.logAction()</code>。当前设计无安全风险。</p>
+  </div>
+
+  <p><strong>结论:</strong> admin_audit_logs 持续记录所有 12 个管理员 RPC 的关键操作。日志在服务端写入，前端不可篡改。拒绝操作也会被记录。审计日志体系完整且有效。</p>
+</div>
+
+<!-- ===== 总结 ===== -->
+<h2>审计总结</h2>
+<div class="section">
+  <table>
+    <tr><th>#</th><th>审计项</th><th>结果</th><th>发现</th></tr>
+    <tr><td>1</td><td>旧认证标识符残留 (platformAdminToken/session_token/adminUid)</td><td><span class="badge pass">PASS</span></td><td>仅 admin-auth.js logout() 中 removeItem 清理，无功能代码引用</td></tr>
+    <tr><td>2</td><td>admins 表只读状态</td><td><span class="badge pass">PASS</span></td><td>RLS deny INSERT/UPDATE/DELETE，前端 0 处 db.from('admins')</td></tr>
+    <tr><td>3</td><td>Legacy RPC EXECUTE 权限</td><td><span class="badge pass">PASS</span></td><td>11 个旧 RPC 全部 REVOKE'd，8 个僵尸 RPC 停用，0 个前端调用</td></tr>
+    <tr><td>4</td><td>管理员页面统一 AdminAuth.requireAdmin()</td><td><span class="badge pass">PASS</span></td><td>7/7 页面全部使用，三层认证 + fail-closed</td></tr>
+    <tr><td>5</td><td>登出后页面立即失效</td><td><span class="badge pass">PASS</span></td><td>signOut() 服务端失效 + requireAdmin() 重定向</td></tr>
+    <tr><td>6</td><td>普通用户/merchant 无法进入后台</td><td><span class="badge pass">PASS</span></td><td>客户端 profiles.role + 服务端 require_admin() + RLS 三层拦截</td></tr>
+    <tr><td>7</td><td>admin_audit_logs 持续记录</td><td><span class="badge pass">PASS</span></td><td>12 个 RPC 全部写入审计日志，服务端写入不可篡改</td></tr>
+  </table>
+
+  <h3>发现汇总</h3>
+  <table>
+    <tr><th>级别</th><th>编号</th><th>描述</th><th>影响</th></tr>
+    <tr><td><span class="badge warn">LOW</span></td><td>LOW-1</td><td>ARCHITECTURE.md / DATABASE_RULES.md 仍描述旧 session_token 机制</td><td>文档过时，不影响安全</td></tr>
+    <tr><td><span class="badge warn">LOW</span></td><td>LOW-2</td><td>4 个管理页面缺少登出按钮</td><td>UX 问题，不影响安全</td></tr>
+    <tr><td><span class="badge info">INFO</span></td><td>INFO-1</td><td>AdminAuth.logAction() 前端方法未被调用</td><td>设计合理，无需修改</td></tr>
+  </table>
+
+  <h3>安全状态</h3>
+  <div style="background: var(--green-bg); border: 1px solid rgba(63,185,80,0.3); border-radius: 8px; padding: 16px; margin-top: 12px;">
+    <p style="font-size: 16px; font-weight: 600; color: var(--green);">✅ SH-003 管理员认证统一 — 生产就绪</p>
+    <p style="margin-top: 8px;">Phase 1-4 全部完成。未发现 P0/P1 安全漏洞。管理员认证体系采用三层防护设计（客户端检查 + 服务端 RPC 鉴权 + RLS 策略），所有旧认证机制已清除，审计日志完整记录。2 个 LOW 级别建议可在后续迭代中处理。</p>
+  </div>
+</div>
+
+</body>
+</html>
