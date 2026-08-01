@@ -6,8 +6,8 @@
 const https = require('https');
 
 // Supabase 配置
-const SUPABASE_URL = 'https://xybpcsmjjcnkjwfsuder.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5YnBjc21qamNua2p3ZnN1ZGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzkwNTYzMywiZXhwIjoyMDg5NDgxNjMzfQ.S9NwxYngpSdK7Fdo8cKymv-tNOanCY6xj6iMSyX265k';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const USD_TO_CNY = 7.25;
 
@@ -66,6 +66,9 @@ function getTcgPrice(usdData) {
 
 // 主函数
 async function main() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+        throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+    }
     console.log('🎴 开始从 TCGdex 抓取 Pokemon 卡价...');
     const today = new Date().toISOString().split('T')[0];
     let inserted = 0;
