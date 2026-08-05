@@ -99,29 +99,31 @@ BEGIN
       AND pi.product_code=COALESCE(NEW.product_code,'') AND pi.region=COALESCE(NEW.region,'UNKNOWN')
       AND pi.edition=COALESCE(NEW.edition,'Unknown') AND pi.packaging_type=COALESCE(NEW.packaging_type,'card')
       AND pi.quantity=(SELECT SUM(COALESCE(uc.quantity,1))::INTEGER FROM public.user_collections AS uc
-  IF TG_OP = 'UPDATE' AND ROW(OLD.product_code, OLD.region, OLD.edition, OLD.packaging_type)
-      IS DISTINCT FROM ROW(NEW.product_code, NEW.region, NEW.edition, NEW.packaging_type) THEN
-    DELETE FROM public.portfolio_items AS pi
-    WHERE pi.user_id=OLD.user_id AND pi.card_name=OLD.card_name
-      AND pi.series=COALESCE(OLD.series,'') AND pi.rarity=COALESCE(OLD.rarity,'N')
-      AND pi.product_code=COALESCE(OLD.product_code,'') AND pi.region=COALESCE(OLD.region,'UNKNOWN')
-      AND pi.edition=COALESCE(OLD.edition,'Unknown') AND pi.packaging_type=COALESCE(OLD.packaging_type,'card')
-      AND NOT EXISTS (
-        SELECT 1 FROM public.user_collections AS uc
-        WHERE uc.user_id=OLD.user_id AND uc.card_name=OLD.card_name
-          AND COALESCE(uc.series,'')=COALESCE(OLD.series,'')
-          AND COALESCE(uc.rarity,'N')=COALESCE(OLD.rarity,'N')
-          AND COALESCE(uc.product_code,'')=COALESCE(OLD.product_code,'')
-          AND COALESCE(uc.region,'UNKNOWN')=COALESCE(OLD.region,'UNKNOWN')
-          AND COALESCE(uc.edition,'Unknown')=COALESCE(OLD.edition,'Unknown')
-          AND COALESCE(uc.packaging_type,'card')=COALESCE(OLD.packaging_type,'card')
-      );
+                        WHERE uc.user_id=NEW.user_id AND uc.card_name=NEW.card_name
+                          AND COALESCE(uc.series,'')=COALESCE(NEW.series,'') AND COALESCE(uc.rarity,'N')=COALESCE(NEW.rarity,'N')
+                          AND COALESCE(uc.product_code,'')=COALESCE(NEW.product_code,'') AND COALESCE(uc.region,'UNKNOWN')=COALESCE(NEW.region,'UNKNOWN')
+                          AND COALESCE(uc.edition,'Unknown')=COALESCE(NEW.edition,'Unknown') AND COALESCE(uc.packaging_type,'card')=COALESCE(NEW.packaging_type,'card'))
+  ) THEN
+    IF TG_OP = 'UPDATE' AND ROW(OLD.product_code, OLD.region, OLD.edition, OLD.packaging_type)
+        IS DISTINCT FROM ROW(NEW.product_code, NEW.region, NEW.edition, NEW.packaging_type) THEN
+      DELETE FROM public.portfolio_items AS pi
+      WHERE pi.user_id=OLD.user_id AND pi.card_name=OLD.card_name
+        AND pi.series=COALESCE(OLD.series,'') AND pi.rarity=COALESCE(OLD.rarity,'N')
+        AND pi.product_code=COALESCE(OLD.product_code,'') AND pi.region=COALESCE(OLD.region,'UNKNOWN')
+        AND pi.edition=COALESCE(OLD.edition,'Unknown') AND pi.packaging_type=COALESCE(OLD.packaging_type,'card')
+        AND NOT EXISTS (
+          SELECT 1 FROM public.user_collections AS uc
+          WHERE uc.user_id=OLD.user_id AND uc.card_name=OLD.card_name
+            AND COALESCE(uc.series,'')=COALESCE(OLD.series,'')
+            AND COALESCE(uc.rarity,'N')=COALESCE(OLD.rarity,'N')
+            AND COALESCE(uc.product_code,'')=COALESCE(OLD.product_code,'')
+            AND COALESCE(uc.region,'UNKNOWN')=COALESCE(OLD.region,'UNKNOWN')
+            AND COALESCE(uc.edition,'Unknown')=COALESCE(OLD.edition,'Unknown')
+            AND COALESCE(uc.packaging_type,'card')=COALESCE(OLD.packaging_type,'card')
+        );
+    END IF;
+    RAISE EXCEPTION 'portfolio quantity sync failed for collection %', NEW.id;
   END IF;
-        WHERE uc.user_id=NEW.user_id AND uc.card_name=NEW.card_name
-          AND COALESCE(uc.series,'')=COALESCE(NEW.series,'') AND COALESCE(uc.rarity,'N')=COALESCE(NEW.rarity,'N')
-          AND COALESCE(uc.product_code,'')=COALESCE(NEW.product_code,'') AND COALESCE(uc.region,'UNKNOWN')=COALESCE(NEW.region,'UNKNOWN')
-          AND COALESCE(uc.edition,'Unknown')=COALESCE(NEW.edition,'Unknown') AND COALESCE(uc.packaging_type,'card')=COALESCE(NEW.packaging_type,'card'))
-  ) THEN RAISE EXCEPTION 'portfolio quantity sync failed for collection %', NEW.id; END IF;
   RETURN NEW;
 END;
 $$;
